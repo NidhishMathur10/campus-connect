@@ -12,9 +12,27 @@ const manrope = Manrope({
   display: "swap",
 });
 
+const TAGLINE = "Every campus complaint, tracked to resolution";
+const DESCRIPTION =
+  "Report campus issues in your own words, in Hindi or English. AI turns them into clear tickets, routes them to the right team and tracks them until they're fixed.";
+
+// Absolute base so link previews (WhatsApp, Slack...) get a full image URL.
+const siteUrl =
+  process.env.APP_URL?.trim() ||
+  (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : "http://localhost:3000");
+
 export const metadata: Metadata = {
-  title: { default: `${APP_NAME} · ${COLLEGE_NAME}`, template: `%s · ${APP_NAME}` },
-  description: "Report campus issues in your own words — AI turns them into clear, trackable tickets.",
+  metadataBase: new URL(siteUrl),
+  title: { default: `${APP_NAME} · ${TAGLINE}`, template: `%s · ${APP_NAME}` },
+  description: DESCRIPTION,
+  applicationName: APP_NAME,
+  openGraph: {
+    type: "website",
+    siteName: `${APP_NAME} · ${COLLEGE_NAME}`,
+    title: `${APP_NAME} — ${TAGLINE}`,
+    description: DESCRIPTION,
+  },
+  twitter: { card: "summary_large_image", title: `${APP_NAME} — ${TAGLINE}`, description: DESCRIPTION },
 };
 
 export const viewport: Viewport = {

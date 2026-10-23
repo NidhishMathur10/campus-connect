@@ -1,7 +1,10 @@
+import type { Metadata } from "next";
 import { TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/brand/logo";
 import { signOut } from "@/app/(auth)/actions";
+
+export const metadata: Metadata = { title: "Account not set up" };
 
 /** Shown when a user is signed in but has no profile row (setup problem). */
 export default function AccountIssuePage() {

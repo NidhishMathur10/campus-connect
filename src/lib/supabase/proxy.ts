@@ -52,7 +52,8 @@ export async function updateSession(request: NextRequest) {
   };
 
   if (!claims) {
-    return isPublic ? response : redirectTo("/login");
+    // "/" is the public landing page for signed-out visitors.
+    return isPublic || pathname === "/" ? response : redirectTo("/login");
   }
 
   const appMeta = (claims.app_metadata ?? {}) as { role?: unknown };

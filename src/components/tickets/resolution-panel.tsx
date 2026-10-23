@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { CheckCircle2, Loader2, RotateCcw, Star, ThumbsDown, ThumbsUp } from "lucide-react";
 import { toast } from "sonner";
+import { Confetti } from "@/components/common/celebrate";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { confirmFixed, reopenTicket } from "@/lib/tickets/actions";
@@ -34,7 +35,9 @@ export function ResolutionPanel({ ticketId }: { ticketId: string }) {
   }
 
   return (
-    <div className="animate-slide-up space-y-4 rounded-3xl border-2 border-success-fg/30 bg-success-bg p-5">
+    <div className="relative animate-slide-up space-y-4 rounded-3xl border-2 border-success-fg/30 bg-success-bg p-5">
+      <span aria-hidden="true" className="pointer-events-none absolute inset-0 animate-pulse-ring rounded-3xl" />
+      <Confetti count={26} className="top-6" />
       <div>
         <p className="eyebrow text-success-fg">Staff marked this resolved</p>
         <p className="mt-1 text-lg font-extrabold text-text">Is it fixed?</p>
@@ -70,7 +73,7 @@ export function ResolutionPanel({ ticketId }: { ticketId: string }) {
                   onClick={() => setRating(n)}
                   onMouseEnter={() => setHover(n)}
                   aria-label={`${n} star${n > 1 ? "s" : ""}`}
-                  className="p-1"
+                  className="rounded-full p-1.5 transition-transform hover:scale-110 active:scale-95"
                   disabled={pending}
                 >
                   <Star

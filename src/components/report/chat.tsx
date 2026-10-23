@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
-import { Loader2, SendHorizontal, Sparkles } from "lucide-react";
+import { Check, Loader2, SendHorizontal, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
@@ -51,40 +51,48 @@ export function Bubble({
   );
 }
 
-const STEPS_FIRST = [
-  "AI is reading your complaint…",
-  "Understanding the language…",
-  "Checking the routing guide…",
-  "Working out who should fix it…",
-];
-const STEPS_PHOTO = ["Looking at your photo…"];
-const STEPS_SECOND = ["Adding your answers…", "Updating the ticket…"];
+const STEPS_READ = "Reading your complaint…";
+const STEPS_PHOTO = "Checking the photo…";
+const STEPS_ROUTE = "Finding the right department…";
+const STEPS_SECOND = ["Adding your answers…", "Updating the ticket…", STEPS_ROUTE];
 
-/** The friendly "AI is reading your complaint…" animation. */
+/** Progress steps while the AI works: finished steps get a tick, the current one pulses. */
 export function AiThinking({ round, hasPhoto }: { round: 1 | 2; hasPhoto: boolean }) {
-  const steps =
-    round === 1 ? [STEPS_FIRST[0], ...(hasPhoto ? STEPS_PHOTO : []), ...STEPS_FIRST.slice(1)] : STEPS_SECOND;
+  const steps = round === 1 ? [STEPS_READ, ...(hasPhoto ? [STEPS_PHOTO] : []), STEPS_ROUTE] : STEPS_SECOND;
   const [i, setI] = useState(0);
   useEffect(() => {
-    const t = setInterval(() => setI((n) => Math.min(n + 1, steps.length - 1)), 1800);
+    const t = setInterval(() => setI((n) => Math.min(n + 1, steps.length - 1)), 2200);
     return () => clearInterval(t);
   }, [steps.length]);
 
   return (
     <div className="flex animate-fade-in items-end gap-2" role="status" aria-live="polite">
       <span className="relative grid size-8 shrink-0 place-items-center">
-        <span className="absolute inset-0 animate-ping rounded-full bg-accent-blue/30" />
+        <span className="absolute inset-0 animate-ping rounded-full bg-accent-blue/30 motion-reduce:hidden" />
         <AiAvatar />
       </span>
-      <div className="rounded-3xl rounded-bl-lg border border-border bg-surface-accent px-4 py-3 text-sm font-semibold text-text">
-        <span className="flex items-center gap-2">
-          <span className="flex gap-1">
-            {[0, 150, 300].map((d) => (
-              <span key={d} className="size-1.5 animate-bounce rounded-full bg-accent-blue" style={{ animationDelay: `${d}ms` }} />
-            ))}
-          </span>
-          <span key={i} className="animate-fade-in">{steps[i]}</span>
-        </span>
+      <div className="min-w-0 max-w-[85%] space-y-2 rounded-3xl rounded-bl-lg border border-border bg-surface-accent px-4 py-3 text-sm sm:max-w-[70%]">
+        <ul className="space-y-1.5">
+          {steps.slice(0, i + 1).map((step, n) => {
+            const done = n < i;
+            return (
+              <li key={step} className={cn("flex animate-fade-in items-center gap-2 font-semibold", done ? "text-text-muted" : "text-text")}>
+                {done ? (
+                  <Check className="size-4 shrink-0 text-success-fg" />
+                ) : (
+                  <Loader2 className="size-4 shrink-0 animate-spin text-accent-text" />
+                )}
+                {step}
+              </li>
+            );
+          })}
+        </ul>
+        <div className="h-1 overflow-hidden rounded-full bg-surface-accent-2" aria-hidden="true">
+          <div
+            className="h-full rounded-full bg-accent-blue transition-all duration-700"
+            style={{ width: `${Math.round(((i + 1) / (steps.length + 0.5)) * 100)}%` }}
+          />
+        </div>
       </div>
     </div>
   );

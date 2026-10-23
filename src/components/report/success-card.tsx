@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowRight, Check, Copy, Lock, PartyPopper, Plus, Users } from "lucide-react";
+import { ArrowRight, Check, Copy, Lock, Plus, Users } from "lucide-react";
 import { toast } from "sonner";
+import { AnimatedCheck } from "@/components/common/celebrate";
 import { Button } from "@/components/ui/button";
 
 export function SuccessCard({
@@ -36,11 +37,15 @@ export function SuccessCard({
 
   return (
     <div className="animate-slide-up overflow-hidden rounded-3xl bg-surface-inverse p-7 text-center text-text-inverse shadow-xl sm:p-10">
-      <div className="mx-auto grid size-16 place-items-center rounded-full bg-text-inverse/10">
-        {followed ? <Users className="size-8 text-info-on-inverse" /> : <PartyPopper className="size-8 text-info-on-inverse" />}
-      </div>
+      {followed ? (
+        <div className="mx-auto grid size-16 animate-pop place-items-center rounded-full bg-text-inverse/10">
+          <Users className="size-8 text-info-on-inverse" />
+        </div>
+      ) : (
+        <AnimatedCheck className="mx-auto" />
+      )}
       <p className="eyebrow mt-5 text-info-on-inverse">{followed ? "You're following" : "Ticket created"}</p>
-      <p className="mt-2 font-mono text-5xl font-extrabold tracking-tight sm:text-6xl">{ticketNo}</p>
+      <p className="mt-2 animate-slide-up font-mono text-5xl font-extrabold tracking-tight sm:text-6xl">{ticketNo}</p>
       <p className="mx-auto mt-3 max-w-md text-sm text-text-inverse-muted">
         {followed
           ? `You've been added to this ticket. Every update will show up in ${trackBase === "/reports" ? "My Reports" : "My Tickets"}.`

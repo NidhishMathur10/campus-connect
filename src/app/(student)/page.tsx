@@ -1,12 +1,16 @@
 import Link from "next/link";
 import { ArrowRight, Building2, GraduationCap, Lock, Search, ShieldCheck, Ticket } from "lucide-react";
 import { TrackBox } from "@/components/tickets/track-box";
-import { requireProfile } from "@/lib/auth";
+import { LandingPage } from "@/components/landing/landing-page";
+import { getCurrentProfile, requireProfile } from "@/lib/auth";
 import { COLLEGE_NAME } from "@/config/college";
 import { CATEGORY_STYLES } from "@/config/styles";
 import { HOSTEL_CATEGORIES, ACADEMIC_CATEGORIES } from "@/config/routing";
 
 export default async function StudentHome() {
+  // Signed-out visitors get the public landing page; everyone else goes to their role home.
+  const { userId } = await getCurrentProfile();
+  if (!userId) return <LandingPage />;
   const profile = await requireProfile(["student"]);
   const firstName = profile.full_name.split(" ")[0];
 

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Bell, BadgeCheck, MessageSquare, Ticket } from "lucide-react";
+import { Bell, BellOff, BadgeCheck, MessageSquare, Ticket } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { createClient } from "@/lib/supabase/client";
 import { timeAgo } from "@/lib/format";
@@ -53,7 +53,7 @@ export function NotificationBell({ userId, align = "end" }: { userId: string; al
   return (
     <DropdownMenu onOpenChange={(open) => !open && void markAllRead()}>
       <DropdownMenuTrigger className="relative grid size-10 place-items-center rounded-full text-text-muted outline-none hover:bg-surface-2 focus-visible:ring-3 focus-visible:ring-ring/50">
-        <Bell className="size-5" />
+        <Bell className="size-5" aria-hidden="true" />
         {unread > 0 && (
           <span className="absolute top-1 right-1 grid min-w-4.5 place-items-center rounded-full bg-danger-solid px-1 text-[10px] font-bold text-danger-solid-fg">
             {unread > 9 ? "9+" : unread}
@@ -65,7 +65,13 @@ export function NotificationBell({ userId, align = "end" }: { userId: string; al
         <DropdownMenuLabel className="px-2 py-1.5 text-sm font-bold text-text">Notifications</DropdownMenuLabel>
         <DropdownMenuSeparator />
         {items.length === 0 ? (
-          <p className="px-3 py-6 text-center text-sm text-text-muted">Nothing yet — answers to your questions and ticket updates show up here.</p>
+          <div className="flex flex-col items-center px-3 py-8 text-center">
+            <span className="mb-3 grid size-12 place-items-center rounded-2xl bg-surface-accent text-accent-text">
+              <BellOff className="size-6" />
+            </span>
+            <p className="text-sm font-bold text-text">You&apos;re all caught up</p>
+            <p className="mt-1 text-xs text-text-muted">Ticket updates and answers to your questions will show up here.</p>
+          </div>
         ) : (
           <ul className="max-h-96 space-y-0.5 overflow-y-auto">
             {items.map((n) => {

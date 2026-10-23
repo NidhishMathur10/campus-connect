@@ -14,13 +14,13 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
   return (
     <div className="grid min-h-dvh lg:grid-cols-[1fr_1.1fr]">
       {/* Brand panel (laptop) */}
-      <aside className="relative hidden overflow-hidden bg-surface-inverse p-12 text-text-inverse lg:flex lg:flex-col">
+      <aside className="relative hidden overflow-hidden bg-surface-inverse p-12 text-text-inverse lg:flex lg:flex-col lg:justify-center">
         <div className="absolute -top-24 -right-24 size-96 rounded-full border-[40px] border-accent-blue/20" />
         <div className="absolute -bottom-32 -left-16 size-96 rounded-full border-[40px] border-accent-violet/20" />
-        <div className="relative inline-flex w-fit items-center gap-2 rounded-full bg-surface px-4 py-2">
+        <div className="absolute top-12 left-12 inline-flex w-fit items-center gap-2 rounded-full bg-surface px-4 py-2">
           <Logo />
         </div>
-        <div className="relative my-auto w-full max-w-xl space-y-6 py-10">
+        <div className="relative w-full max-w-xl space-y-6 py-10">
           <p className="eyebrow text-info-on-inverse">{COLLEGE_NAME}</p>
           <h2 className="text-4xl leading-tight font-extrabold tracking-tight xl:text-5xl">
             Say what&apos;s wrong in your own words. We&apos;ll make it a ticket.

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import {
   ArrowBigUp,
   BadgeCheck,
@@ -70,22 +70,32 @@ function useRun() {
 }
 
 function VoteButton({ count, voted, disabled, onClick, busy, label }: { count: number; voted: boolean; disabled?: boolean; onClick: () => void; busy: boolean; label: string }) {
+  // Optimistic: flip instantly on click; drop the guess once the server round-trip is over (success or failure).
+  const [guess, setGuess] = useState<{ voted: boolean; count: number } | null>(null);
+  useEffect(() => {
+    if (!busy) setGuess(null);
+  }, [busy]);
+  const shown = guess ?? { voted, count };
+
   return (
     <button
       type="button"
-      onClick={onClick}
+      onClick={() => {
+        setGuess({ voted: !voted, count: count + (voted ? -1 : 1) });
+        onClick();
+      }}
       disabled={disabled || busy}
-      aria-pressed={voted}
-      aria-label={label}
+      aria-pressed={shown.voted}
+      aria-label={`${label} (${shown.count})`}
       title={disabled ? "You can't upvote your own post" : label}
       className={cn(
-        "flex w-12 shrink-0 flex-col items-center rounded-2xl border px-2 py-1.5 transition-colors disabled:cursor-not-allowed",
-        voted ? "border-accent-blue bg-surface-accent-2 text-accent-text" : "border-border bg-surface text-text-muted hover:border-accent-blue hover:text-accent-text",
+        "flex min-h-14 w-12 shrink-0 flex-col items-center rounded-2xl border px-2 py-1.5 transition-all active:scale-95 disabled:cursor-not-allowed",
+        shown.voted ? "border-accent-blue bg-surface-accent-2 text-accent-text" : "border-border bg-surface text-text-muted hover:border-accent-blue hover:text-accent-text",
         disabled && "opacity-60 hover:border-border hover:text-text-muted",
       )}
     >
-      {busy ? <Loader2 className="size-5 animate-spin" /> : <ArrowBigUp className={cn("size-5", voted && "fill-current")} />}
-      <span className="text-sm font-extrabold">{count}</span>
+      <ArrowBigUp key={String(shown.voted)} className={cn("size-5", shown.voted && "animate-pop fill-current")} />
+      <span className="text-sm font-extrabold">{shown.count}</span>
     </button>
   );
 }

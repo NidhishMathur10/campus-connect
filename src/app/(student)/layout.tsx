@@ -1,8 +1,11 @@
 import { StudentShell } from "@/components/shell/student-shell";
-import { requireProfile } from "@/lib/auth";
+import { getCurrentProfile } from "@/lib/auth";
 
+/** Signed-in students get the app shell; signed-out visitors see the bare landing page at "/". */
 export default async function StudentLayout({ children }: { children: React.ReactNode }) {
-  const profile = await requireProfile(["student"]);
+  const { userId, profile } = await getCurrentProfile();
+  if (!userId) return children;
+  if (!profile || profile.role !== "student") return children; // the page redirects
   const subtitle = [profile.hostel, profile.wing, profile.room && `Room ${profile.room}`]
     .filter(Boolean)
     .join(" · ");

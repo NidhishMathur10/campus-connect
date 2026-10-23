@@ -83,7 +83,32 @@ ${theme.join("\n")}
 
   --animate-fade-in: fade-in 0.4s ease-out both;
   --animate-slide-up: slide-up 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-page-in: page-in 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-pop: pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  --animate-draw: draw 0.5s 0.25s ease-out both;
+  --animate-pulse-ring: pulse-ring 1.6s ease-out 2;
+  --animate-confetti: confetti 1.6s cubic-bezier(0.22, 0.8, 0.4, 1) forwards;
 
+  @keyframes page-in {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes pop {
+    0% { opacity: 0; transform: scale(0.4); }
+    100% { opacity: 1; transform: scale(1); }
+  }
+  @keyframes draw {
+    from { stroke-dashoffset: 30; }
+    to { stroke-dashoffset: 0; }
+  }
+  @keyframes pulse-ring {
+    0% { box-shadow: 0 0 0 0 var(--glow); }
+    100% { box-shadow: 0 0 0 18px transparent; }
+  }
+  @keyframes confetti {
+    0% { opacity: 1; transform: translate(0, 0) rotate(0deg) scale(1); }
+    100% { opacity: 0; transform: translate(var(--cx), var(--cy)) rotate(var(--cr)) scale(0.8); }
+  }
   @keyframes fade-in {
     from { opacity: 0; }
     to { opacity: 1; }
@@ -127,6 +152,39 @@ ${block(1)}
   button:not(:disabled),
   [role="button"]:not(:disabled) {
     cursor: pointer;
+  }
+  /* Visible keyboard focus everywhere (components with their own ring keep it). */
+  a:focus-visible,
+  summary:focus-visible,
+  [role="button"]:focus-visible,
+  [tabindex]:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+  html {
+    scroll-behavior: smooth;
+  }
+  /* Touch screens: 44px minimum tap targets for form controls and buttons. */
+  @media (pointer: coarse) {
+    [data-slot="button"],
+    [data-slot="select-trigger"],
+    [data-slot="tabs-trigger"],
+    input:not([type="checkbox"]):not([type="radio"]):not([type="file"]) {
+      min-height: 44px;
+    }
+    [data-slot="button"][data-size^="icon"] {
+      min-width: 44px;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-delay: 0ms !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
   ::placeholder {
     color: var(--placeholder);
