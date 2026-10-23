@@ -1,4 +1,3 @@
-import { Sparkles } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
 import { COLLEGE_NAME } from "@/config/college";
 
@@ -21,10 +20,6 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
             Hindi or English, with a photo or without — Gemini turns your complaint into a clear,
             routed, trackable ticket.
           </p>
-          <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-sm font-semibold">
-            <Sparkles className="size-4 text-sky-300" />
-            Powered by Google Gemini
-          </div>
         </div>
       </aside>
 
