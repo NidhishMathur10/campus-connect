@@ -183,5 +183,5 @@ export interface DuplicateMatch {
 }
 
 export type DuplicateResponse =
-  | { ok: true; match: DuplicateMatch | null; checked: number }
+  | { ok: true; match: DuplicateMatch | null; checked: number; method?: "gemini" | "keyword"; model?: string | null }
   | { ok: false; error: string };

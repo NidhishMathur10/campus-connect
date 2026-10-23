@@ -19,13 +19,16 @@ import type {
 import { formatLocation } from "@/lib/format";
 import { createTicket, followTicket } from "@/lib/tickets/actions";
 import { AiThinking, Bubble, ChatReply } from "./chat";
-import { DuplicateDialog } from "./duplicate-dialog";
+import { SimilarTicketCard } from "./similar-ticket-card";
 import { PreviewCard, type TicketDraft } from "./preview-card";
 import { hostelDraft, type OwnRoom } from "./hostel-place";
 import { EMPTY_DRAFT, ReportForm, type ReportDraft } from "./report-form";
 import { SuccessCard } from "./success-card";
 
 type Phase = "form" | "chat" | "preview" | "success";
+
+/** What the duplicate check found, and which path (Gemini or keyword fallback) produced it. */
+type DupResult = { match: DuplicateMatch | null; method: "gemini" | "keyword"; model: string | null };
 
 const HAZARD_WORDS = /spark|short.?circuit|fire|smoke|burning|gas smell|exposed wire|current|shock|करंट|आग|धुआ|चिंगारी/i;
 const DEVANAGARI = /[ऀ-ॿ]/;
@@ -169,7 +172,10 @@ export function ReportFlow({
   const [ticket, setTicket] = useState<TicketDraft | null>(null);
   const [aiFailed, setAiFailed] = useState(false);
   const [checkingDup, setCheckingDup] = useState(false);
-  const [match, setMatch] = useState<DuplicateMatch | null>(null);
+  /** Result of the "already reported?" check for the ticket currently shown in the preview. */
+  const [dup, setDup] = useState<{ key: string; checking: boolean; result: DupResult | null } | null>(null);
+  const checks = useRef(new Map<string, Promise<DupResult | null>>());
+  const match = dup && !dup.checking ? (dup.result?.match ?? null) : null;
   const [choiceBusy, setChoiceBusy] = useState<"metoo" | "new" | null>(null);
   const [result, setResult] = useState<{ ticketNo: string; followed: boolean } | null>(null);
   const busy = useRef(false); // hard guard against double submits
@@ -308,7 +314,8 @@ export function ReportFlow({
     setRound1(null);
     setFinalAnalysis(null);
     setReply(null);
-    setMatch(null);
+    setDup(null);
+    checks.current.clear();
   }
 
   function reset() {
@@ -320,18 +327,18 @@ export function ReportFlow({
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
-  async function confirm() {
-    if (busy.current || !ticket?.category) return;
-    busy.current = true;
-    setCheckingDup(true);
-    try {
-      // Safety reports skip duplicate detection entirely.
-      if (isSecurity) {
-        await create(null);
-        return;
-      }
+  /** Same place + category + wording = same answer, so a repeat of the same preview reuses the result. */
+  const dupKey =
+    phase === "preview" && ticket?.category && !isSecurity
+      ? JSON.stringify([ticket.category, ticket.location, ticket.scope, ticket.title, ticket.summary])
+      : null;
+
+  function runDupCheck(): Promise<DupResult | null> | null {
+    if (!dupKey || !ticket?.category) return null;
+    let promise = checks.current.get(dupKey);
+    if (!promise) {
       const body: DuplicateRequest = {
-        module,
+        module: module as DuplicateRequest["module"],
         category: ticket.category,
         building: ticket.location.building,
         floor: ticket.location.floor,
@@ -342,19 +349,53 @@ export function ReportFlow({
         summary: ticket.summary,
         english_text: ticket.english_text ?? draft.text,
       };
-      const res = await postJson<DuplicateResponse>("/api/ai/duplicates", body, 25_000);
-      if (res?.ok && res.match) {
-        setMatch(res.match);
+      const key = dupKey;
+      promise = postJson<DuplicateResponse>("/api/ai/duplicates", body, 25_000).then((res) => {
+        if (res?.ok) return { match: res.match, method: res.method ?? "gemini", model: res.model ?? null };
+        checks.current.delete(key); // failed: let the next attempt (e.g. on Confirm) try again
+        return null;
+      });
+      checks.current.set(dupKey, promise);
+    }
+    return promise;
+  }
+
+  // Check for a similar open ticket as soon as the preview is shown (and again if the category changes).
+  useEffect(() => {
+    if (!dupKey) {
+      setDup(null);
+      return;
+    }
+    let cancelled = false;
+    setDup({ key: dupKey, checking: true, result: null });
+    void runDupCheck()?.then((result) => {
+      if (!cancelled) setDup({ key: dupKey, checking: false, result });
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- dupKey captures everything the check reads
+  }, [dupKey]);
+
+  async function confirm() {
+    if (busy.current || !ticket?.category) return;
+    busy.current = true;
+    setCheckingDup(true);
+    try {
+      // Safety reports skip duplicate detection entirely. A failed check never blocks the student.
+      const result = isSecurity ? null : await (runDupCheck() ?? null);
+      if (result?.match) {
+        setDup({ key: dupKey ?? "", checking: false, result });
         return;
       }
-      await create(null);
+      await create(null, result);
     } finally {
       setCheckingDup(false);
       busy.current = false;
     }
   }
 
-  async function create(dup: DuplicateMatch | null) {
+  async function create(dupOf: DuplicateMatch | null, check: DupResult | null) {
     if (!ticket?.category) return;
     const res = await createTicket({
       module,
@@ -386,13 +427,14 @@ export function ReportFlow({
             ai_category: finalAnalysis.category,
           }
         : null,
-      duplicate: dup ? { ticket_id: dup.id, similarity: dup.similarity, reason: dup.reason } : null,
+      duplicate: dupOf ? { ticket_id: dupOf.id, similarity: dupOf.similarity, reason: dupOf.reason } : null,
+      duplicate_check: check ? { method: check.method, model: check.model } : null,
     });
     if (!res.ok) {
       toast.error(res.error);
       return;
     }
-    setMatch(null);
+    setDup(null);
     setResult({ ticketNo: res.ticket_no, followed: false });
     setPhase("success");
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -403,7 +445,7 @@ export function ReportFlow({
     busy.current = true;
     setChoiceBusy("new");
     try {
-      await create(match);
+      await create(match, dup?.result ?? null);
     } finally {
       setChoiceBusy(null);
       busy.current = false;
@@ -420,7 +462,7 @@ export function ReportFlow({
         toast.error(res.error);
         return;
       }
-      setMatch(null);
+      setDup(null);
       setResult({ ticketNo: res.ticket_no, followed: true });
       setPhase("success");
       window.scrollTo({ top: 0, behavior: "smooth" });
@@ -528,19 +570,24 @@ export function ReportFlow({
             onConfirm={confirm}
             onEdit={editComplaint}
             busy={checkingDup || !!choiceBusy}
+            confirmBlocked={match ? "Choose an option in the card above first." : undefined}
+            notice={
+              !isSecurity && dup ? (
+                <SimilarTicketCard
+                  checking={dup.checking}
+                  match={match}
+                  onMeToo={meToo}
+                  onSubmitNew={submitAsNew}
+                  busy={choiceBusy}
+                />
+              ) : null
+            }
           />
         </>
       )}
 
       <div ref={bottomRef} />
 
-      <DuplicateDialog
-        match={match}
-        onMeToo={meToo}
-        onSubmitNew={submitAsNew}
-        onClose={() => setMatch(null)}
-        busy={choiceBusy}
-      />
     </div>
   );
 }

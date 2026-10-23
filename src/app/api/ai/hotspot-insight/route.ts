@@ -7,7 +7,7 @@ import { insightsModule } from "@/lib/insights";
 import { ESCALATION_RULES } from "@/config/statuses";
 import { createAdminClient } from "@/lib/supabase/admin";
 
-const BodySchema = z.object({ key: z.string().min(5).max(200), days: z.union([z.literal(7), z.literal(30)]).default(30) });
+const BodySchema = z.object({ key: z.string().min(5).max(200), days: z.union([z.literal(7), z.literal(30)]).default(30), force: z.boolean().optional() });
 
 /** POST /api/ai/hotspot-insight — one-line Gemini recommendation for a hotspot, cached in hotspot_insights. */
 export async function POST(request: Request) {
@@ -17,7 +17,7 @@ export async function POST(request: Request) {
 
   const parsed = BodySchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ ok: false, error: "Missing hotspot key." }, { status: 400 });
-  const { key, days } = parsed.data;
+  const { key, days, force } = parsed.data;
   const { module, category, building, floor, room, area, floorLevel } = parseHotspotKey(key);
   if (module !== "hostel" && module !== "academic") return NextResponse.json({ ok: false, error: "Bad key." }, { status: 400 });
   if (scope && scope !== module) return NextResponse.json({ ok: false, error: "Not allowed." }, { status: 403 });
@@ -44,6 +44,18 @@ export async function POST(request: Request) {
   const cur = rows.filter((t) => new Date(t.created_at).getTime() >= now - span * 86_400_000);
   const prev = rows.length - cur.length;
   if (cur.length === 0) return NextResponse.json({ ok: false, error: "No recent tickets for this hotspot." });
+
+  // Cached: only ask Gemini again when the ticket count changed, or on the Refresh button.
+  if (!force) {
+    const { data: cached } = await admin
+      .from("hotspot_insights")
+      .select("recommendation, ticket_count")
+      .eq("hotspot_key", key)
+      .maybeSingle();
+    if (cached && cached.ticket_count === cur.length) {
+      return NextResponse.json({ ok: true, recommendation: cached.recommendation, ai: true, cached: true });
+    }
+  }
 
   const res = await hotspotInsight({
     label: hotspotLabel(key),

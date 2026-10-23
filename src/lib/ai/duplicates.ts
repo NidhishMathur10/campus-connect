@@ -1,7 +1,7 @@
 import "server-only";
 import { z } from "zod";
 import { normaliseRoom, type TicketScope } from "@/config/locations";
-import { ESCALATION_RULES } from "@/config/statuses";
+import { ESCALATION_RULES, OPEN_STATUSES } from "@/config/statuses";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { generateStructured } from "./gemini";
 import type { DuplicateMatch, DuplicateRequest } from "./complaint";
@@ -16,6 +16,9 @@ const CompareSchema = z.object({
     }),
   ),
 });
+
+/** Keyword-overlap score (0-1) needed to call two reports duplicates when Gemini is unavailable. */
+const KEYWORD_THRESHOLD = 0.5;
 
 /** Below this the student isn't bothered with the "already reported?" prompt. */
 const PROMPT_THRESHOLD = 0.5;
@@ -67,6 +70,34 @@ function describePlace(t: { building?: string | null; floor?: string | null; roo
   return `${where || "location unknown"}${scope}`;
 }
 
+const STOPWORDS = new Set(
+  "a an the is are was were be been am in on at of to for from with and or but not no my our your their its it this that these those there here has have had do does did i we you they me us room hostel please very too also still since again just need needs needed get got issue problem complaint report reported broken".split(" "),
+);
+
+/** Lower-case word set with a crude plural strip, so "hooks" matches "hook". */
+function keywords(text: string): Set<string> {
+  const words = (text.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [])
+    .map((w) => (w.length > 3 && w.endsWith("s") && !w.endsWith("ss") ? w.slice(0, -1) : w))
+    .filter((w) => w.length > 1 && !STOPWORDS.has(w));
+  return new Set(words);
+}
+
+/** Overlap coefficient: shared words / words in the shorter text. */
+export function keywordOverlap(a: string, b: string): number {
+  const A = keywords(a);
+  const B = keywords(b);
+  if (A.size === 0 || B.size === 0) return 0;
+  let shared = 0;
+  for (const w of A) if (B.has(w)) shared++;
+  return shared / Math.min(A.size, B.size);
+}
+
+type Scored = { row: CandidateRow; similarity: number; reason: string; isDuplicate: boolean };
+
+const devLog = (...args: unknown[]) => {
+  if (process.env.NODE_ENV !== "production") console.log("[duplicates]", ...args);
+};
+
 /**
  * CLAUDE.md §6.4 — DB candidates (same module + category + building [+ floor], still open,
  * last 7 days), then Gemini judges each one. Returns the best likely match, or null.
@@ -75,7 +106,10 @@ function describePlace(t: { building?: string | null; floor?: string | null; roo
 export async function findDuplicates(
   req: DuplicateRequest,
   userId: string,
-): Promise<{ ok: true; match: DuplicateMatch | null; checked: number } | { ok: false; error: string }> {
+): Promise<
+  | { ok: true; match: DuplicateMatch | null; checked: number; method: "gemini" | "keyword"; model: string | null }
+  | { ok: false; error: string }
+> {
   const admin = createAdminClient();
   const since = new Date(Date.now() - ESCALATION_RULES.duplicateWindowDays * 86_400_000).toISOString();
 
@@ -84,7 +118,7 @@ export async function findDuplicates(
     .select("id, ticket_no, reporter_id, title, summary, english_text, status, photo_url, building, floor, room_no, scope, spot, created_at")
     .eq("module", req.module)
     .eq("category", req.category)
-    .not("status", "in", "(Resolved,Closed,Merged)")
+    .in("status", OPEN_STATUSES)
     // Point students at the original report, not at tickets already flagged as copies.
     .not("duplicate_status", "in", "(flagged,merged)")
     .gte("created_at", since)
@@ -97,15 +131,21 @@ export async function findDuplicates(
   const candidates = ((data ?? []) as CandidateRow[])
     .filter((c) => sharesPlace({ floor: req.floor, room_no: req.room_no, scope: req.scope }, c))
     .slice(0, MAX_CANDIDATES);
-  if (candidates.length === 0) return { ok: true, match: null, checked: 0 };
+  if (candidates.length === 0) return { ok: true, match: null, checked: 0, method: "gemini", model: null };
+
+  const text = (t: { title: string; summary: string | null; english_text?: string | null }) =>
+    `${t.title} ${t.summary ?? t.english_text ?? ""}`;
+  const freshText = `${req.title} ${req.summary}`;
+
+  // 1. Gemini compares every candidate. 2. If it fails (quota, 503, bad JSON) fall back to keywords.
+  let method: "gemini" | "keyword" = "gemini";
+  let model: string | null = null;
+  let scored: Scored[];
+  let geminiError: string | null = null;
 
   const list = candidates
-    .map(
-      (c) =>
-        `- ${c.ticket_no} | ${c.title} | ${describePlace(c)} | ${c.summary ?? c.english_text ?? ""}`,
-    )
+    .map((c) => `- ${c.ticket_no} | ${c.title} | ${describePlace(c)} | ${c.summary ?? c.english_text ?? ""}`)
     .join("\n");
-
   const result = await generateStructured({
     schema: CompareSchema,
     system:
@@ -113,13 +153,48 @@ export async function findDuplicates(
     prompt: `NEW COMPLAINT\nTitle: ${req.title}\nLocation: ${describePlace(req)}\nSummary: ${req.summary}\nText: ${req.english_text}\n\nEXISTING OPEN TICKETS (same category and building):\n${list}`,
     timeoutMs: 20_000,
   });
-  if (!result.ok) return { ok: false, error: result.error };
 
-  const best = result.data.results
-    .filter((r) => r.is_duplicate && r.similarity >= PROMPT_THRESHOLD)
-    .sort((a, b) => b.similarity - a.similarity)[0];
-  const row = best && candidates.find((c) => c.ticket_no === best.ticket_no.trim());
-  if (!best || !row) return { ok: true, match: null, checked: candidates.length };
+  if (result.ok) {
+    model = result.model;
+    const byNo = new Map(result.data.results.map((r) => [r.ticket_no.trim(), r]));
+    scored = candidates.map((row) => {
+      const r = byNo.get(row.ticket_no);
+      return {
+        row,
+        similarity: r?.similarity ?? 0,
+        reason: r?.reason ?? "",
+        isDuplicate: !!r && r.is_duplicate && r.similarity >= PROMPT_THRESHOLD,
+      };
+    });
+  } else {
+    method = "keyword";
+    geminiError = result.error;
+    scored = candidates.map((row) => {
+      const similarity = Math.round(keywordOverlap(freshText, text(row)) * 100) / 100;
+      return {
+        row,
+        similarity,
+        reason: "Same place and category, and the descriptions share many of the same words.",
+        isDuplicate: similarity >= KEYWORD_THRESHOLD,
+      };
+    });
+  }
+
+  devLog(`method=${method}${model ? ` model=${model}` : ""}${geminiError ? ` (gemini failed: ${geminiError.slice(0, 120)})` : ""}`);
+  devLog("new:", `${req.category} | ${describePlace(req)} | ${freshText}`);
+  for (const sc of scored) {
+    devLog(`  ${sc.row.ticket_no} [${sc.row.status}] sim=${sc.similarity} dup=${sc.isDuplicate} own=${sc.row.reporter_id === userId} - ${sc.reason}`);
+  }
+
+  // The student's own ticket wins ("You already reported this"), then the most similar one.
+  const best = scored
+    .filter((x) => x.isDuplicate)
+    .sort(
+      (a, b) =>
+        Number(b.row.reporter_id === userId) - Number(a.row.reporter_id === userId) || b.similarity - a.similarity,
+    )[0];
+  if (!best) return { ok: true, match: null, checked: candidates.length, method, model };
+  const row = best.row;
 
   const { data: follow } = await admin
     .from("ticket_followers")
@@ -131,6 +206,8 @@ export async function findDuplicates(
   return {
     ok: true,
     checked: candidates.length,
+    method,
+    model,
     match: {
       id: row.id,
       ticket_no: row.ticket_no,

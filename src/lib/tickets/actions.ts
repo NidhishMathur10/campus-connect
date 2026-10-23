@@ -81,6 +81,11 @@ const CreateTicketSchema = z.object({
   duplicate: z
     .object({ ticket_id: z.uuid(), similarity: z.number().min(0).max(1), reason: z.string() })
     .nullable(),
+  /** Which path the pre-submit duplicate check took (kept in ai_meta). Null if it never ran. */
+  duplicate_check: z
+    .object({ method: z.enum(["gemini", "keyword"]), model: z.string().nullable() })
+    .nullable()
+    .default(null),
 });
 export type CreateTicketInput = z.input<typeof CreateTicketSchema>;
 
@@ -146,6 +151,11 @@ export async function createTicket(
       }
     : { model: "manual", is_safety_hazard: t.is_safety_hazard, manual_entry: true };
   if (isSecurity) Object.assign(aiMeta, { is_emergency: t.is_emergency });
+  if (t.duplicate_check) {
+    Object.assign(aiMeta, {
+      duplicate_check: { ...t.duplicate_check, matched: dup ? t.duplicate?.ticket_id : null },
+    });
+  }
 
   // Confidential Security Office reports are only visible to the ASSIGNED security
   // officer (RLS), so give them to one straight away.

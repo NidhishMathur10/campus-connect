@@ -11,12 +11,12 @@ import type { Hotspot } from "@/lib/insights";
 import { timeAgo } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-async function fetchInsight(key: string, days: number): Promise<{ ok: boolean; recommendation?: string; error?: string }> {
+async function fetchInsight(key: string, days: number, force: boolean): Promise<{ ok: boolean; recommendation?: string; error?: string }> {
   try {
     const res = await fetch("/api/ai/hotspot-insight", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ key, days }),
+      body: JSON.stringify({ key, days, force }),
     });
     return await res.json();
   } catch {
@@ -38,7 +38,7 @@ export function Hotspots({ hotspots, days }: { hotspots: Hotspot[]; days: number
 
   async function generate(key: string, manual: boolean) {
     setLoading((l) => ({ ...l, [key]: true }));
-    const res = await fetchInsight(key, days);
+    const res = await fetchInsight(key, days, manual);
     setLoading((l) => ({ ...l, [key]: false }));
     if (res.recommendation) setRecs((r) => ({ ...r, [key]: res.recommendation! }));
     if (manual) {

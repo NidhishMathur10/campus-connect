@@ -54,6 +54,8 @@ export function PreviewCard({
   onConfirm,
   onEdit,
   busy,
+  notice,
+  confirmBlocked,
 }: {
   module: TicketModule;
   draft: TicketDraft;
@@ -65,6 +67,10 @@ export function PreviewCard({
   onConfirm: () => void;
   onEdit: () => void;
   busy: boolean;
+  /** Shown above the buttons (the "similar open ticket found" card). */
+  notice?: React.ReactNode;
+  /** When set, Confirm is disabled and this text explains why. */
+  confirmBlocked?: string;
 }) {
   const manual = !draft.ai;
   const aiCategory = draft.ai && draft.category === draft.ai.category;
@@ -196,11 +202,18 @@ export function PreviewCard({
           </p>
         )}
 
+        {notice}
+
         <div className="flex flex-col-reverse gap-2 pt-1 sm:flex-row sm:justify-end">
           <Button variant="outline" size="lg" onClick={onEdit} disabled={busy}>
             <Pencil /> Edit complaint
           </Button>
-          <Button size="lg" onClick={onConfirm} disabled={busy || !draft.category || draft.title.trim().length < 2}>
+          <Button
+            size="lg"
+            onClick={onConfirm}
+            title={confirmBlocked}
+            disabled={busy || !!confirmBlocked || !draft.category || draft.title.trim().length < 2}
+          >
             {busy ? <Loader2 className="animate-spin" /> : <CheckCircle2 />}
             {busy ? "Checking…" : "Confirm & submit"}
           </Button>

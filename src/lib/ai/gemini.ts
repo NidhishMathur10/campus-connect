@@ -2,12 +2,27 @@ import "server-only";
 import { GoogleGenAI, HarmBlockThreshold, HarmCategory, ThinkingLevel, type Part, type SafetySetting } from "@google/genai";
 import { z } from "zod";
 
-/** Model from env, defaulting to Google's alias for the newest Flash model. */
-export const GEMINI_MODEL = process.env.GEMINI_MODEL?.trim() || "gemini-flash-latest";
+/** "models/gemini-x" -> "gemini-x" (the SDK adds the prefix itself). */
+const cleanModel = (m: string) => m.trim().replace(/^models\//, "");
 
-/** Used when the main model is overloaded (503) or too slow. */
-export const GEMINI_FALLBACK_MODEL =
-  process.env.GEMINI_FALLBACK_MODEL?.trim() || "gemini-flash-lite-latest";
+/** Primary model from GEMINI_MODEL, defaulting to Google's alias for the newest Flash model. */
+export const GEMINI_MODEL = cleanModel(process.env.GEMINI_MODEL ?? "") || "gemini-flash-latest";
+
+/**
+ * Tried in order when the primary model is rate-limited or overloaded.
+ * GEMINI_FALLBACK_MODELS is comma-separated; the older single GEMINI_FALLBACK_MODEL still works.
+ */
+export const GEMINI_FALLBACK_MODELS: string[] = (
+  process.env.GEMINI_FALLBACK_MODELS ?? process.env.GEMINI_FALLBACK_MODEL ?? "gemini-flash-lite-latest"
+)
+  .split(",")
+  .map(cleanModel)
+  .filter(Boolean);
+
+/** Primary first, then fallbacks, without repeats. */
+export const GEMINI_MODEL_CHAIN: string[] = [GEMINI_MODEL, ...GEMINI_FALLBACK_MODELS].filter(
+  (m, i, all) => all.indexOf(m) === i,
+);
 
 const DEFAULT_TIMEOUT_MS = 20_000;
 
@@ -48,13 +63,20 @@ const RELAXED_SAFETY: SafetySetting[] = [
   HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
 ].map((category) => ({ category, threshold: HarmBlockThreshold.BLOCK_NONE }));
 
+/** Errors that mean "this model is busy / out of quota right now" (worth a retry, then the next model). */
+const UNAVAILABLE = /429|503|RESOURCE_EXHAUSTED|UNAVAILABLE|overloaded|quota|high demand|timed out/i;
+/** Errors that mean the model name itself is wrong or unusable: skip straight to the next model. */
+const BAD_MODEL = /404|NOT_FOUND|not found|not supported/i;
+const RETRY_DELAY_MS = 800;
+
 /**
- * When the main model is rate-limited (free tier: ~20 requests/day), overloaded or timing
- * out, skip it for a few minutes so students don't wait for a doomed first attempt.
+ * Models that just failed with a quota / overload error are skipped for a few minutes so
+ * students don't wait for a doomed first attempt.
  */
-const PRIMARY_COOLDOWN_MS = 5 * 60_000;
-const UNAVAILABLE = /429|503|RESOURCE_EXHAUSTED|UNAVAILABLE|quota|high demand|timed out/i;
-let primaryCooldownUntil = 0;
+const COOLDOWN_MS = 2 * 60_000;
+const cooldownUntil = new Map<string, number>();
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 type Attempt<T> = { ok: true; data: T } | { ok: false; error: string };
 
@@ -120,32 +142,41 @@ async function attempt<S extends z.ZodType>(
 
 /**
  * Calls Gemini with structured JSON output and returns typed, validated data.
- * Tries GEMINI_MODEL first; if it is overloaded, slow or returns bad JSON, retries once
- * on GEMINI_FALLBACK_MODEL within the same overall time budget.
- * Never throws: on failure you get { ok: false, error, fallback }.
+ * Walks GEMINI_MODEL then GEMINI_FALLBACK_MODELS. On 429 / RESOURCE_EXHAUSTED / 503 / overloaded
+ * a model is retried once after a short delay before moving on. `model` in the result is the
+ * model that actually answered. Never throws: on failure you get { ok: false, error, fallback }.
  */
 export async function generateStructured<S extends z.ZodType>(
   opts: StructuredOptions<S>,
 ): Promise<AiResult<z.infer<S>>> {
   const started = Date.now();
   const budget = opts.timeoutMs ?? DEFAULT_TIMEOUT_MS;
-  const skipPrimary = Date.now() < primaryCooldownUntil;
-  const models = [skipPrimary ? "" : GEMINI_MODEL, GEMINI_FALLBACK_MODEL].filter(
-    (m, i, all) => m && all.indexOf(m) === i,
-  );
+  const now = Date.now();
+  // Skip models in cooldown, but never end up with nothing to try.
+  const ready = GEMINI_MODEL_CHAIN.filter((m) => (cooldownUntil.get(m) ?? 0) <= now);
+  const models = ready.length > 0 ? ready : GEMINI_MODEL_CHAIN;
   const errors: string[] = [];
 
   for (let i = 0; i < models.length; i++) {
-    const remaining = budget - (Date.now() - started);
-    if (remaining < 3_000) break;
-    // Give the primary model ~55% of the budget so the fallback still has time.
-    const slice = i < models.length - 1 ? Math.round(remaining * 0.55) : remaining;
-    const res = await attempt(models[i], opts, slice);
-    if (res.ok) return { ok: true, data: res.data, model: models[i], ms: Date.now() - started };
-    errors.push(`${models[i]}: ${res.error}`);
-    console.error("[gemini]", models[i], res.error.slice(0, 300));
-    if (models[i] === GEMINI_MODEL && models.length > 1 && UNAVAILABLE.test(res.error)) {
-      primaryCooldownUntil = Date.now() + PRIMARY_COOLDOWN_MS;
+    const model = models[i];
+    const isLast = i === models.length - 1;
+    for (let tryNo = 0; tryNo < 2; tryNo++) {
+      const remaining = budget - (Date.now() - started);
+      if (remaining < 2_500) break;
+      // Leave time for the models still to come.
+      const slice = isLast ? remaining : Math.round(remaining * (tryNo === 0 ? 0.5 : 0.8));
+      const res = await attempt(model, opts, slice);
+      if (res.ok) return { ok: true, data: res.data, model, ms: Date.now() - started };
+
+      errors.push(`${model}: ${res.error}`);
+      console.error("[gemini]", model, res.error.slice(0, 300));
+      if (BAD_MODEL.test(res.error) && !UNAVAILABLE.test(res.error)) break; // wrong model name: don't retry
+      if (!UNAVAILABLE.test(res.error)) break; // bad JSON / blocked: the next model may do better
+      if (tryNo === 0 && !/timed out/i.test(res.error)) await sleep(RETRY_DELAY_MS);
+      else {
+        cooldownUntil.set(model, Date.now() + COOLDOWN_MS);
+        break;
+      }
     }
   }
 

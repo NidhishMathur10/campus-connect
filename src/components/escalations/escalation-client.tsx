@@ -9,12 +9,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { acknowledgeEscalation, addDirective, resolveEscalation } from "@/lib/escalation-actions";
 import type { EscalationStatus } from "@/lib/types";
 
-async function postBrief(escalationId: string): Promise<{ ok: boolean; error?: string }> {
+async function postBrief(escalationId: string, force = false): Promise<{ ok: boolean; error?: string }> {
   try {
     const res = await fetch("/api/ai/escalation-brief", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ escalationId }),
+      body: JSON.stringify({ escalationId, force }),
     });
     return (await res.json()) as { ok: boolean; error?: string };
   } catch {
@@ -48,7 +48,7 @@ export function RegenerateBriefButton({ escalationId }: { escalationId: string }
       disabled={pending}
       onClick={async () => {
         setPending(true);
-        const res = await postBrief(escalationId);
+        const res = await postBrief(escalationId, true);
         setPending(false);
         if (res.ok) toast.success("Brief updated");
         else toast.error(res.error ?? "Gemini is unavailable right now.");
