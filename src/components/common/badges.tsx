@@ -1,6 +1,7 @@
-import { Lock, ShieldAlert } from "lucide-react";
+import { Building, Layers, Lock, ShieldAlert } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getCategoryStyle, PRIORITY_STYLES, STATUS_STYLES } from "@/config/styles";
+import type { TicketScope } from "@/config/locations";
 import type { Priority } from "@/config/routing";
 import type { TicketStatus } from "@/config/statuses";
 
@@ -51,6 +52,18 @@ export function EscalatedBadge({ className }: { className?: string }) {
     <span className={cn(base, "border-red-600 bg-red-600 text-white", className)}>
       <ShieldAlert className="size-3" />
       Escalated
+    </span>
+  );
+}
+
+/** Hostel issues that reach beyond one room ("Affects whole floor"). Renders nothing for room-only tickets. */
+export function ScopeBadge({ scope, className }: { scope: TicketScope | null | undefined; className?: string }) {
+  if (scope !== "floor" && scope !== "building") return null;
+  const Icon = scope === "floor" ? Layers : Building;
+  return (
+    <span className={cn(base, "border-indigo-200 bg-indigo-50 text-indigo-700", className)}>
+      <Icon className="size-3" />
+      {scope === "floor" ? "Affects whole floor" : "Affects whole building"}
     </span>
   );
 }

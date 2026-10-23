@@ -17,14 +17,19 @@ export default async function HostelPage() {
       <PageHeader
         eyebrow="Hostel & Campus"
         title="Report a problem"
-        description="Room, washroom, water, electricity, Wi-Fi, laundry, mess, gym or courts — describe it in your own words."
+        description="Your room, a common area, water, electricity, Wi-Fi, laundry, mess, gym or courts — describe it in your own words."
         actions={
           <Button variant="outline" asChild>
             <Link href="/tickets"><Ticket /> My tickets</Link>
           </Button>
         }
       />
-      <ReportFlow module="hostel" userId={profile.id} buildings={BUILDINGS} />
+      <ReportFlow
+        module="hostel"
+        userId={profile.id}
+        buildings={BUILDINGS}
+        ownRoom={{ hostel: profile.hostel, room: profile.room }}
+      />
     </div>
   );
 }

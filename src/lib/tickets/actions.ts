@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { normaliseRoom, TICKET_SCOPES } from "@/config/locations";
 import {
   categoriesFor,
   computeSlaDueAt,
@@ -49,9 +50,12 @@ const CreateTicketSchema = z.object({
   location: z.object({
     building: z.string().nullable(),
     floor: z.string().nullable(),
+    room_no: z.string().max(20).nullable(),
     spot: z.string().max(120).nullable(),
     machine_id: z.string().nullable(),
   }),
+  /** Hostel: how many rooms the issue affects (null = not applicable). */
+  scope: z.enum(TICKET_SCOPES).nullable().default(null),
   photo_path: z.string().max(300).nullable(),
   photo_analysis: z
     .object({ observed: z.string(), matches_complaint: z.boolean(), notes: z.string() })
@@ -106,6 +110,8 @@ export async function createTicket(
     : t.is_safety_hazard
       ? "Urgent"
       : t.priority;
+  // Hostel room number, normalised ("room 204" -> "204"). A ticket with a room defaults to room scope.
+  const roomNo = t.module === "hostel" ? normaliseRoom(t.location.room_no) : null;
   const isConfidential = isSecurity && isConfidentialCategory(t.category, t.confidential_choice);
   const hideIdentity = isConfidential && t.hide_identity;
 
@@ -174,6 +180,8 @@ export async function createTicket(
       photo_analysis: t.photo_analysis,
       building: t.location.building,
       floor: t.location.floor,
+      room_no: roomNo,
+      scope: roomNo || t.scope ? (t.scope ?? "room") : null,
       spot: t.location.spot,
       machine_id: t.location.machine_id,
       status: autoAssignee ? "Assigned" : "Submitted",

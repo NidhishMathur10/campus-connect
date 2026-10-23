@@ -90,10 +90,10 @@ export interface RoutingRule {
 
 export const HOSTEL_ROUTING: RoutingRule[] = [
   { category: "Plumbing", typicalIssues: "leaks, taps, flush, drainage", departments: ["Estate / Maintenance"], defaultPriority: "Medium", slaHours: 24, requiredDetails: "what exactly is happening and how severe it is" },
-  { category: "Water Supply", typicalIssues: "no water, low pressure, geyser, water cooler/RO", departments: ["Estate / Maintenance"], defaultPriority: "High", slaHours: 4, requiredDetails: "what exactly is happening and how severe it is" },
-  { category: "Electricity", typicalIssues: "lights, fans, sockets, switches, power cut, AC", departments: ["Electrical Maintenance"], defaultPriority: "Medium", slaHours: 24, requiredDetails: "which item is faulty and whether there is any sparking" },
+  { category: "Water Supply", typicalIssues: "no water, low pressure, geyser, water cooler/RO", departments: ["Estate / Maintenance"], defaultPriority: "High", slaHours: 4, requiredDetails: "what exactly is happening and how severe it is; for no water / low pressure, the scope (only their room, or other rooms on the floor too)" },
+  { category: "Electricity", typicalIssues: "lights, fans, sockets, switches, power cut, AC", departments: ["Electrical Maintenance"], defaultPriority: "Medium", slaHours: 24, requiredDetails: "which item is faulty and whether there is any sparking; for a power cut, the scope (only their room, or other rooms on the floor too)" },
   { category: "Cleanliness", typicalIssues: "washrooms, garbage, corridors, pests", departments: ["Housekeeping"], defaultPriority: "Medium", slaHours: 24 },
-  { category: "Internet", typicalIssues: "Wi-Fi down/slow, login, LAN port", departments: ["IT Cell"], defaultPriority: "Medium", slaHours: 24, requiredDetails: "Wi-Fi or LAN, and whether it is just them or the whole floor" },
+  { category: "Internet", typicalIssues: "Wi-Fi down/slow, login, LAN port", departments: ["IT Cell"], defaultPriority: "Medium", slaHours: 24, requiredDetails: "Wi-Fi or LAN, and for a Wi-Fi outage / slow Wi-Fi the scope (only their room, or other rooms on the floor too)" },
   { category: "Laundry", typicalIssues: "washing machines", departments: ["Estate / Maintenance"], defaultPriority: "Low", slaHours: 72, requiredDetails: "the washing machine ID" },
   { category: "Room Repair", typicalIssues: "door, bed, cupboard, window, lock", departments: ["Estate / Maintenance"], defaultPriority: "Medium", slaHours: 24 },
   { category: "Gym", typicalIssues: "gym equipment/facility", departments: ["Estate / Maintenance"], defaultPriority: "Low", slaHours: 72 },

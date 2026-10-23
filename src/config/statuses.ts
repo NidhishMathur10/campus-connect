@@ -55,6 +55,9 @@ export const DUPLICATE_FLAG_THRESHOLD = 0.7;
 export const ESCALATION_RULES = {
   recurringMinTickets: 3,
   recurringWindowDays: 30,
+  /** Floor-level issue: this many DIFFERENT rooms on one floor, same category, within floorWindowDays. */
+  floorMinRooms: 3,
+  floorWindowDays: 7,
   reopenCount: 2,
   duplicateWindowDays: 7,
   /** Priorities whose missed SLA escalates. */

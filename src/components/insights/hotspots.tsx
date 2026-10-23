@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ChevronDown, Flame, Loader2, Minus, RefreshCw, Sparkles, TrendingDown, TrendingUp } from "lucide-react";
+import { ChevronDown, Flame, Layers, Loader2, Minus, RefreshCw, Sparkles, TrendingDown, TrendingUp } from "lucide-react";
 import { toast } from "sonner";
 import { CategoryBadge, StatusBadge } from "@/components/common/badges";
 import { Button } from "@/components/ui/button";
@@ -59,7 +59,7 @@ export function Hotspots({ hotspots, days }: { hotspots: Hotspot[]; days: number
   }, []);
 
   if (hotspots.length === 0) {
-    return <p className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-500">No location has 2+ similar complaints in this period. 🎉</p>;
+    return <p className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-500">No room, place or floor has repeated complaints in this period. 🎉</p>;
   }
 
   return (
@@ -81,9 +81,18 @@ export function Hotspots({ hotspots, days }: { hotspots: Hotspot[]; days: number
                 {i === 0 ? <Flame className="size-4" /> : h.count}
               </span>
               <div className="min-w-0 flex-1">
-                <p className="truncate font-bold text-navy">{h.label}</p>
+                <p className="flex items-center gap-2 font-bold text-navy">
+                  <span className="truncate">{h.label}</span>
+                  {h.floorLevel && (
+                    <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-indigo-200 bg-indigo-50 px-2 py-0.5 text-[11px] font-semibold text-indigo-700">
+                      <Layers className="size-3" /> Floor-level
+                    </span>
+                  )}
+                </p>
                 <p className="flex flex-wrap items-center gap-x-3 text-xs text-slate-500">
-                  <span className="font-semibold text-slate-700">{h.count} tickets in {days} days</span>
+                  <span className="font-semibold text-slate-700">
+                    {h.count} tickets in {h.floorLevel ? 7 : days} days{h.floorLevel ? " · different rooms" : ""}
+                  </span>
                   <span className={cn("inline-flex items-center gap-1 font-semibold", trend.className)}>
                     <TrendIcon className="size-3.5" /> {trend.label} (prev. {h.prevCount})
                   </span>

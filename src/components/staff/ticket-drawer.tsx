@@ -24,7 +24,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
-import { CategoryBadge, ConfidentialBadge, EscalatedBadge, PriorityBadge, StatusBadge } from "@/components/common/badges";
+import { CategoryBadge, ConfidentialBadge, EscalatedBadge, PriorityBadge, ScopeBadge, StatusBadge } from "@/components/common/badges";
 import { SimpleSelect } from "@/components/common/simple-select";
 import { SafetyBadge } from "@/components/tickets/ai-bits";
 import { TicketTimeline } from "@/components/tickets/ticket-timeline";
@@ -38,7 +38,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { categoriesFor, DEPARTMENTS, MODULE_LABELS, PRIORITIES, SECURITY_DEPARTMENTS } from "@/config/routing";
 import { CONFIDENTIAL_REPORTER } from "@/config/safety";
 import { ESCALATION_REASON_LABELS, STAFF_TRANSITIONS } from "@/config/statuses";
-import { formatDateTime, formatLocation, languageName, timeAgo } from "@/lib/format";
+import { formatDateTime, formatLocation, formatPlace, languageName, timeAgo } from "@/lib/format";
 import { canEscalateManually, type Viewer } from "@/lib/tickets/access";
 import {
   addTicketNote,
@@ -118,7 +118,7 @@ function CompareColumn({
   reporters,
 }: {
   heading: string;
-  t: Pick<Ticket, "ticket_no" | "title" | "summary" | "status" | "building" | "floor" | "spot" | "machine_id" | "photo_url" | "created_at">;
+  t: Pick<Ticket, "ticket_no" | "title" | "summary" | "status" | "building" | "floor" | "room_no" | "spot" | "machine_id" | "photo_url" | "created_at">;
   reporters: number;
 }) {
   return (
@@ -607,6 +607,7 @@ function DrawerBody({
                 ) : (
                   <EscalatedBadge />
                 ))}
+              <ScopeBadge scope={ticket.scope} />
               {ai?.is_safety_hazard && <SafetyBadge />}
               {ticket.is_confidential && <ConfidentialBadge />}
             </div>
@@ -678,7 +679,14 @@ function DrawerBody({
             <p className="text-sm text-slate-700">{ticket.english_text}</p>
           </>
         )}
-        <p className="flex items-center gap-1.5 text-sm font-semibold text-slate-700"><MapPin className="size-4 text-slate-400" /> {formatLocation(ticket)}</p>
+        <div className="flex flex-wrap items-center gap-2 text-sm font-semibold text-slate-700">
+          <MapPin className="size-4 text-slate-400" />
+          {formatPlace(ticket) && (
+            <span className="rounded-full bg-navy px-3 py-0.5 text-sm font-bold text-white">{formatPlace(ticket)}</span>
+          )}
+          <span>{formatLocation({ building: ticket.building, floor: ticket.floor })}</span>
+          <ScopeBadge scope={ticket.scope} />
+        </div>
         {ticket.photo_url && <Photo url={ticket.photo_url} alt="Complaint photo" className="h-56 w-full sm:w-80" />}
       </Section>
 

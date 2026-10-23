@@ -1,4 +1,5 @@
 import type { Category, Priority, TicketModule } from "@/config/routing";
+import type { TicketScope } from "@/config/locations";
 import type { Role } from "@/config/roles";
 import type { DuplicateStatus, TicketEventType, TicketStatus } from "@/config/statuses";
 
@@ -61,6 +62,10 @@ export interface Ticket {
   floor: string | null;
   spot: string | null;
   machine_id: string | null;
+  /** Hostel room number ("204"). Null for common areas and non-hostel tickets. */
+  room_no: string | null;
+  /** How many rooms the issue affects (hostel). Null = not applicable / not asked. */
+  scope: TicketScope | null;
   status: TicketStatus;
   details_incomplete: boolean;
   assigned_to: string | null;

@@ -107,7 +107,7 @@ function matches(t: BoardTicket, f: Filters): boolean {
   if (f.escalatedOnly && !t.escalated) return false;
   const q = f.q.trim().toLowerCase();
   if (q) {
-    const hay = [t.ticket_no, t.title, t.summary, t.original_text, t.english_text, t.spot].join(" ").toLowerCase();
+    const hay = [t.ticket_no, t.title, t.summary, t.original_text, t.english_text, t.spot, t.room_no && `room ${t.room_no}`].join(" ").toLowerCase();
     const digits = q.replace(/^cc-?/, "");
     if (!hay.includes(q) && !(digits && t.ticket_no.toLowerCase().includes(digits))) return false;
   }

@@ -30,7 +30,10 @@ College name: from `NEXT_PUBLIC_COLLEGE_NAME` (placeholder "Your College").
 ### Locations
 Buildings: Old Hostel (Boys Wing / Girls Wing — mixed hostel), New Hostel (Boys only), Block A (contains Library), Block B, Block C, Block D, Girls Mess, Old Hostel Mess (Boys), New Hostel Mess (Boys), Gym (inside Old Hostel), Sports Complex (multiple courts; sports material issued here).
 Floors: Basement, Ground, 1st, 2nd, 3rd, 4th, 5th.
-Spot: free text (room no., washroom, corridor, court, etc.).
+**Hostel layout (Old Hostel and New Hostel):** 4 students per room; every room has its own attached washrooms, bathrooms and balconies. There are NO common washrooms, and we do NOT track which washroom/bathroom — the room number is enough (students add detail in the complaint text; the AI never asks "which washroom").
+**Hostel location = building → floor → EITHER (a) a room number (`tickets.room_no`, e.g. `204`) OR (b) a common area stored in `tickets.spot`:** Corridor, Staircase, Water cooler / RO, Laundry machine (+ machine ID), Gym, Mess, Other (free text, saved as `Other: <text>`). The report form pre-fills the student's own hostel, floor and room from their profile, with an "It's somewhere else" option. Messes, Gym and Sports Complex (separate buildings) keep a free-text spot; academic blocks keep block + floor + room/lab (see Education module).
+**Scope (`tickets.scope`: `room` | `floor` | `building`):** how many rooms an issue affects. The AI asks "Only your room, or other rooms on this floor too?" for Water Supply (no water / low pressure), Electricity (power cut) and Internet (Wi-Fi outage / slow Wi-Fi); a ticket with a room defaults to `room` otherwise.
+Spot (non-hostel buildings and academic): free text (classroom, lab, court, etc.).
 Washing machines (selectable IDs): New Hostel Ground NH-G-W1..W4; New Hostel 3rd floor NH-3-W1..W4; Old Hostel Ground OH-G-W1..W3; Old Hostel Basement OH-B-W1..W3.
 
 ### Routing guide — Hostel & Campus module
@@ -75,13 +78,13 @@ Staff/admin accounts are seeded only (no staff sign-up).
 Q&A: students see other authors' NAME only; teachers/staff/admins also see ROLL NUMBER.
 
 Seeded demo accounts (password `demo1234` for all), shown as one-click quick-login buttons on the login page:
-- Students: Aarav Mehta (2616400101, New Hostel), Priya Singh (2616400102, Old Hostel Girls Wing), Rahul Verma (2616400103, Old Hostel Boys Wing)
+- Students: Aarav Mehta (2616400101, New Hostel, room 204), Priya Singh (2616400102, Old Hostel Girls Wing, room G-108), Rahul Verma (2616400103, Old Hostel Boys Wing, room B-305), Kabir Khanna (2616400104, New Hostel, room 204 — Aarav's roommate, for the "Me too" demo). Three more seeded New Hostel 2nd-floor students (Vikram 207, Ishaan 212, Dev 219; `hidden: true` in `demo-accounts.ts`, no quick-login button) exist only to make the floor-level seed pattern realistic.
 - Staff: Ramesh, Mahesh (Estate / Maintenance); Suresh, Dinesh (Electrical Maintenance); Kamla, Sunita (Housekeeping); Rohit, Ankit (IT Cell); Mr. Sharma (Mess Committee); Mr. Gupta (Lab In-charge); Ms. Nair (Library Staff); Mrs. Kapoor (Academic Office)
 - Warden: Mr. Rao · Dean: Dr. Iyer (Dean of Student Affairs) · HOD: Dr. Banerjee · Teachers: Prof. Das, Prof. Khan
 
 ## 5. Data model (Supabase)
 - profiles: id (= auth.users.id), full_name, roll_no (unique, nullable for non-students), role, department (nullable), hostel, wing, room, created_at
-- tickets: id, ticket_no (text, `CC-1001`, from a sequence), tracking_pin (legacy, unused), module ('hostel' | 'academic' | 'security'), is_confidential, hide_identity, reporter_id, original_text, language ('en'|'hi'|other), english_text, title, summary, category, department, priority, ai_meta jsonb (confidence + reason per field, extracted issue, model), photo_url, photo_analysis jsonb (observed, matches_complaint, notes), building, floor, spot, machine_id, status, details_incomplete bool, assigned_to (profile id), duplicate_of (ticket id), duplicate_score, duplicate_reason, duplicate_status ('none'|'flagged'|'merged'|'dismissed'), escalated bool, reopen_count int, rating int, feedback text, sla_due_at, resolved_at, created_at, updated_at
+- tickets: id, ticket_no (text, `CC-1001`, from a sequence), tracking_pin (legacy, unused), module ('hostel' | 'academic' | 'security'), is_confidential, hide_identity, reporter_id, original_text, language ('en'|'hi'|other), english_text, title, summary, category, department, priority, ai_meta jsonb (confidence + reason per field, extracted issue, model), photo_url, photo_analysis jsonb (observed, matches_complaint, notes), building, floor, room_no (hostel room number), spot (common area / free-text spot), machine_id, scope ('room'|'floor'|'building', hostel only), status, details_incomplete bool, assigned_to (profile id), duplicate_of (ticket id), duplicate_score, duplicate_reason, duplicate_status ('none'|'flagged'|'merged'|'dismissed'), escalated bool, reopen_count int, rating int, feedback text, sla_due_at, resolved_at, created_at, updated_at
 - ticket_events: id, ticket_id, actor_id, actor_name, actor_role, type ('created'|'status_change'|'assigned'|'note'|'duplicate_flagged'|'merged'|'duplicate_dismissed'|'override'|'escalated'|'reopened'|'rating'|'me_too'), from_status, to_status, note, created_at — this is the student-visible progress history (internal-only types may be hidden from students).
 - ticket_followers: ticket_id, user_id (for "Me too")
 - escalations: id, module, ticket_id (nullable), hotspot_key (nullable, e.g. `hostel|Plumbing|New Hostel|2nd`), reason ('recurring'|'reopened'|'sla_breach'|'manual'|'safety'), target_role ('dean'|'hod'), brief, recommended_action, affected_count, status ('open'|'acknowledged'|'resolved'), directive, created_at
@@ -92,10 +95,10 @@ Statuses for tickets: Submitted → Assigned → In Progress → Resolved → Cl
 Enable RLS with sensible policies matching section 4. Enable Realtime on tickets and ticket_events.
 
 ## 6. AI pipeline (server-side, in `src/lib/ai/`)
-1. analyzeComplaint(text, location, photo?, module, previousAnswers?) → JSON: language, english_text, title (≤8 words), summary (2–3 lines, English), extracted_issue, category, department, priority (+ is_safety_hazard), confidence per field (0–1), reason per field, photo_analysis {observed, matches_complaint, notes}, missing_fields[], follow_up_questions[] (max 3, in the student's language, friendly). Pass the routing guide + location list into the prompt. Required details: all → building, floor, exact spot; Plumbing/Water → what's happening & severity; Electricity → which item & sparking?; Internet → Wi-Fi or LAN & just you or whole floor; Laundry → machine ID; Mess Food → which mess & meal.
+1. analyzeComplaint(text, location, photo?, module, previousAnswers?) → JSON: language, english_text, title (≤8 words), summary (2–3 lines, English), extracted_issue, category, department, priority (+ is_safety_hazard), confidence per field (0–1), reason per field, photo_analysis {observed, matches_complaint, notes}, missing_fields[], follow_up_questions[] (max 3, in the student's language, friendly). Pass the routing guide + location list into the prompt. Required details: hostel → building, floor, and the room number (or the common area) — never "which washroom"; Plumbing/Water → what's happening & severity; Electricity → which item & sparking?; Water Supply / Electricity (power cut) / Internet (Wi-Fi outage) → scope ("Only your room, or other rooms on this floor too?" → `room`|`floor`|`building`); Internet → Wi-Fi or LAN; Laundry → machine ID; Mess Food → which mess & meal.
 2. Missing-info loop: chat-style. Exactly ONE follow-up round. If still missing after the student's reply, create the ticket anyway with details_incomplete = true.
 3. Student sees a preview card (title, summary, category editable, department, priority, photo analysis) and confirms.
-4. findDuplicates(newTicket) → DB candidates: same module, same category, same building (+ floor if present), status not Resolved/Closed, last 7 days. If any, Gemini compares and returns per candidate: is_duplicate, similarity (0–1), reason. Before creating, offer student "This may already be reported as CC-xxxx — Me too, or submit as new?". If submitted as new and similarity ≥ 0.7 → duplicate_status 'flagged'. Staff can Merge or Not a duplicate.
+4. findDuplicates(newTicket) → DB candidates: same module, same category, same building, status not Resolved/Closed, last 7 days, narrowed by place: **room-scope issues match only the same building + room + category (so roommates get "Me too")**; floor-scope issues also match tickets from other rooms on that floor, building-scope issues across the building; tickets from different rooms are never duplicates unless the issue is floor/building-wide. Common-area, mess and academic tickets match by floor as before. If any, Gemini compares and returns per candidate: is_duplicate, similarity (0–1), reason. Before creating, offer student "This may already be reported as CC-xxxx — Me too, or submit as new?". If submitted as new and similarity ≥ 0.7 → duplicate_status 'flagged'. Staff can Merge or Not a duplicate.
 5. moderateQuestion(text) → allowed / reason (block abuse, spam, gibberish, off-topic).
 6. similarQuestions(text) → top related existing questions.
 7. escalationBrief(context) → brief + recommended_action.
@@ -104,7 +107,8 @@ All AI calls: timeout + graceful fallback (never crash the UI; show a friendly e
 
 ## 7. Escalation rules
 Run `checkEscalations()` after any ticket create/update and when admin dashboards load (no cron needed). Create an escalation (no duplicates for same key while open) when:
-- recurring: same module + category + building + floor has ≥3 tickets in 30 days
+- recurring (a): the same place + category has ≥3 tickets in 30 days — hostel: same ROOM (or same common area); academic: same block + floor
+- recurring (b), hostel **floor-level issue**: ≥3 DIFFERENT rooms on the same floor with the same category within 7 days (hotspot key `hostel|<category>|<building>|<floor>|*`) — the escalation brief and the hotspot Gemini recommendation point at a shared cause (e.g. inspect the floor pipeline / main valve)
 - reopened: reopen_count ≥ 2
 - sla_breach: Urgent/High ticket not Resolved past sla_due_at
 - manual: Warden/HOD clicks "Escalate"
@@ -113,9 +117,9 @@ Hostel → dean, Academic → hod. Escalated tickets show a red "Escalated" badg
 ## 8. Screens
 - /login (roll no + password, sign-up link, demo quick-login buttons), /signup
 - / (student home): two large cards — "Hostel & Campus" and "Education"
-- Hostel: Report (text, building, floor, spot, machine ID when Laundry building/floor, photo with preview) → AI chat → preview → duplicate prompt → success with big ticket number; My Tickets (cards + vertical timeline, live via Realtime); ticket detail; after Resolved: "Fixed? Yes / No, reopen" + 1–5 star rating; Track by ticket number.
+- Hostel: Report (text, building, floor, then "A room" (pre-filled with the student's own room, "It's somewhere else") or "Common area" (Corridor, Staircase, Water cooler / RO, Laundry machine + machine ID, Gym, Mess, Other), photo with preview) → AI chat → preview → duplicate prompt → success with big ticket number; My Tickets (cards + vertical timeline, live via Realtime); ticket detail; after Resolved: "Fixed? Yes / No, reopen" + 1–5 star rating; Track by ticket number.
 - Education: tabs "Academic Issues" (same report/track flow with academic routing) and "Open Q&A" (ask with subject + AI similar-questions + moderation; list with filters subject / unanswered / most upvoted / mine; question detail with answers, comments, upvote, asker marks best answer; teacher answers get a "Teacher" badge).
-- Staff portal: stat cards (Open, Urgent, Possible Duplicates, Resolved Today); Kanban (Submitted / Assigned / In Progress / Resolved) + list view toggle; filters (module, category, department, priority, building, duplicates only); ticket detail drawer: amber duplicate banner with side-by-side comparison + Merge / Not a duplicate, AI panel (extracted issue, summary, category/department/priority with confidence + reason, photo analysis), original text + English translation, photo, assign dropdown, status change with note, overrides, full history.
+- Staff portal: stat cards (Open, Urgent, Possible Duplicates, Resolved Today); Kanban (Submitted / Assigned / In Progress / Resolved) + list view toggle; filters (module, category, department, priority, building, duplicates only); ticket detail drawer: amber duplicate banner with side-by-side comparison + Merge / Not a duplicate, AI panel (extracted issue, summary, category/department/priority with confidence + reason, photo analysis), original text + English translation, photo, assign dropdown, status change with note, overrides, full history. Hostel tickets show their place prominently ("Room 204" or the common area) plus an "Affects whole floor" badge for floor-scope tickets (cards, list view and drawer).
 - Insights (warden/dean/hod): charts by category, by building, avg resolution time, rating avg; Hotspots list with Gemini recommendations.
 - Escalations (dean/hod): list + detail with brief, linked tickets, acknowledge, directive.
 - Teacher view: Q&A board focused on unanswered questions.
@@ -132,9 +136,10 @@ Inspired by a modern SaaS look (do NOT copy any other site's logo — make our o
 
 ## 10. Seed data
 Script `npm run seed` (uses service role): creates all demo accounts + ~25 realistic tickets across both modules, categories and buildings, with events/history, including:
-- a hotspot: 4 plumbing tickets in New Hostel 2nd floor washroom within 30 days (→ recurring escalation)
+- all hostel tickets are room-specific (`room_no`) or common-area (`spot`) — there are no "common washroom" tickets
+- a room hotspot: 4 plumbing tickets in New Hostel room 204 (Aarav + roommate Kabir) within 30 days (→ recurring escalation); Aarav's tap-dripping ticket stays open so Kabir's identical complaint triggers "Me too"
+- a floor-level pattern: low water pressure in 4 different rooms (204, 207, 212, 219) on New Hostel 2nd floor within 5 days, two of them `scope = floor` (→ floor-level escalation with a recommendation to inspect the floor pipeline)
 - one overdue Urgent electrical ticket (sparking socket) → sla_breach escalation
-- one open ticket that a new demo complaint can duplicate: "Tap leaking in New Hostel 1st floor washroom"
 - several resolved/closed tickets with ratings; 2 Hindi complaints
 - ~8 Q&A questions (some answered by teachers, some unanswered)
 Seed must be re-runnable (clears demo data first).

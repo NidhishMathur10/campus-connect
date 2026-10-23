@@ -1,7 +1,8 @@
 import "server-only";
 import type { TicketModule } from "@/config/routing";
-import { OPEN_STATUSES, TICKET_STATUSES, type TicketStatus } from "@/config/statuses";
-import { hotspotKey, hotspotLabel } from "@/lib/hotspots";
+import { ESCALATION_RULES, OPEN_STATUSES, TICKET_STATUSES, type TicketStatus } from "@/config/statuses";
+import { normaliseRoom } from "@/config/locations";
+import { floorHotspotKey, hotspotKey, hotspotLabel } from "@/lib/hotspots";
 import { createClient } from "@/lib/supabase/server";
 import type { Viewer } from "@/lib/tickets/access";
 import type { HotspotInsight, Ticket } from "@/lib/types";
@@ -28,6 +29,8 @@ type Row = Pick<
   | "department"
   | "building"
   | "floor"
+  | "room_no"
+  | "spot"
   | "status"
   | "priority"
   | "rating"
@@ -36,12 +39,14 @@ type Row = Pick<
   | "created_at"
   | "duplicate_status"
 >;
-const COLS = "id, ticket_no, module, title, category, department, building, floor, status, priority, rating, sla_due_at, resolved_at, created_at, duplicate_status";
+const COLS = "id, ticket_no, module, title, category, department, building, floor, room_no, spot, status, priority, rating, sla_due_at, resolved_at, created_at, duplicate_status";
 
 export interface Hotspot {
   key: string;
   label: string;
   module: TicketModule;
+  /** Several different hostel rooms on one floor (same category, within a week). */
+  floorLevel: boolean;
   count: number;
   prevCount: number;
   trend: "up" | "down" | "flat";
@@ -132,36 +137,46 @@ export async function getInsights(module: TicketModule | null, days: InsightWind
     if (idx >= 0) daily[idx].count++;
   }
 
-  // Hotspots: location + category combos with 2+ tickets in the window.
+  // Hotspots: (a) the same place (hostel room / common area, or academic block + floor) with 2+ tickets in
+  // the window; (b) FLOOR-LEVEL: 3+ different rooms on one floor, same category, within 7 days.
+  const visible = all.filter((x) => x.status !== "Merged" && x.duplicate_status !== "merged");
   const groups = new Map<string, Row[]>();
-  for (const t of all.filter((x) => x.status !== "Merged" && x.duplicate_status !== "merged")) {
+  const floorGroups = new Map<string, Row[]>();
+  for (const t of visible) {
     const key = hotspotKey(t);
     if (key) groups.set(key, [...(groups.get(key) ?? []), t]);
+    const floorKey = floorHotspotKey(t);
+    if (floorKey) floorGroups.set(floorKey, [...(floorGroups.get(floorKey) ?? []), t]);
   }
-  const ranked = [...groups.entries()]
-    .map(([key, ts]) => {
-      const cur = ts.filter((t) => new Date(t.created_at).getTime() >= windowStart);
-      const prev = ts.filter((t) => {
-        const c = new Date(t.created_at).getTime();
-        return c < windowStart && c >= windowStart - days * DAY;
-      });
-      return { key, cur, prevCount: prev.length };
-    })
-    .filter((h) => h.cur.length >= 2)
-    .sort((a, b) => b.cur.length - a.cur.length)
-    .slice(0, 8);
+  const split = (ts: Row[], span: number) => {
+    const start = now - span * DAY;
+    const cur = ts.filter((t) => new Date(t.created_at).getTime() >= start);
+    const prevCount = ts.filter((t) => {
+      const c = new Date(t.created_at).getTime();
+      return c < start && c >= start - span * DAY;
+    }).length;
+    return { cur, prevCount };
+  };
+  const placeRanked = [...groups.entries()]
+    .map(([key, ts]) => ({ key, floorLevel: false, ...split(ts, days) }))
+    .filter((h) => h.cur.length >= 2);
+  const floorRanked = [...floorGroups.entries()]
+    .map(([key, ts]) => ({ key, floorLevel: true, ...split(ts, ESCALATION_RULES.floorWindowDays) }))
+    .filter((h) => new Set(h.cur.map((t) => normaliseRoom(t.room_no))).size >= ESCALATION_RULES.floorMinRooms);
+  const ranked = [...floorRanked, ...placeRanked.sort((a, b) => b.cur.length - a.cur.length)].slice(0, 8);
 
   const { data: cached } = ranked.length
     ? await supabase.from("hotspot_insights").select("*").in("hotspot_key", ranked.map((h) => h.key))
     : { data: [] };
   const cache = new Map(((cached ?? []) as HotspotInsight[]).map((c) => [c.hotspot_key, c]));
 
-  const hotspots: Hotspot[] = ranked.map(({ key, cur, prevCount }) => {
+  const hotspots: Hotspot[] = ranked.map(({ key, cur, prevCount, floorLevel }) => {
     const c = cache.get(key);
     return {
       key,
       label: hotspotLabel(key),
       module: cur[0].module,
+      floorLevel,
       count: cur.length,
       prevCount,
       trend: cur.length > prevCount ? "up" : cur.length < prevCount ? "down" : "flat",

@@ -8,15 +8,21 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { FLOORS, getMachines, SPOT_SUGGESTIONS } from "@/config/locations";
+import { FLOORS, getMachines, isHostelBuilding, SPOT_SUGGESTIONS } from "@/config/locations";
 import { compressImage } from "@/lib/image";
+import { applyBuilding, HostelPlace, type OwnRoom } from "./hostel-place";
 
 export interface ReportDraft {
   text: string;
   building: string | null;
   floor: string | null;
+  /** Free-text spot (classrooms, courts…), or the detail of an "Other" hostel common area. */
   spot: string;
   machineId: string | null;
+  /** Hostel buildings: a room, or a shared (common) area. */
+  place: "room" | "common";
+  room: string;
+  area: string | null;
   photo: { blob: Blob; previewUrl: string } | null;
 }
 
@@ -26,6 +32,9 @@ export const EMPTY_DRAFT: ReportDraft = {
   floor: null,
   spot: "",
   machineId: null,
+  place: "room",
+  room: "",
+  area: null,
   photo: null,
 };
 
@@ -39,7 +48,8 @@ export function ReportForm({
   showMachines = true,
   noBuildingLabel,
   buildingLabel = "Building",
-  spotPlaceholder = "Room 214, washroom near stairs, corridor, court 2…",
+  spotPlaceholder = "Classroom, lab, court 2, dining hall…",
+  ownRoom,
 }: {
   draft: ReportDraft;
   onChange: (draft: ReportDraft) => void;
@@ -52,11 +62,15 @@ export function ReportForm({
   noBuildingLabel?: string;
   buildingLabel?: string;
   spotPlaceholder?: string;
+  /** Hostel module: the student's own hostel + room (pre-filled, with "It's somewhere else"). */
+  ownRoom?: OwnRoom;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [compressing, setCompressing] = useState(false);
-  const [errors, setErrors] = useState<{ text?: string; building?: string }>({});
-  const machines = showMachines ? getMachines(draft.building, draft.floor) : [];
+  const [errors, setErrors] = useState<{ text?: string; building?: string; floor?: string; place?: string }>({});
+  // Hostel module + a hostel building: room number or common area (no washroom picker).
+  const hostelMode = !!ownRoom && isHostelBuilding(draft.building);
+  const machines = showMachines && !hostelMode ? getMachines(draft.building, draft.floor) : [];
 
   const set = (patch: Partial<ReportDraft>) => onChange({ ...draft, ...patch });
 
@@ -80,6 +94,11 @@ export function ReportForm({
     const next: typeof errors = {};
     if (draft.text.trim().length < 3) next.text = "Tell us what the problem is.";
     if (!draft.building && !noBuildingLabel) next.building = "Choose a building.";
+    if (hostelMode) {
+      if (!draft.floor) next.floor = "Choose the floor.";
+      if (draft.place === "room" && !draft.room.trim()) next.place = "Enter the room number.";
+      if (draft.place === "common" && !draft.area) next.place = "Choose the common area.";
+    }
     setErrors(next);
     if (Object.keys(next).length === 0) onSubmit();
   }
@@ -112,7 +131,7 @@ export function ReportForm({
             <SimpleSelect
               id="building"
               value={draft.building}
-              onChange={(building) => set({ building, machineId: null })}
+              onChange={(building) => onChange(applyBuilding(draft, building, ownRoom))}
               options={buildings}
               placeholder={`Choose ${buildingLabel.toLowerCase()}`}
               noneLabel={noBuildingLabel}
@@ -129,11 +148,16 @@ export function ReportForm({
               onChange={(floor) => set({ floor, machineId: null })}
               options={FLOORS}
               placeholder="Choose floor"
-              noneLabel="Not sure / not applicable"
+              noneLabel={hostelMode ? undefined : "Not sure / not applicable"}
+              invalid={!!errors.floor}
               disabled={busy}
             />
+            {errors.floor && <p className="text-sm text-red-600">{errors.floor}</p>}
           </div>
         </div>
+        {hostelMode ? (
+          <HostelPlace draft={draft} own={ownRoom} onChange={set} disabled={busy} error={errors.place} />
+        ) : (
         <div className="space-y-1.5">
           <Label htmlFor="spot">Exact spot</Label>
           <Input
@@ -149,6 +173,7 @@ export function ReportForm({
             {SPOT_SUGGESTIONS.map((s) => <option key={s} value={s} />)}
           </datalist>
         </div>
+        )}
         {machines.length > 0 && (
           <div className="animate-fade-in space-y-1.5 rounded-2xl bg-sky-tint p-3">
             <Label htmlFor="machine">Washing machine (only if it&apos;s a laundry problem)</Label>

@@ -4,7 +4,8 @@ import type { Role } from "@/config/roles";
 import type { TicketModule } from "@/config/routing";
 import { ESCALATION_RULES, OPEN_STATUSES } from "@/config/statuses";
 import { escalationBrief, type EscalationContext } from "@/lib/ai/escalation";
-import { hotspotKey, hotspotLabel, parseHotspotKey } from "@/lib/hotspots";
+import { floorHotspotKey, hotspotKey, hotspotLabel, parseHotspotKey } from "@/lib/hotspots";
+import { normaliseRoom } from "@/config/locations";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Escalation, EscalationReason, Ticket, TicketEvent } from "@/lib/types";
 import { formatLocation } from "@/lib/format";
@@ -27,7 +28,7 @@ const ACTIVE_ESCALATION = ["open", "acknowledged"];
 const DAY = 86_400_000;
 
 const TICKET_COLS =
-  "id, ticket_no, module, category, building, floor, reporter_id, status, priority, sla_due_at, reopen_count, escalated, created_at";
+  "id, ticket_no, module, category, building, floor, room_no, spot, reporter_id, status, priority, sla_due_at, reopen_count, escalated, created_at";
 type TicketRow = Pick<
   Ticket,
   | "id"
@@ -36,6 +37,8 @@ type TicketRow = Pick<
   | "category"
   | "building"
   | "floor"
+  | "room_no"
+  | "spot"
   | "reporter_id"
   | "status"
   | "priority"
@@ -97,11 +100,19 @@ async function runCheck(admin: Admin) {
 
   const candidates: Candidate[] = [];
 
-  // recurring: same module + category + building + floor, ≥3 tickets in 30 days
+  // recurring (a): same place (hostel room / common area; academic block + floor) + category, ≥3 tickets in 30 days
+  // recurring (b): ≥3 DIFFERENT rooms on the same floor with the same category within 7 days → floor-level issue
+  const recent = (recentRes.data ?? []) as TicketRow[];
   const groups = new Map<string, TicketRow[]>();
-  for (const t of (recentRes.data ?? []) as TicketRow[]) {
+  for (const t of recent) {
     const key = hotspotKey(t);
     if (key) groups.set(key, [...(groups.get(key) ?? []), t]);
+  }
+  const floorSince = new Date(now - ESCALATION_RULES.floorWindowDays * DAY).toISOString();
+  const floorGroups = new Map<string, TicketRow[]>();
+  for (const t of recent) {
+    const key = t.created_at >= floorSince ? floorHotspotKey(t) : null;
+    if (key) floorGroups.set(key, [...(floorGroups.get(key) ?? []), t]);
   }
   const lastResolved = new Map<string, string>();
   for (const e of resolvedRes.data ?? []) {
@@ -109,12 +120,18 @@ async function runCheck(admin: Admin) {
       lastResolved.set(e.hotspot_key, e.resolved_at);
     }
   }
-  for (const [key, tickets] of groups) {
-    if (tickets.length < ESCALATION_RULES.recurringMinTickets) continue;
+  const addRecurring = (key: string, tickets: TicketRow[]) => {
     // A resolved hotspot only comes back when a new ticket arrives after it was resolved.
     const newest = tickets.reduce((a, t) => (t.created_at > a ? t.created_at : a), "");
-    if ((lastResolved.get(key) ?? "") > newest) continue;
+    if ((lastResolved.get(key) ?? "") > newest) return;
     candidates.push({ module: tickets[0].module, reason: "recurring", ticketId: null, hotspotKey: key, tickets });
+  };
+  for (const [key, tickets] of groups) {
+    if (tickets.length >= ESCALATION_RULES.recurringMinTickets) addRecurring(key, tickets);
+  }
+  for (const [key, tickets] of floorGroups) {
+    const rooms = new Set(tickets.map((t) => normaliseRoom(t.room_no)).filter(Boolean));
+    if (rooms.size >= ESCALATION_RULES.floorMinRooms) addRecurring(key, tickets);
   }
 
   // Ticket-level rules: one escalation per ticket, whichever rule fires first.
@@ -294,8 +311,10 @@ export async function linkedTickets(
     return (data ?? []) as Ticket[];
   }
   if (!esc.hotspot_key) return [];
-  const { module, category, building, floor } = parseHotspotKey(esc.hotspot_key);
-  const since = new Date(new Date(esc.created_at).getTime() - ESCALATION_RULES.recurringWindowDays * DAY).toISOString();
+  const { module, category, building, floor, room, area, floorLevel } = parseHotspotKey(esc.hotspot_key);
+  // Floor-level issues look at a 7-day window; everything else at 30 days.
+  const windowDays = floorLevel ? ESCALATION_RULES.floorWindowDays : ESCALATION_RULES.recurringWindowDays;
+  const since = new Date(new Date(esc.created_at).getTime() - windowDays * DAY).toISOString();
   let q = admin
     .from("tickets")
     .select("*")
@@ -306,6 +325,9 @@ export async function linkedTickets(
     .gte("created_at", since)
     .order("created_at", { ascending: true });
   q = floor ? q.eq("floor", floor) : q.is("floor", null);
+  if (floorLevel) q = q.not("room_no", "is", null);
+  else if (room) q = q.eq("room_no", room);
+  else if (area) q = area === "Other" ? q.ilike("spot", "Other%") : q.eq("spot", area);
   const { data } = await q;
   return (data ?? []) as Ticket[];
 }
@@ -352,6 +374,8 @@ export async function generateEscalationBrief(id: string): Promise<{ ok: boolean
     targetLabel: TARGET_LABELS[esc.target_role],
     where: escalationWhere(esc, tickets),
     category: tickets[0].category,
+    pattern: esc.hotspot_key ? (parseHotspotKey(esc.hotspot_key).floorLevel ? "floor" : parseHotspotKey(esc.hotspot_key).room ? "room" : null) : null,
+    rooms: [...new Set(tickets.map((t) => t.room_no).filter((r): r is string => !!r))],
     affectedCount: esc.affected_count,
     manualNote: esc.reason === "manual" ? esc.brief : null,
     tickets: tickets.map((t) => ({

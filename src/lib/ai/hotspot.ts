@@ -14,6 +14,9 @@ export interface HotspotContext {
   label: string;
   count: number;
   days: number;
+  /** Several different hostel rooms on one floor reported it (shared cause likely). */
+  floorLevel?: boolean;
+  rooms?: string[];
   trend: "up" | "down" | "flat";
   tickets: { title: string; status: string; created_at: string }[];
 }
@@ -27,13 +30,22 @@ export async function hotspotInsight(ctx: HotspotContext): Promise<AiResult<z.in
     schema: HotspotInsightSchema,
     system: "You advise a college hostel/academic administration on preventive maintenance. Be concrete and brief. No markdown.",
     prompt: `Hotspot at ${COLLEGE_NAME}: ${ctx.label}
-${ctx.count} tickets in the last ${ctx.days} days (trend: ${ctx.trend}).
+${ctx.count} tickets in the last ${ctx.days} days (trend: ${ctx.trend}).${
+      ctx.floorLevel
+        ? `
+FLOOR-LEVEL pattern: ${ctx.rooms?.length ?? "several"} different rooms (${(ctx.rooms ?? []).join(", ")}) reported the same problem. Every hostel room has its own attached washroom and fittings, so look for a shared cause (floor pipeline, main valve, distribution board, switch, access point) rather than fixing rooms one by one.`
+        : ""
+    }
 Tickets:
 ${list}
 
 Recommend one preventive action (not another one-off repair).`,
     temperature: 0.3,
     timeoutMs: 15_000,
-    fallback: { recommendation: `Schedule a full inspection of ${ctx.label} instead of one-off repairs.` },
+    fallback: {
+      recommendation: ctx.floorLevel
+        ? `Inspect the shared supply for ${ctx.label.replace(" — floor-level issue", "")} (main valve, pipeline or distribution board) instead of fixing rooms one by one.`
+        : `Schedule a full inspection of ${ctx.label} instead of one-off repairs.`,
+    },
   });
 }

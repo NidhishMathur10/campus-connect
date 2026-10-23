@@ -135,7 +135,7 @@ export default async function InsightsPage({ searchParams }: { searchParams: Pro
       </div>
 
       <div className="grid gap-5 lg:grid-cols-[1fr_1fr]">
-        <Panel title="Hotspots" subtitle="Same place + same problem, 2 or more times. Click one to see its tickets." className="lg:row-span-2">
+        <Panel title="Hotspots" subtitle="Same room or place with the same problem 2+ times, or 3+ different rooms on one floor with the same problem (floor-level). Click one to see its tickets." className="lg:row-span-2">
           <Hotspots hotspots={data.hotspots} days={days} />
         </Panel>
         <Panel title="New tickets · last 14 days">

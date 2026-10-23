@@ -88,7 +88,7 @@ export function LoginForm({ next }: { next?: string }) {
             <div key={group.label}>
               <p className="mb-2 text-xs font-bold text-slate-500">{group.label}</p>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                {DEMO_ACCOUNTS.filter((a) => group.roles.includes(a.role)).map((a) => (
+                {DEMO_ACCOUNTS.filter((a) => !a.hidden && group.roles.includes(a.role)).map((a) => (
                   <button
                     key={a.loginId}
                     type="button"

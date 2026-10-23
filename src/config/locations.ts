@@ -17,8 +17,8 @@ export const BUILDING_INFO: Record<
   Building,
   { description: string; kind: "hostel" | "academic" | "mess" | "facility" }
 > = {
-  "Old Hostel": { description: "Mixed hostel — Boys Wing & Girls Wing", kind: "hostel" },
-  "New Hostel": { description: "Boys hostel", kind: "hostel" },
+  "Old Hostel": { description: "Mixed hostel — Boys Wing & Girls Wing. 4 students per room; every room has its own attached washroom, bathroom and balcony (no common washrooms)", kind: "hostel" },
+  "New Hostel": { description: "Boys hostel. 4 students per room; every room has its own attached washroom, bathroom and balcony (no common washrooms)", kind: "hostel" },
   "Block A": { description: "Academic block (contains the Library)", kind: "academic" },
   "Block B": { description: "Academic block", kind: "academic" },
   "Block C": { description: "Academic block", kind: "academic" },
@@ -37,12 +37,8 @@ export const FLOORS = ["Basement", "Ground", "1st", "2nd", "3rd", "4th", "5th"] 
 export type Floor = (typeof FLOORS)[number];
 
 export const SPOT_SUGGESTIONS = [
-  "Room",
-  "Washroom",
   "Corridor",
   "Common room",
-  "Pantry / water cooler",
-  "Laundry area",
   "Classroom",
   "Lab",
   "Library",
@@ -50,6 +46,60 @@ export const SPOT_SUGGESTIONS = [
   "Dining hall",
   "Kitchen",
 ] as const;
+
+// ---------------------------------------------------------------------------
+// Hostel location model: building → floor → a ROOM NUMBER or a COMMON AREA.
+// Each room (4 students) has its own attached washroom, bathroom and balcony, so we never
+// track which washroom — the room number is enough.
+// ---------------------------------------------------------------------------
+export const HOSTEL_BUILDINGS: Building[] = ["Old Hostel", "New Hostel"];
+
+export function isHostelBuilding(building: string | null | undefined): boolean {
+  return !!building && (HOSTEL_BUILDINGS as string[]).includes(building);
+}
+
+/** Shared spaces in a hostel (stored in tickets.spot when there is no room number). */
+export const HOSTEL_COMMON_AREAS = [
+  "Corridor",
+  "Staircase",
+  "Water cooler / RO",
+  "Laundry machine",
+  "Gym",
+  "Mess",
+  "Other",
+] as const;
+export type HostelCommonArea = (typeof HOSTEL_COMMON_AREAS)[number];
+
+/** How many rooms an issue affects. Stored in tickets.scope. */
+export const TICKET_SCOPES = ["room", "floor", "building"] as const;
+export type TicketScope = (typeof TICKET_SCOPES)[number];
+
+export const SCOPE_LABELS: Record<TicketScope, string> = {
+  room: "Only this room",
+  floor: "Affects whole floor",
+  building: "Affects whole building",
+};
+
+/** Hostel categories where the AI asks "only your room, or other rooms on this floor too?". */
+export const SCOPE_CATEGORIES: string[] = ["Water Supply", "Electricity", "Internet"];
+
+/** "Water cooler / RO" etc. as stored. Free-text "Other" areas are saved as "Other: <text>". */
+export function isOtherArea(spot: string | null | undefined): boolean {
+  return !!spot && /^other\b/i.test(spot);
+}
+
+const FLOOR_BY_DIGIT: Floor[] = ["Ground", "1st", "2nd", "3rd", "4th", "5th"];
+
+/** Hostel room "204" / "G-108" / "B-305" → floor from the first digit of the 3-digit number (0 = Ground). */
+export function floorFromRoom(room: string | null | undefined): Floor | null {
+  const m = room?.match(/(\d)\d{2}\b/);
+  return m ? FLOOR_BY_DIGIT[Number(m[1])] ?? null : null;
+}
+
+export function normaliseRoom(room: string | null | undefined): string | null {
+  const r = room?.trim().replace(/^room\s*/i, "").replace(/\s+/g, "").toUpperCase();
+  return r ? r.slice(0, 20) : null;
+}
 
 /** Hostels a student can live in (used on sign-up). New Hostel is boys only. */
 export const HOSTELS = {

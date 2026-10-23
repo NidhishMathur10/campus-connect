@@ -149,6 +149,10 @@ interface SeedTicket {
   /** Omitted for records issues (attendance, timetable, marks). */
   building?: string;
   floor?: string;
+  /** Hostel room number; common areas use `spot` instead. */
+  room?: string;
+  /** How many rooms the issue affects (defaults to "room" when a room is given). */
+  scope?: "room" | "floor" | "building";
   spot?: string;
   machine?: string;
   ago: number;
@@ -169,35 +173,68 @@ interface SeedTicket {
 }
 
 const TICKETS: SeedTicket[] = [
-  // --- Hotspot: 4 plumbing tickets, New Hostel 2nd floor washroom (→ recurring escalation)
+  // --- Room 204 (Aarav + roommate Kabir): the same room keeps having plumbing trouble
+  //     (same room + category, 4 tickets in 30 days → recurring escalation)
   {
     key: "hot1", module: "hostel", reporter: "2616400101", ago: 26 * D,
-    text: "Flush in the 2nd floor washroom of New Hostel (cubicle 3) keeps overflowing, water all over the floor.",
-    title: "Overflowing flush in 2nd floor washroom", summary: "The flush in cubicle 3 of the New Hostel 2nd floor washroom overflows and floods the floor. Needs a plumber to fix the cistern valve.",
-    issue: "Overflowing toilet flush (cubicle 3)", category: "Plumbing", building: "New Hostel", floor: "2nd", spot: "Washroom, cubicle 3",
+    text: "The flush in our bathroom keeps overflowing, water is coming out into the room. Room 204.",
+    title: "Overflowing flush in room 204 bathroom", summary: "The flush in the attached bathroom of New Hostel room 204 overflows and water spreads into the room. Needs a plumber to fix the cistern valve.",
+    issue: "Overflowing toilet flush", category: "Plumbing", building: "New Hostel", floor: "2nd", room: "204",
     status: "Closed", assignee: "ramesh", rating: 4, feedback: "Fixed the same day, thanks!", escalated: true,
   },
   {
-    key: "hot2", module: "hostel", reporter: "2616400101", ago: 18 * D,
-    text: "Pipe under the wash basin in 2nd floor washroom NH is leaking, bucket kept below is full every morning",
-    title: "Leaking pipe under wash basin", summary: "The pipe under a wash basin in the New Hostel 2nd floor washroom leaks steadily overnight. Pipe joint likely needs replacing.",
-    issue: "Leaking pipe joint under wash basin", category: "Plumbing", building: "New Hostel", floor: "2nd", spot: "Washroom, wash basin row",
+    key: "hot2", module: "hostel", reporter: "2616400104", ago: 18 * D,
+    text: "Pipe under the wash basin in our bathroom is leaking, the bucket we kept below is full every morning. Room 204.",
+    title: "Leaking pipe under basin in room 204", summary: "The pipe under the wash basin in the attached bathroom of New Hostel room 204 leaks steadily overnight. Pipe joint likely needs replacing.",
+    issue: "Leaking pipe joint under wash basin", category: "Plumbing", building: "New Hostel", floor: "2nd", room: "204",
     status: "Resolved", assignee: "mahesh", escalated: true,
   },
   {
-    key: "hot3", module: "hostel", reporter: "2616400103", ago: 9 * D,
-    text: "Drain is blocked in New Hostel 2nd floor washroom, dirty water collecting near the bathing area",
-    title: "Blocked drain in 2nd floor washroom", summary: "The floor drain near the bathing area of the New Hostel 2nd floor washroom is blocked and dirty water is collecting.",
-    issue: "Blocked floor drain", category: "Plumbing", building: "New Hostel", floor: "2nd", spot: "Washroom, bathing area",
+    key: "hot3", module: "hostel", reporter: "2616400101", ago: 9 * D,
+    text: "Drain in our bathroom (room 204) is blocked, dirty water collects near the bathing area",
+    title: "Blocked bathroom drain in room 204", summary: "The floor drain in the attached bathroom of New Hostel room 204 is blocked and dirty water is collecting near the bathing area.",
+    issue: "Blocked floor drain", category: "Plumbing", building: "New Hostel", floor: "2nd", room: "204",
     status: "In Progress", assignee: "ramesh", escalated: true,
   },
   {
+    // Still open: a roommate (Kabir) who reports the same tap gets the "Me too" prompt.
     key: "hot4", module: "hostel", reporter: "2616400101", ago: 2 * D, language: "hi",
-    text: "न्यू हॉस्टल दूसरी मंज़िल के वॉशरूम में नल से लगातार पानी टपक रहा है, पूरी रात आवाज़ आती है",
-    english: "The tap in the New Hostel 2nd floor washroom keeps dripping continuously; you can hear it all night.",
-    title: "Tap dripping all night in washroom", summary: "A tap in the New Hostel 2nd floor washroom drips continuously through the night, wasting water. Needs a washer replacement.",
-    issue: "Continuously dripping tap", category: "Plumbing", building: "New Hostel", floor: "2nd", spot: "Washroom",
+    text: "रूम 204 के बाथरूम में नल से लगातार पानी टपक रहा है, पूरी रात आवाज़ आती है",
+    english: "The tap in the bathroom of room 204 keeps dripping continuously; you can hear it all night.",
+    title: "Tap dripping all night in room 204", summary: "A tap in the attached bathroom of New Hostel room 204 drips continuously through the night, wasting water. Needs a washer replacement.",
+    issue: "Continuously dripping tap", category: "Plumbing", building: "New Hostel", floor: "2nd", room: "204",
     status: "Submitted", escalated: true,
+  },
+  // --- Floor-level pattern: low water pressure in 4 different rooms on New Hostel 2nd floor within a week
+  //     (≥3 different rooms, same category, 7 days → floor-level escalation)
+  {
+    key: "wp1", module: "hostel", reporter: "2616400106", ago: 5 * D, priority: "Medium",
+    text: "Water pressure in our bathroom is very low, the shower just trickles and the tap takes ages to fill a bucket. Room 212.",
+    title: "Very low water pressure in room 212", summary: "Water pressure in the attached bathroom of New Hostel room 212 is very low; the shower only trickles. The student says only their room is affected.",
+    issue: "Low water pressure (room 212)", category: "Water Supply", building: "New Hostel", floor: "2nd", room: "212", scope: "room",
+    status: "In Progress", assignee: "ramesh", escalated: true,
+  },
+  {
+    key: "wp2", module: "hostel", reporter: "2616400105", ago: 4 * D, priority: "Medium",
+    text: "Low water pressure since Monday in room 207, the bathroom taps hardly give any water in the morning.",
+    title: "Low water pressure in room 207", summary: "The taps in the attached bathroom of New Hostel room 207 give very little water, especially in the morning. Only this room reported so far.",
+    issue: "Low water pressure (room 207)", category: "Water Supply", building: "New Hostel", floor: "2nd", room: "207", scope: "room",
+    status: "Assigned", assignee: "ramesh", escalated: true,
+  },
+  {
+    key: "wp3", module: "hostel", reporter: "2616400101", ago: 3 * D, priority: "Medium",
+    text: "Water pressure is very low in our room 204 and our floormates say the whole 2nd floor has the same problem since last week.",
+    title: "Low water pressure on whole 2nd floor", summary: "Water pressure is very low in New Hostel room 204, and the student says other rooms on the 2nd floor have the same problem since last week. Likely a floor-level supply issue.",
+    issue: "Low water pressure across the floor", category: "Water Supply", building: "New Hostel", floor: "2nd", room: "204", scope: "floor",
+    status: "Submitted", escalated: true,
+  },
+  {
+    key: "wp4", module: "hostel", reporter: "2616400107", ago: 1 * D, priority: "Medium",
+    text: "Room 219: no proper water in the bathroom since yesterday, pressure is almost zero. Everyone on the floor is complaining.",
+    title: "Almost no water pressure in room 219", summary: "Water pressure in the attached bathroom of New Hostel room 219 is almost zero since yesterday; the student says everyone on the floor is affected.",
+    issue: "Very low water pressure (floor-wide)", category: "Water Supply", building: "New Hostel", floor: "2nd", room: "219", scope: "floor",
+    status: "Submitted", escalated: true, duplicateOf: "wp3", duplicateScore: 0.83,
+    duplicateReason: "Both report very low water pressure affecting the whole New Hostel 2nd floor, filed a couple of days apart from different rooms.",
   },
   // --- Overdue urgent sparking socket (→ sla_breach escalation)
   {
@@ -205,25 +242,9 @@ const TICKETS: SeedTicket[] = [
     text: "Socket near my study table is sparking when I plug in my charger and there is a burning smell. Room B-305.",
     title: "Sparking socket with burning smell", summary: "The wall socket near the study table in room B-305 sparks when a charger is plugged in and gives off a burning smell. Safety hazard — needs immediate isolation.",
     issue: "Sparking wall socket, burning smell", category: "Electricity", priority: "Urgent", hazard: true,
-    building: "Old Hostel", floor: "3rd", spot: "Room B-305 (Boys Wing), socket near study table",
+    building: "Old Hostel", floor: "3rd", room: "B-305",
     status: "Assigned", assignee: "suresh", escalated: true,
     photo: { observed: "A scorched, blackened wall socket with melted plastic around one pin hole.", matches: true, notes: "Burn marks confirm sparking; do not use until repaired." },
-  },
-  // --- Open ticket a new demo complaint can duplicate
-  {
-    key: "tap1", module: "hostel", reporter: "2616400101", ago: 1 * D,
-    text: "Tap leaking in New Hostel 1st floor washroom",
-    title: "Tap leaking in 1st floor washroom", summary: "A tap in the New Hostel 1st floor washroom is leaking. Needs a plumber to check the washer or valve.",
-    issue: "Leaking tap", category: "Plumbing", building: "New Hostel", floor: "1st", spot: "Washroom",
-    status: "Submitted",
-  },
-  {
-    key: "tapdup", module: "hostel", reporter: "2616400103", ago: 6 * H,
-    text: "The tap near the mirror in NH 1st floor washroom won't stop dripping",
-    title: "Dripping tap near mirror", summary: "The tap near the mirror in the New Hostel 1st floor washroom keeps dripping.",
-    issue: "Dripping tap", category: "Plumbing", building: "New Hostel", floor: "1st", spot: "Washroom, near mirror",
-    status: "Submitted", duplicateOf: "tap1", duplicateScore: 0.86,
-    duplicateReason: "Same washroom (New Hostel 1st floor) and same problem — a leaking/dripping tap — reported a day earlier.",
   },
   // --- Other hostel tickets
   {
@@ -231,13 +252,13 @@ const TICKETS: SeedTicket[] = [
     text: "Wifi keeps disconnecting every 10 minutes in the whole girls wing 1st floor, can't attend online classes",
     title: "Wi-Fi drops every 10 minutes", summary: "Wi-Fi disconnects roughly every 10 minutes across the entire Old Hostel Girls Wing 1st floor, affecting online classes. Likely an access-point issue.",
     issue: "Frequent Wi-Fi disconnections (whole floor)", category: "Internet", priority: "Medium",
-    building: "Old Hostel", floor: "1st", spot: "Girls Wing, whole floor", status: "Assigned", assignee: "rohit",
+    building: "Old Hostel", floor: "1st", room: "G-108", scope: "floor", status: "Assigned", assignee: "rohit",
   },
   {
     key: "laundry", module: "hostel", reporter: "2616400101", ago: 12 * D, machine: "NH-G-W2",
     text: "Washing machine NH-G-W2 stops in the middle of the cycle and doesn't drain the water",
     title: "Machine NH-G-W2 stops mid-cycle", summary: "Washing machine NH-G-W2 on the New Hostel ground floor stops mid-cycle and does not drain.",
-    issue: "Washing machine stops mid-cycle, no drain", category: "Laundry", building: "New Hostel", floor: "Ground", spot: "Laundry area",
+    issue: "Washing machine stops mid-cycle, no drain", category: "Laundry", building: "New Hostel", floor: "Ground", spot: "Laundry machine",
     status: "Closed", assignee: "mahesh", rating: 5,
   },
   {
@@ -259,21 +280,21 @@ const TICKETS: SeedTicket[] = [
     key: "garbage", module: "hostel", reporter: "2616400103", ago: 15 * D,
     text: "Garbage bin in 3rd floor corridor not emptied for 3 days, really smelly",
     title: "Corridor bin not emptied for 3 days", summary: "The garbage bin in the Old Hostel Boys Wing 3rd floor corridor hasn't been emptied for three days and smells.",
-    issue: "Overflowing garbage bin", category: "Cleanliness", building: "Old Hostel", floor: "3rd", spot: "Boys Wing corridor",
+    issue: "Overflowing garbage bin", category: "Cleanliness", building: "Old Hostel", floor: "3rd", spot: "Corridor",
     status: "Closed", assignee: "kamla", rating: 3, feedback: "Cleaned, but it took a while.",
   },
   {
     key: "geyser", module: "hostel", reporter: "2616400102", ago: 8 * D,
-    text: "No hot water from the geyser in 2nd floor girls washroom since morning",
-    title: "Geyser not heating water", summary: "The geyser in the Old Hostel Girls Wing 2nd floor washroom has not been giving hot water since the morning.",
-    issue: "Geyser not working", category: "Water Supply", building: "Old Hostel", floor: "2nd", spot: "Girls Wing washroom",
+    text: "No hot water from the geyser in my bathroom (room G-108) since morning",
+    title: "Geyser not heating water in G-108", summary: "The geyser in the attached bathroom of Old Hostel room G-108 has not been giving hot water since the morning.",
+    issue: "Geyser not working", category: "Water Supply", building: "Old Hostel", floor: "1st", room: "G-108",
     status: "Resolved", assignee: "ramesh",
   },
   {
     key: "cupboard", module: "hostel", reporter: "2616400101", ago: 4 * D,
-    text: "Cupboard door hinge in room 214 broke and the door fell off",
-    title: "Cupboard door fell off", summary: "The cupboard door hinge in New Hostel room 214 is broken and the door has come off.",
-    issue: "Broken cupboard hinge", category: "Room Repair", building: "New Hostel", floor: "2nd", spot: "Room 214",
+    text: "Cupboard door hinge in room 204 broke and the door fell off",
+    title: "Cupboard door fell off", summary: "The cupboard door hinge in New Hostel room 204 is broken and the door has come off.",
+    issue: "Broken cupboard hinge", category: "Room Repair", building: "New Hostel", floor: "2nd", room: "204",
     status: "Assigned", assignee: "mahesh",
   },
   {
@@ -292,23 +313,23 @@ const TICKETS: SeedTicket[] = [
   },
   {
     key: "lights", module: "hostel", reporter: "2616400102", ago: 20 * D,
-    text: "Two tube lights flickering in the common room on the ground floor of the girls wing",
-    title: "Flickering tube lights in common room", summary: "Two tube lights in the Old Hostel Girls Wing ground floor common room are flickering.",
-    issue: "Flickering tube lights", category: "Electricity", building: "Old Hostel", floor: "Ground", spot: "Girls Wing common room",
+    text: "Two tube lights flickering in the ground floor corridor of the girls wing",
+    title: "Flickering tube lights in corridor", summary: "Two tube lights in the Old Hostel Girls Wing ground floor corridor are flickering.",
+    issue: "Flickering tube lights", category: "Electricity", building: "Old Hostel", floor: "Ground", spot: "Corridor",
     status: "Closed", assignee: "dinesh", rating: 5,
   },
   {
     key: "lan", module: "hostel", reporter: "2616400103", ago: 6 * D,
     text: "LAN port in my room B-305 is dead, only me, others on floor are fine",
     title: "LAN port not working in B-305", summary: "The LAN port in Old Hostel room B-305 has no connection; only this room is affected.",
-    issue: "Dead LAN port (single room)", category: "Internet", building: "Old Hostel", floor: "3rd", spot: "Room B-305",
+    issue: "Dead LAN port (single room)", category: "Internet", building: "Old Hostel", floor: "3rd", room: "B-305",
     status: "Resolved", assignee: "rohit",
   },
   {
     key: "cooler", module: "hostel", reporter: "2616400101", ago: 11 * D,
     text: "RO water cooler on ground floor is giving warm water and leaking from the bottom",
     title: "Water cooler warm and leaking", summary: "The RO water cooler on the New Hostel ground floor dispenses warm water and leaks from the bottom. It was reported fixed once but the problem came back.",
-    issue: "Water cooler not cooling, leaking", category: "Water Supply", priority: "Medium", building: "New Hostel", floor: "Ground", spot: "Water cooler near stairs",
+    issue: "Water cooler not cooling, leaking", category: "Water Supply", priority: "Medium", building: "New Hostel", floor: "Ground", spot: "Water cooler / RO",
     status: "Reopened", assignee: "ramesh", reopenCount: 1,
   },
   {
@@ -316,7 +337,7 @@ const TICKETS: SeedTicket[] = [
     text: "Stray dogs are entering the girls wing corridor at night, we are scared to go to the washroom",
     title: "Stray dogs in girls wing at night", summary: "Stray dogs are getting into the Old Hostel Girls Wing corridor at night, making students afraid to walk to the washroom.",
     issue: "Stray dogs entering hostel corridor", category: "Other", priority: "Medium",
-    building: "Old Hostel", floor: "Ground", spot: "Girls Wing corridor", status: "Submitted",
+    building: "Old Hostel", floor: "Ground", spot: "Corridor", status: "Submitted",
   },
   {
     key: "roaches", module: "hostel", reporter: "2616400103", ago: 3 * D,
@@ -329,7 +350,7 @@ const TICKETS: SeedTicket[] = [
     key: "washer", module: "hostel", reporter: "2616400102", ago: 5 * H,
     text: "Washing machine not working",
     title: "Washing machine not working", summary: "A washing machine in the Old Hostel basement laundry is not working. The student did not provide the machine ID.",
-    issue: "Washing machine not working (ID unknown)", category: "Laundry", building: "Old Hostel", floor: "Basement", spot: "Laundry area",
+    issue: "Washing machine not working (ID unknown)", category: "Laundry", building: "Old Hostel", floor: "Basement", spot: "Laundry machine",
     status: "Submitted", detailsIncomplete: true,
   },
   // --- Academic tickets
@@ -496,6 +517,8 @@ async function seedTickets() {
         : null,
       building: t.building ?? null,
       floor: t.floor ?? null,
+      room_no: t.room ?? null,
+      scope: t.scope ?? (t.room ? "room" : null),
       spot: t.spot ?? null,
       machine_id: t.machine ?? null,
       status: t.status,
@@ -559,7 +582,11 @@ async function seedTickets() {
       ev(
         "escalated",
         null,
-        t.key === "spark" ? at(0.6) : t.module === "security" ? at(0.001) : new Date(now - 2 * D).toISOString(),
+        t.key === "spark"
+          ? at(0.6)
+          : t.module === "security"
+            ? at(0.001)
+            : new Date(Math.max(now - 2 * D, created.getTime() + 30 * 60_000)).toISOString(),
         null,
         null,
         t.module === "security"
@@ -615,19 +642,36 @@ async function seedEscalations(ids: Map<string, string>) {
     await db.from("escalations").insert([
       {
         module: "hostel",
-        hotspot_key: "hostel|Plumbing|New Hostel|2nd",
+        hotspot_key: "hostel|Plumbing|New Hostel|2nd|204",
         reason: "recurring",
         target_role: "dean",
-        // unique reporters + followers across the 4 tickets (Aarav ×3, Rahul ×1)
+        // unique reporters + followers across the room's tickets (Aarav and his roommate Kabir)
         affected_count: 2,
         brief_count: 2,
         brief_model: "seed",
-        headline: "New Hostel 2nd floor washroom keeps flooding",
+        headline: "Room 204 keeps having plumbing faults",
         brief:
-          "Four plumbing complaints in 26 days from the New Hostel 2nd floor washroom: an overflowing flush, a leaking basin pipe, a blocked drain and a tap dripping all night.\nTwo students have reported them; one is still open and one is in progress.\nEstate / Maintenance has fixed each fault one at a time, but a new one appears every week.",
+          "Four plumbing complaints in 26 days from New Hostel room 204: an overflowing flush, a leaking basin pipe, a blocked bathroom drain and a tap dripping all night.\nTwo roommates have reported them; one ticket is still open and one is in progress.\nEstate / Maintenance fixes each fault separately, but a new one appears every week.",
         recommended_action:
-          "Order a full plumbing audit of the New Hostel 2nd floor washroom (cisterns, basin pipes, floor drains, tap washers) this week instead of one-off repairs.",
-        urgency_reason: "Water on the washroom floor is a slip hazard and the repeat repairs are wasting staff time.",
+          "Order a full plumbing check of room 204's attached bathroom (cistern, basin pipe, drain, tap washers) this week instead of one-off repairs.",
+        urgency_reason: "Repeated faults in the same room point to ageing fittings that one-off repairs are not fixing.",
+        created_at: new Date(Date.now() - 2 * D).toISOString(),
+      },
+      {
+        module: "hostel",
+        hotspot_key: "hostel|Water Supply|New Hostel|2nd|*",
+        reason: "recurring",
+        target_role: "dean",
+        // Aarav (204), Vikram (207), Ishaan (212) and Dev (219)
+        affected_count: 4,
+        brief_count: 4,
+        brief_model: "seed",
+        headline: "Low water pressure across New Hostel 2nd floor",
+        brief:
+          "Four different rooms on New Hostel 2nd floor (204, 207, 212 and 219) reported very low water pressure within five days; two of them say the whole floor is affected.\nEach room has its own attached bathroom, so independent faults are unlikely: the cause is probably shared.\nOne ticket is in progress, one is assigned and two are still unassigned.",
+        recommended_action:
+          "Have Estate / Maintenance inspect the 2nd floor water pipeline and main valve (and the overhead tank outlet) today, instead of treating each room separately.",
+        urgency_reason: "A whole floor has almost no water pressure, which affects hygiene and daily routines for every student on it.",
         created_at: new Date(Date.now() - 2 * D).toISOString(),
       },
       {
@@ -682,7 +726,7 @@ async function seedEscalations(ids: Map<string, string>) {
     ]),
     "escalations",
   );
-  console.log("✔ 4 escalations (hostel + academic recurring hotspots, SLA breach, safety report)");
+  console.log("✔ 5 escalations (room-level + floor-level hostel hotspots, academic hotspot, SLA breach, safety report)");
 }
 
 // ---------------------------------------------------------------------------

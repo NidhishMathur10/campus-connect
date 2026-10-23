@@ -1,7 +1,7 @@
 import "server-only";
 import { CONFIDENTIAL_REPORTER } from "@/config/safety";
 import { CLOSED_ON_BOARD_DAYS, OPEN_STATUSES, TICKET_STATUSES, type TicketStatus } from "@/config/statuses";
-import { hotspotKey } from "@/lib/hotspots";
+import { hotspotKeys } from "@/lib/hotspots";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import type { EscalationReason, EscalationStatus, Profile, Ticket, TicketEvent } from "@/lib/types";
@@ -208,6 +208,7 @@ export interface DuplicateOriginal {
   status: TicketStatus;
   building: string | null;
   floor: string | null;
+  room_no: string | null;
   spot: string | null;
   machine_id: string | null;
   photo_url: string | null;
@@ -242,7 +243,7 @@ export async function getStaffTicketDetail(ticketNo: string, viewer: Viewer): Pr
   const ticket = data as Ticket | null;
   if (!ticket || !canViewStaffTicket(viewer, ticket)) return null;
 
-  const key = hotspotKey(ticket);
+  const keys = hotspotKeys(ticket);
   const reporterHidden = !canSeeReporter(viewer, ticket);
   const [eventsRes, reporterRes, followersRes, escRes] = await Promise.all([
     supabase.from("ticket_events").select("*").eq("ticket_id", ticket.id).order("created_at", { ascending: true }),
@@ -260,7 +261,7 @@ export async function getStaffTicketDetail(ticketNo: string, viewer: Viewer): Pr
     supabase
       .from("escalations")
       .select("id, reason, status")
-      .or(key ? `ticket_id.eq.${ticket.id},hotspot_key.eq."${key}"` : `ticket_id.eq.${ticket.id}`)
+      .or([`ticket_id.eq.${ticket.id}`, ...keys.map((k) => `hotspot_key.eq."${k}"`)].join(","))
       .order("created_at", { ascending: false }),
   ]);
 
@@ -272,7 +273,7 @@ export async function getStaffTicketDetail(ticketNo: string, viewer: Viewer): Pr
     const [{ data: orig }, { count }] = await Promise.all([
       admin
         .from("tickets")
-        .select("id, ticket_no, title, summary, status, building, floor, spot, machine_id, photo_url, created_at")
+        .select("id, ticket_no, title, summary, status, building, floor, room_no, spot, machine_id, photo_url, created_at")
         .eq("id", ticket.duplicate_of)
         .maybeSingle(),
       admin.from("ticket_followers").select("user_id", { count: "exact", head: true }).eq("ticket_id", ticket.duplicate_of),

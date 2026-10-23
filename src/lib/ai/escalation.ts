@@ -7,7 +7,7 @@ import { generateStructured, type AiResult } from "./gemini";
 
 /** CLAUDE.md §6.7 — escalationBrief(context) → brief + recommended_action. */
 export const EscalationBriefSchema = z.object({
-  headline: z.string().describe("At most 10 words, plain English, e.g. 'Plumbing keeps failing in New Hostel 2nd floor washroom'"),
+  headline: z.string().describe("At most 10 words, plain English, e.g. 'Low water pressure across New Hostel 2nd floor'"),
   brief: z
     .string()
     .describe("3-4 short lines: what is happening, for how long, how many students are affected, what has been tried so far"),
@@ -23,6 +23,10 @@ export interface EscalationContext {
   /** e.g. "Plumbing · New Hostel, 2nd floor" */
   where: string;
   category: string;
+  /** "floor" = several different hostel rooms on one floor; "room" = one room keeps having the problem. */
+  pattern?: "floor" | "room" | null;
+  /** Hostel rooms involved (floor-level issues). */
+  rooms?: string[];
   affectedCount: number;
   /** Warden/HOD's own words for manual escalations. */
   manualNote?: string | null;
@@ -48,6 +52,17 @@ const REASON_TEXT: Record<EscalationReason, string> = {
   safety: "a student filed a confidential safety report (ragging, harassment or a threat) that needs the Dean's attention immediately",
 };
 
+/** Why it was escalated, in words the brief can use (floor-level issues get their own explanation). */
+function reasonText(ctx: EscalationContext): string {
+  if (ctx.reason === "recurring" && ctx.pattern === "floor") {
+    return `${ctx.rooms?.length ?? "several"} different rooms on the same floor reported the same problem within a week. Each room has its own plumbing and fittings, so this points to a shared FLOOR-LEVEL cause (for example the floor's pipeline or main valve, a shared distribution board, switch or access point) rather than separate room faults`;
+  }
+  if (ctx.reason === "recurring" && ctx.pattern === "room") {
+    return "the same room keeps reporting the same kind of problem (3+ tickets in 30 days), so repeat repairs are not fixing the root cause";
+  }
+  return REASON_TEXT[ctx.reason];
+}
+
 function daysAgo(iso: string): string {
   const d = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 86_400_000));
   return d === 0 ? "today" : `${d} day${d === 1 ? "" : "s"} ago`;
@@ -60,7 +75,7 @@ export function templateBrief(ctx: EscalationContext): EscalationBrief {
   const open = ctx.tickets.filter((t) => !["Resolved", "Closed", "Merged"].includes(t.status)).length;
   const headline =
     ctx.reason === "recurring"
-      ? `Recurring ${ctx.category.toLowerCase()} problem at ${ctx.where.split(" · ")[1] ?? ctx.where}`
+      ? `${ctx.pattern === "floor" ? "Floor-level" : "Recurring"} ${ctx.category.toLowerCase()} problem at ${(ctx.where.split(" · ")[1] ?? ctx.where).replace(" — floor-level issue", "")}`
       : ctx.reason === "sla_breach"
         ? `${ctx.tickets[0]?.priority ?? "Urgent"} ticket past its deadline`
         : ctx.reason === "reopened"
@@ -73,10 +88,10 @@ export function templateBrief(ctx: EscalationContext): EscalationBrief {
     brief: [
       `${n} ${ctx.category} ticket${n === 1 ? "" : "s"} at ${ctx.where}, first reported ${daysAgo(oldest)}.`,
       `${ctx.affectedCount} student${ctx.affectedCount === 1 ? "" : "s"} affected; ${open} still open.`,
-      ctx.manualNote ? `Escalation note: ${ctx.manualNote}` : `Escalated because ${REASON_TEXT[ctx.reason]}.`,
+      ctx.manualNote ? `Escalation note: ${ctx.manualNote}` : `Escalated because ${reasonText(ctx)}.`,
     ].join("\n"),
     recommended_action: "Review the linked tickets with the responsible department and set a firm deadline for a lasting fix.",
-    urgency_reason: `Escalated because ${REASON_TEXT[ctx.reason]}.`,
+    urgency_reason: `Escalated because ${reasonText(ctx)}.`,
   };
 }
 
@@ -92,7 +107,7 @@ export async function escalationBrief(ctx: EscalationContext): Promise<AiResult<
     .join("\n");
 
   const prompt = `An issue at ${COLLEGE_NAME} has been escalated to the ${ctx.targetLabel}.
-Reason: ${REASON_TEXT[ctx.reason]}.
+Reason: ${reasonText(ctx)}.
 Module: ${ctx.module}. Category: ${ctx.category}. Location: ${ctx.where}.
 Students affected (unique reporters + "me too" followers): ${ctx.affectedCount}.
 ${ctx.manualNote ? `Note from the person who escalated it: ${ctx.manualNote}\n` : ""}

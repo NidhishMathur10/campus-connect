@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { MapPin } from "lucide-react";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
+import { isHostelBuilding, normaliseRoom } from "@/config/locations";
 import { getRoutingRule, type TicketModule } from "@/config/routing";
 import { PHOTO_BUCKET } from "@/config/storage";
 import type {
@@ -20,6 +21,7 @@ import { createTicket, followTicket } from "@/lib/tickets/actions";
 import { AiThinking, Bubble, ChatReply } from "./chat";
 import { DuplicateDialog } from "./duplicate-dialog";
 import { PreviewCard, type TicketDraft } from "./preview-card";
+import { hostelDraft, type OwnRoom } from "./hostel-place";
 import { EMPTY_DRAFT, ReportForm, type ReportDraft } from "./report-form";
 import { SuccessCard } from "./success-card";
 
@@ -46,13 +48,23 @@ async function postJson<T>(url: string, body: unknown, timeoutMs: number): Promi
   }
 }
 
-function locationOf(d: ReportDraft): ComplaintLocation {
-  return {
-    building: d.building,
-    floor: d.floor,
-    spot: d.spot.trim() || null,
-    machine_id: d.machineId,
-  };
+/** Hostel buildings store a room number OR a common area; everything else keeps the free-text spot. */
+function locationOf(d: ReportDraft, module: TicketModule): ComplaintLocation {
+  if (module === "hostel" && isHostelBuilding(d.building)) {
+    if (d.place === "room") {
+      return { building: d.building, floor: d.floor, room_no: normaliseRoom(d.room), spot: null, machine_id: null };
+    }
+    const detail = d.spot.trim();
+    const spot = d.area === "Other" ? (detail ? `Other: ${detail}` : "Other") : d.area;
+    return {
+      building: d.building,
+      floor: d.floor,
+      room_no: null,
+      spot,
+      machine_id: d.area === "Laundry machine" ? d.machineId : null,
+    };
+  }
+  return { building: d.building, floor: d.floor, room_no: null, spot: d.spot.trim() || null, machine_id: d.machineId };
 }
 
 function draftFromAnalysis(a: ComplaintAnalysis): TicketDraft {
@@ -69,6 +81,7 @@ function draftFromAnalysis(a: ComplaintAnalysis): TicketDraft {
     department: a.department,
     priority: a.priority,
     is_safety_hazard: a.is_safety_hazard,
+    scope: a.scope,
     photo_analysis: a.photo_analysis,
     location: a.location,
     missing_fields: a.missing_fields,
@@ -79,6 +92,7 @@ function draftFromAnalysis(a: ComplaintAnalysis): TicketDraft {
 /** Used when the AI is unavailable: the student picks the category by hand. */
 function manualDraft(d: ReportDraft, module: TicketModule): TicketDraft {
   const text = d.text.trim();
+  const location = locationOf(d, module);
   const hazard = module !== "security" && HAZARD_WORDS.test(text);
   return {
     is_emergency: false,
@@ -94,7 +108,8 @@ function manualDraft(d: ReportDraft, module: TicketModule): TicketDraft {
     priority: hazard ? "Urgent" : "Medium",
     is_safety_hazard: hazard,
     photo_analysis: null,
-    location: locationOf(d),
+    location,
+    scope: location.room_no ? "room" : null,
     missing_fields: [],
     ai: null,
   };
@@ -131,17 +146,21 @@ export function ReportFlow({
   buildings,
   onEmergencyChange,
   textPlaceholder,
+  ownRoom,
 }: {
   module: TicketModule;
   userId: string;
   buildings: readonly string[];
+  /** Hostel module: the student's own hostel + room, pre-filled in the form. */
+  ownRoom?: OwnRoom;
   /** Safety & Security: called when the AI thinks the student may be in immediate danger. */
   onEmergencyChange?: (emergency: boolean) => void;
   textPlaceholder?: string;
 }) {
   const isSecurity = module === "security";
   const [phase, setPhase] = useState<Phase>("form");
-  const [draft, setDraft] = useState<ReportDraft>(EMPTY_DRAFT);
+  const freshDraft = () => (module === "hostel" && ownRoom ? hostelDraft(EMPTY_DRAFT, ownRoom) : EMPTY_DRAFT);
+  const [draft, setDraft] = useState<ReportDraft>(freshDraft);
   const [uploaded, setUploaded] = useState<{ blob: Blob; path: string } | null>(null);
   const [thinking, setThinking] = useState<0 | 1 | 2>(0);
   const [round1, setRound1] = useState<ComplaintAnalysis | null>(null);
@@ -210,7 +229,7 @@ export function ReportFlow({
       const res = await analyze({
         module,
         text: draft.text.trim(),
-        location: locationOf(draft),
+        location: locationOf(draft, module),
         photoPath: path,
       });
       if (!res?.ok) {
@@ -294,7 +313,7 @@ export function ReportFlow({
 
   function reset() {
     if (draft.photo) URL.revokeObjectURL(draft.photo.previewUrl);
-    setDraft(EMPTY_DRAFT);
+    setDraft(freshDraft());
     setUploaded(null);
     setResult(null);
     editComplaint();
@@ -316,6 +335,8 @@ export function ReportFlow({
         category: ticket.category,
         building: ticket.location.building,
         floor: ticket.location.floor,
+        room_no: ticket.location.room_no,
+        scope: ticket.scope,
         spot: ticket.location.spot,
         title: ticket.title,
         summary: ticket.summary,
@@ -347,6 +368,7 @@ export function ReportFlow({
       priority: ticket.priority,
       is_safety_hazard: ticket.is_safety_hazard,
       location: ticket.location,
+      scope: ticket.scope,
       photo_path: photoPath,
       photo_analysis: ticket.photo_analysis,
       details_incomplete: ticket.missing_fields.length > 0,
@@ -429,6 +451,7 @@ export function ReportFlow({
         busy={false}
         textPlaceholder={textPlaceholder}
         showMachines={module === "hostel"}
+        ownRoom={module === "hostel" ? ownRoom : undefined}
         {...(module === "academic" ? ACADEMIC_FORM : {})}
       />
     );
@@ -442,7 +465,7 @@ export function ReportFlow({
       <Bubble from="student">
         <p className="whitespace-pre-wrap">{draft.text}</p>
         <p className="mt-2 flex items-center gap-1 text-xs text-slate-300">
-          <MapPin className="size-3" /> {formatLocation(locationOf(draft))}
+          <MapPin className="size-3" /> {formatLocation(locationOf(draft, module))}
         </p>
         {draft.photo && (
           // eslint-disable-next-line @next/next/no-img-element -- local blob preview

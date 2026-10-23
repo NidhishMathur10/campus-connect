@@ -1,7 +1,7 @@
 "use client";
 
 import { ArrowRight, Copy, Hourglass, MapPin, MoreHorizontal, RotateCcw, Users } from "lucide-react";
-import { CategoryBadge, ConfidentialBadge, EscalatedBadge, PriorityBadge } from "@/components/common/badges";
+import { CategoryBadge, ConfidentialBadge, EscalatedBadge, PriorityBadge, ScopeBadge } from "@/components/common/badges";
 import { initials } from "@/components/shell/user-menu";
 import { Stars } from "@/components/tickets/ticket-card";
 import { Button } from "@/components/ui/button";
@@ -13,7 +13,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { STAFF_TRANSITIONS, type TicketStatus } from "@/config/statuses";
-import { formatLocation } from "@/lib/format";
+import { formatLocation, formatPlace } from "@/lib/format";
 import type { BoardTicket } from "@/lib/tickets/staff-queries";
 import { cn } from "@/lib/utils";
 import { Age, isOverdue, SlaCountdown } from "./time-bits";
@@ -66,6 +66,7 @@ export function TicketFlags({ ticket }: { ticket: BoardTicket }) {
           <Copy className="size-3" /> ⚠ Duplicate?
         </span>
       )}
+      <ScopeBadge scope={ticket.scope} className="px-2 text-[11px]" />
       {ticket.escalated && <EscalatedBadge className="px-2 text-[11px]" />}
       {ticket.is_confidential && <ConfidentialBadge className="px-2 text-[11px]" />}
     </>
@@ -160,7 +161,10 @@ export function BoardCard({
 
       <p className="flex min-w-0 items-center gap-1 text-xs text-slate-500">
         <MapPin className="size-3.5 shrink-0" />
-        <span className="truncate">{formatLocation(ticket)}</span>
+        <span className="truncate">
+          {formatPlace(ticket) && <strong className="font-bold text-navy">{formatPlace(ticket)} · </strong>}
+          {formatLocation({ building: ticket.building, floor: ticket.floor })}
+        </span>
       </p>
 
       <div className="flex items-center justify-between gap-2 text-xs text-slate-500">

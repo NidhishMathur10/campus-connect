@@ -23,10 +23,17 @@ export function formatDateTime(iso: string): string {
 }
 
 export function formatLocation(
-  t: { building?: string | null; floor?: string | null; spot?: string | null; machine_id?: string | null },
+  t: { building?: string | null; floor?: string | null; room_no?: string | null; spot?: string | null; machine_id?: string | null },
 ): string {
   const floor = t.floor ? (t.floor === "Basement" || t.floor === "Ground" ? t.floor : `${t.floor} floor`) : null;
-  return [t.building, floor, t.spot, t.machine_id].filter(Boolean).join(" · ") || "Location not given";
+  const room = t.room_no ? `Room ${t.room_no}` : null;
+  return [t.building, floor, room, t.spot, t.machine_id].filter(Boolean).join(" · ") || "Location not given";
+}
+
+/** Just the place inside the building: "Room 204" or the common area ("Corridor", "Laundry machine · NH-G-W2"). */
+export function formatPlace(t: { room_no?: string | null; spot?: string | null; machine_id?: string | null }): string | null {
+  if (t.room_no) return `Room ${t.room_no}`;
+  return [t.spot, t.machine_id].filter(Boolean).join(" · ") || null;
 }
 
 export const LANGUAGE_NAMES: Record<string, string> = { en: "English", hi: "Hindi" };

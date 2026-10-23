@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { TICKET_SCOPES, type TicketScope } from "@/config/locations";
 import {
   categoriesFor,
   DEPARTMENTS,
@@ -19,6 +20,9 @@ import type { PhotoAnalysis } from "@/lib/types";
 export interface ComplaintLocation {
   building: string | null;
   floor: string | null;
+  /** Hostel room number ("204"). */
+  room_no: string | null;
+  /** Common area ("Corridor", "Water cooler / RO"...) or free-text spot outside hostels. */
   spot: string | null;
   machine_id: string | null;
 }
@@ -35,6 +39,7 @@ export const AnalyzeRequestSchema = z.object({
   location: z.object({
     building: z.string().nullable(),
     floor: z.string().nullable(),
+    room_no: z.string().max(20).nullable(),
     spot: z.string().max(120).nullable(),
     machine_id: z.string().nullable(),
   }),
@@ -75,6 +80,12 @@ export function buildAnalysisSchema(module: TicketModule) {
     title: z.string().describe("English ticket title, at most 8 words"),
     summary: z.string().describe("2-3 sentence English summary for staff, including the location"),
     extracted_issue: z.string().describe("The core problem in a few words, e.g. 'Leaking tap'"),
+    scope: z
+      .enum(["room", "floor", "building", "unknown"])
+      .describe("Hostel only: how many rooms the problem affects according to the student: 'room' (only their room), 'floor' (other rooms on the floor too), 'building', or 'unknown' if not stated"),
+    scope_applies: z
+      .boolean()
+      .describe("Hostel only: true when the problem could affect several rooms (no water / low pressure, a power cut, Wi-Fi outage); false for a single faulty item, a leak inside the room, etc."),
     category: z.enum(categories),
     department: z.enum(DEPARTMENTS),
     priority: z.enum(PRIORITIES),
@@ -92,7 +103,8 @@ export function buildAnalysisSchema(module: TicketModule) {
     extracted_location: z.object({
       building: z.string().describe("Exact building name from the list if mentioned, else empty string"),
       floor: z.string().describe("Exact floor name from the list if mentioned, else empty string"),
-      spot: z.string().describe("Exact spot (room no., washroom, corridor...) if mentioned, else empty string"),
+      room_no: z.string().describe("Hostel room number (e.g. 204) if mentioned, else empty string"),
+      spot: z.string().describe("Hostel: the common area (Corridor, Staircase, Water cooler / RO, Laundry machine, Gym, Mess, Other) if mentioned; elsewhere the exact spot (classroom, lab, court...). Empty string otherwise"),
       machine_id: z.string().describe("Washing machine ID if mentioned, else empty string"),
     }),
     missing_fields: z.array(z.string()).describe("Short names of required details still missing, e.g. 'exact spot'"),
@@ -115,6 +127,8 @@ export interface ComplaintAnalysis {
   department: Department;
   priority: Priority;
   is_safety_hazard: boolean;
+  /** Hostel: how many rooms the issue affects (null when not applicable / not stated). */
+  scope: TicketScope | null;
   /** Safety & Security module: the student may be in immediate danger. */
   is_emergency: boolean;
   confidence: { category: number; department: number; priority: number };
@@ -139,7 +153,9 @@ export const DuplicateRequestSchema = z.object({
   category: z.string().min(1),
   building: z.string().nullable(),
   floor: z.string().nullable(),
+  room_no: z.string().nullable().default(null),
   spot: z.string().nullable(),
+  scope: z.enum(TICKET_SCOPES).nullable().default(null),
   title: z.string(),
   summary: z.string(),
   english_text: z.string(),
@@ -155,6 +171,8 @@ export interface DuplicateMatch {
   photo_url: string | null;
   building: string | null;
   floor: string | null;
+  room_no: string | null;
+  scope: TicketScope | null;
   spot: string | null;
   created_at: string;
   similarity: number;

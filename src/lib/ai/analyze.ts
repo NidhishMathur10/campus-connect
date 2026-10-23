@@ -5,10 +5,16 @@ import {
   BUILDING_INFO,
   BUILDINGS,
   FLOORS,
+  floorFromRoom,
+  HOSTEL_COMMON_AREAS,
+  isHostelBuilding,
   LIBRARY_BUILDING,
   locationsPromptText,
+  normaliseRoom,
   parseRoomCode,
+  SCOPE_CATEGORIES,
   type Building,
+  type TicketScope,
 } from "@/config/locations";
 import {
   categoriesFor,
@@ -55,6 +61,31 @@ function spotNeeded(building: string | null): boolean {
 
 const DEVANAGARI = /[ऀ-ॿ]/;
 
+/** Hostel rooms have their own attached washrooms: we never ask which one. */
+const WASHROOM_WORDS = /washroom|bathroom|toilet|balcony|वॉशरूम|बाथरूम|शौचालय|बालकनी/i;
+const SCOPE_WORDS = /\bscope\b|whole floor|entire floor|other rooms|rooms affected|affected rooms|how many rooms|just you|only you/i;
+const SCOPE_QUESTION_RE = /other rooms|whole floor|this floor|मंज़िल|मंजिल|दूसरे कमरों|कमरों/i;
+const ROOM_QUESTION_RE = /room number|which room|room no|common area|कमरा|कमरे/i;
+
+const SCOPE_QUESTION = {
+  en: "Only your room, or other rooms on this floor too?",
+  hi: "क्या यह सिर्फ़ आपके कमरे में है, या इस मंज़िल के दूसरे कमरों में भी?",
+};
+const ROOM_QUESTION = {
+  en: "Which room number is this in? (Or tell me if it's a common area like the corridor, staircase or water cooler.)",
+  hi: "यह किस कमरे में है? (या बताइए कि यह कोई कॉमन जगह है — जैसे कॉरिडोर, सीढ़ियाँ या वॉटर कूलर।)",
+};
+
+/** Hostel follow-ups: drop "which washroom?" questions and make sure room / scope are asked. */
+function hostelQuestions(module: TicketModule, ai: string[], missing: string[], hindi: boolean): string[] {
+  if (module !== "hostel") return [...ai];
+  const out = ai.filter((q) => !WASHROOM_WORDS.test(q));
+  const lang = hindi ? "hi" : "en";
+  if (missing.includes("scope") && !out.some((q) => SCOPE_QUESTION_RE.test(q))) out.push(SCOPE_QUESTION[lang]);
+  if (missing.includes("room number or common area") && !out.some((q) => ROOM_QUESTION_RE.test(q))) out.push(ROOM_QUESTION[lang]);
+  return out;
+}
+
 function requiredDetailsText(module: TicketModule): string {
   const perCategory = ROUTING[module]
     .filter((r) => r.requiredDetails)
@@ -63,10 +94,19 @@ function requiredDetailsText(module: TicketModule): string {
   const location =
     module === "academic"
       ? "- Classroom Facilities / Lab Equipment / Library: the block (Block A–D), floor and room or lab number. Room codes like \"B-204\" mean Block B, 2nd floor (first digit = floor, 0 = Ground). The Library is in Block A.\n- Academic Admin (timetable, attendance, marks): NO physical location — never ask for block, floor or room."
-      : "- Every complaint: building, floor (only for hostels and academic blocks — not for messes, Gym or Sports Complex), and the exact spot (room number, washroom, corridor, court, classroom...) — not for messes, where the meal is enough.";
+      : `- Hostel (Old Hostel / New Hostel): building, floor, and EITHER the ROOM NUMBER OR, for a shared space, the common area (${HOSTEL_COMMON_AREAS.join(", ")}). Every room has its own attached washroom, bathroom and balcony and there are NO common washrooms, so NEVER ask which washroom or bathroom — the room number is enough (details go in the complaint text).
+- Water Supply (no water / low pressure), Electricity (power cut) and Internet (Wi-Fi outage / slow Wi-Fi): also the SCOPE — "Only your room, or other rooms on this floor too?" (scope_applies = true). For a single faulty item inside the room (a fan, a tap, a geyser, a LAN port) scope_applies = false and you must NOT ask.
+- Messes, Gym and Sports Complex: no room; floor is not needed, and for messes the meal is enough.`;
   return [location, perCategory]
     .filter(Boolean)
     .join("\n");
+}
+
+function hostelLayoutNote(module: TicketModule): string {
+  if (module !== "hostel") return "";
+  return `
+HOSTEL LAYOUT: 4 students share each room; every room has its own attached washroom, bathroom and balcony. There are no common washrooms, so a washroom / bathroom / balcony problem is a problem of that ROOM (extracted_location.room_no). Never ask which washroom.
+`;
 }
 
 /** Safety & Security: separate, supportive prompt (CLAUDE.md §12). */
@@ -113,7 +153,7 @@ ${routingGuidePromptText(module)}
 
 CAMPUS LOCATIONS:
 ${locationsPromptText()}
-
+${hostelLayoutNote(module)}
 REQUIRED DETAILS:
 ${requiredDetailsText(module)}
 
@@ -137,7 +177,8 @@ function formLocationText(loc: ComplaintLocation): string {
   return [
     `Building: ${loc.building || "(not selected)"}`,
     `Floor: ${loc.floor || "(not selected)"}`,
-    `Spot: ${loc.spot || "(not given)"}`,
+    `Room number: ${loc.room_no || "(not given)"}`,
+    `Common area / spot: ${loc.spot || "(not given)"}`,
     `Washing machine ID: ${loc.machine_id || "(none)"}`,
   ].join("\n");
 }
@@ -196,6 +237,7 @@ function normalise(
   const location: ComplaintLocation = {
     building: input.location.building || pick(ex.building, BUILDINGS),
     floor: input.location.floor || pick(ex.floor, FLOORS),
+    room_no: normaliseRoom(input.location.room_no) || normaliseRoom(ex.room_no),
     spot: input.location.spot?.trim() || ex.spot.trim() || null,
     machine_id: input.location.machine_id || ex.machine_id.trim().toUpperCase() || null,
   };
@@ -215,6 +257,7 @@ function normalise(
       department,
       priority,
       is_safety_hazard: !!rule.escalateToDean || raw.is_safety_hazard,
+      scope: null,
       is_emergency: isEmergency,
       confidence: raw.confidence,
       reasons: raw.reasons,
@@ -241,28 +284,53 @@ function normalise(
   const needFloor = (building: string | null) =>
     floorNeeded(building) && !(module === "academic" && category === "Library");
 
+  // Hostel: a place is a ROOM NUMBER or a COMMON AREA (never "which washroom").
+  const hostelPlace = module === "hostel" && isHostelBuilding(location.building);
+  const placeKnown = !!location.room_no || !!location.spot;
+  if (hostelPlace) location.floor ??= floorFromRoom(location.room_no);
+
+  // Scope (room / floor / building) for water, power cut and Wi-Fi outages.
+  const scopeApplies = hostelPlace && SCOPE_CATEGORIES.includes(category) && raw.scope_applies;
+  const aiScope: TicketScope | null = raw.scope === "unknown" ? null : raw.scope;
+  const scope: TicketScope | null = hostelPlace && !scopeApplies && location.room_no ? "room" : scopeApplies ? aiScope : null;
+
   // Deterministic safety net for location gaps the model may have missed.
   const missing = [...raw.missing_fields];
   const has = (word: string) => missing.some((m) => m.toLowerCase().includes(word));
   if (!noLocation) {
     if (!location.building && !has("building") && !has("block")) missing.push(module === "academic" ? "block" : "building");
     if (!location.floor && needFloor(location.building) && !has("floor")) missing.push("floor");
-    if (!location.spot && spotNeeded(location.building) && !has("spot") && !has("room")) {
+    if (hostelPlace) {
+      if (!placeKnown && !has("room") && !has("common")) missing.push("room number or common area");
+    } else if (!location.spot && spotNeeded(location.building) && !has("spot") && !has("room")) {
       missing.push(module === "academic" ? "room number" : "exact spot");
     }
   }
   if (category === "Laundry" && !location.machine_id && !has("machine")) missing.push("machine ID");
+  if (scopeApplies && !scope) missing.push("scope");
+
   // Drop location gaps the form/answers have already filled (or that don't apply).
-  const filtered = missing.filter((m) => {
+  const filtered = missing.filter((m, i) => {
     const l = m.toLowerCase();
+    if (missing.findIndex((x) => x.toLowerCase() === l) !== i) return false; // duplicates
     const isLocation = /building|block|floor|spot|room|location|where/.test(l);
     if (noLocation) return !isLocation;
+    if (module === "hostel") {
+      // Never ask which washroom — and the scope gap is added by us (below), not by the model.
+      if (WASHROOM_WORDS.test(l)) return false;
+      if (SCOPE_WORDS.test(l)) return l === "scope" && scopeApplies && !scope;
+    }
     if (l.includes("building") || l.includes("block")) return !location.building;
     if (l.includes("floor")) return !location.floor && needFloor(location.building);
+    if (hostelPlace && /spot|room|common|area/.test(l)) return !placeKnown;
     if (l.includes("spot") || l.includes("room")) return !location.spot && spotNeeded(location.building);
     if (l.includes("machine")) return !location.machine_id;
     return true;
   });
+
+  const questions = input.followUp
+    ? []
+    : hostelQuestions(module, raw.follow_up_questions, filtered, DEVANAGARI.test(input.text)).slice(0, 3);
 
   const photo: PhotoAnalysis | null = input.photo
     ? raw.photo_analysis
@@ -278,13 +346,14 @@ function normalise(
     department,
     priority,
     is_safety_hazard: raw.is_safety_hazard,
+    scope,
     is_emergency: false,
     confidence: raw.confidence,
     reasons: raw.reasons,
     photo_analysis: photo,
     location,
     missing_fields: filtered,
-    follow_up_questions: input.followUp ? [] : raw.follow_up_questions.slice(0, 3),
+    follow_up_questions: questions,
     model,
   };
 }

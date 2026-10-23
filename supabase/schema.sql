@@ -140,6 +140,16 @@ update public.tickets set tracking_pin = public.gen_tracking_pin() where trackin
 alter table public.tickets alter column tracking_pin set default public.gen_tracking_pin();
 alter table public.tickets alter column tracking_pin set not null;
 
+-- Phase 5C: hostel location model. Every hostel room has its own attached washroom,
+-- bathroom and balcony (no common washrooms), so a ticket stores the ROOM NUMBER, or a
+-- common area in `spot` (Corridor, Staircase, Water cooler / RO, ...). `scope` says how many
+-- rooms an issue affects: 'room' | 'floor' | 'building' (asked for water / power cut / internet).
+alter table public.tickets add column if not exists room_no text;
+alter table public.tickets add column if not exists scope   text;
+do $$ begin
+  alter table public.tickets add constraint tickets_scope_check check (scope in ('room','floor','building'));
+exception when duplicate_object then null; end $$;
+
 -- Phase 3: staff-only notes (hidden from students).
 alter table public.ticket_events add column if not exists is_internal boolean not null default false;
 
@@ -272,6 +282,7 @@ create index if not exists tickets_dept_status_idx on public.tickets (department
 create index if not exists tickets_module_idx      on public.tickets (module, status, created_at desc);
 create index if not exists tickets_dup_lookup_idx  on public.tickets (module, category, building, floor, created_at desc);
 create index if not exists tickets_assigned_idx    on public.tickets (assigned_to);
+create index if not exists tickets_room_idx        on public.tickets (module, building, room_no, category);
 create index if not exists tickets_dup_of_idx      on public.tickets (duplicate_of);
 create index if not exists ticket_events_ticket_idx on public.ticket_events (ticket_id, created_at);
 create index if not exists ticket_followers_user_idx on public.ticket_followers (user_id);

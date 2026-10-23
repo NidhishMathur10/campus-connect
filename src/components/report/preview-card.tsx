@@ -1,13 +1,14 @@
 "use client";
 
 import { AlertCircle, Building2, CheckCircle2, EyeOff, Languages, Loader2, Lock, MapPin, Pencil, Sparkles, Unlock } from "lucide-react";
-import { CategoryBadge, PriorityBadge } from "@/components/common/badges";
+import { CategoryBadge, PriorityBadge, ScopeBadge } from "@/components/common/badges";
 import { SimpleSelect } from "@/components/common/simple-select";
 import { Confidence, PhotoAnalysisBox, SafetyBadge } from "@/components/tickets/ai-bits";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { categoriesFor, getRoutingRule, isConfidentialCategory, type Priority, type TicketModule } from "@/config/routing";
+import type { TicketScope } from "@/config/locations";
 import type { ComplaintLocation } from "@/lib/ai/complaint";
 import { formatLocation, languageName } from "@/lib/format";
 import type { PhotoAnalysis } from "@/lib/types";
@@ -23,6 +24,8 @@ export interface TicketDraft {
   department: string;
   priority: Priority;
   is_safety_hazard: boolean;
+  /** Hostel: only this room / whole floor / whole building (null = not applicable). */
+  scope: TicketScope | null;
   /** Safety & Security only. */
   is_emergency: boolean;
   /** Safety & Security: the student's choice for categories where confidentiality is optional. */
@@ -154,6 +157,7 @@ export function PreviewCard({
           <p className="eyebrow">Location</p>
           <p className="flex items-center gap-2 text-sm font-semibold text-slate-700">
             <MapPin className="size-4 text-slate-400" /> {formatLocation(draft.location)}
+            <ScopeBadge scope={draft.scope} />
           </p>
         </section>
 
