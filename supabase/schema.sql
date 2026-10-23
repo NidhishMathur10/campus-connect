@@ -722,3 +722,138 @@ create policy "complaint_photos_upload" on storage.objects for insert to authent
   with check (bucket_id = 'complaint-photos' and (storage.foldername(name))[1] = auth.uid()::text);
 create policy "complaint_photos_delete" on storage.objects for delete to authenticated
   using (bucket_id = 'complaint-photos' and (storage.foldername(name))[1] = auth.uid()::text);
+
+-- =====================================================================
+-- Lost & Found (students + faculty report, the security_officer manages)
+-- Safe to re-run. All app reads/writes go through server code; RLS is the safety net.
+-- Students only ever read their OWN rows here: the public listing is built on the server
+-- (sanitised: no names, no brand/marks or real photo for sensitive items).
+-- =====================================================================
+create sequence if not exists public.lost_found_no_seq start with 101;
+
+create table if not exists public.lost_found_items (
+  id                    uuid primary key default gen_random_uuid(),
+  item_no               text not null unique default ('LF-' || nextval('public.lost_found_no_seq')),
+  type                  text not null check (type in ('lost','found')),
+  reporter_id           uuid not null references public.profiles(id) on delete cascade,
+  title                 text not null,
+  description           text not null,            -- what the reporter wrote (private)
+  public_description    text,                     -- AI-cleaned, safe to show everyone
+  item_category         text not null default 'Other',
+  color                 text,
+  brand                 text,
+  marks                 text,                     -- distinguishing marks
+  sensitive             boolean not null default false,
+  building              text,
+  spot                  text,
+  happened_at           timestamptz not null default now(),
+  photo_url             text,
+  photo_path            text,
+  photo_analysis        jsonb,
+  status                text not null default 'open'
+                        check (status in ('open','matched','claimed','returned','expired')),
+  held_at               text check (held_at in ('security_office','with_finder')),
+  pickup_note           text,
+  verification_question text,
+  verification_answer   text,                     -- never shown to claimants
+  disposition           text check (disposition in ('disposed','donated')),
+  language              text not null default 'en',
+  ai_meta               jsonb,
+  returned_at           timestamptz,
+  created_at            timestamptz not null default now(),
+  updated_at            timestamptz not null default now()
+);
+create index if not exists lost_found_items_list_idx on public.lost_found_items (type, status, created_at desc);
+create index if not exists lost_found_items_reporter_idx on public.lost_found_items (reporter_id);
+
+create table if not exists public.lost_found_matches (
+  lost_id    uuid not null references public.lost_found_items(id) on delete cascade,
+  found_id   uuid not null references public.lost_found_items(id) on delete cascade,
+  score      real not null,
+  reason     text,
+  status     text not null default 'suggested' check (status in ('suggested','confirmed','rejected')),
+  created_at timestamptz not null default now(),
+  primary key (lost_id, found_id)
+);
+
+create table if not exists public.lost_found_claims (
+  id           uuid primary key default gen_random_uuid(),
+  item_id      uuid not null references public.lost_found_items(id) on delete cascade,  -- the FOUND item
+  claimant_id  uuid not null references public.profiles(id) on delete cascade,
+  lost_id      uuid references public.lost_found_items(id) on delete set null,          -- claimant's own lost report, if any
+  answer       text not null,
+  match_score  real,
+  match_reason text,
+  status       text not null default 'pending' check (status in ('pending','approved','rejected')),
+  reviewed_by  uuid references public.profiles(id) on delete set null,
+  review_note  text,
+  reviewed_at  timestamptz,
+  created_at   timestamptz not null default now()
+);
+create index if not exists lost_found_claims_item_idx on public.lost_found_claims (item_id, status);
+-- One open claim per person per item.
+create unique index if not exists lost_found_claims_one_pending
+  on public.lost_found_claims (item_id, claimant_id) where status = 'pending';
+
+-- Audit trail: who did what, with roll numbers (name for staff without one).
+create table if not exists public.lost_found_log (
+  id            uuid primary key default gen_random_uuid(),
+  item_id       uuid references public.lost_found_items(id) on delete cascade,
+  claim_id      uuid references public.lost_found_claims(id) on delete set null,
+  actor_id      uuid references public.profiles(id) on delete set null,
+  actor_name    text,
+  actor_roll_no text,
+  action        text not null,
+  detail        text,
+  created_at    timestamptz not null default now()
+);
+create index if not exists lost_found_log_item_idx on public.lost_found_log (item_id, created_at desc);
+
+alter table public.lost_found_items   enable row level security;
+alter table public.lost_found_matches enable row level security;
+alter table public.lost_found_claims  enable row level security;
+alter table public.lost_found_log     enable row level security;
+
+drop policy if exists "lf_items_select" on public.lost_found_items;
+drop policy if exists "lf_items_insert" on public.lost_found_items;
+drop policy if exists "lf_items_update" on public.lost_found_items;
+create policy "lf_items_select" on public.lost_found_items for select to authenticated
+  using (reporter_id = auth.uid() or public.app_role()::text in ('security_officer','warden'));
+create policy "lf_items_insert" on public.lost_found_items for insert to authenticated
+  with check (reporter_id = auth.uid()
+              and public.app_role()::text in ('student','teacher','hod','academic_office'));
+create policy "lf_items_update" on public.lost_found_items for update to authenticated
+  using (public.app_role()::text = 'security_officer');
+
+drop policy if exists "lf_matches_select" on public.lost_found_matches;
+create policy "lf_matches_select" on public.lost_found_matches for select to authenticated
+  using (public.app_role()::text in ('security_officer','warden')
+         or exists (select 1 from public.lost_found_items i
+                    where i.id in (lost_id, found_id) and i.reporter_id = auth.uid()));
+
+drop policy if exists "lf_claims_select" on public.lost_found_claims;
+drop policy if exists "lf_claims_insert" on public.lost_found_claims;
+drop policy if exists "lf_claims_update" on public.lost_found_claims;
+create policy "lf_claims_select" on public.lost_found_claims for select to authenticated
+  using (claimant_id = auth.uid() or public.app_role()::text in ('security_officer','warden'));
+create policy "lf_claims_insert" on public.lost_found_claims for insert to authenticated
+  with check (claimant_id = auth.uid());
+create policy "lf_claims_update" on public.lost_found_claims for update to authenticated
+  using (public.app_role()::text = 'security_officer');
+
+drop policy if exists "lf_log_select" on public.lost_found_log;
+create policy "lf_log_select" on public.lost_found_log for select to authenticated
+  using (public.app_role()::text in ('security_officer','warden'));
+
+drop trigger if exists lost_found_items_touch_updated_at on public.lost_found_items;
+create trigger lost_found_items_touch_updated_at
+  before update on public.lost_found_items
+  for each row execute function public.touch_updated_at();
+
+-- Used by the seed script to restart Lost & Found numbers at LF-101.
+create or replace function public.reset_lost_found_seq()
+returns void language sql security definer set search_path = public as $$
+  select setval('public.lost_found_no_seq', 101, false)
+$$;
+revoke all on function public.reset_lost_found_seq() from public, anon, authenticated;
+grant execute on function public.reset_lost_found_seq() to service_role;

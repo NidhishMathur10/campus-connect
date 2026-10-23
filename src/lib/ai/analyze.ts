@@ -140,7 +140,7 @@ HOSTEL LAYOUT: 4 students share each room; every room has its own attached washr
 }
 
 /** Content moderation rules for text_moderation / photo_moderation (CLAUDE.md §16). */
-function moderationRules(module: TicketModule, hasPhoto: boolean): string {
+export function moderationRules(module: TicketModule, hasPhoto: boolean): string {
   const security = module === "security";
   const text = security
     ? `TEXT MODERATION (text_moderation) - Safety reports may quote abusive words, slurs or threats that were said TO the student, so NEVER use "rephrase". Use "allow" for every genuine report, however raw. Use "block" ONLY for clear spam, gibberish or obvious nonsense. Keep a calm, supportive tone. reason is empty for allow.`

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, Building2, GraduationCap, Lock, Search, ShieldCheck, Ticket } from "lucide-react";
+import { ArrowRight, Building2, GraduationCap, Lock, PackageSearch, Search, ShieldCheck, Ticket } from "lucide-react";
 import { TrackBox } from "@/components/tickets/track-box";
 import { LandingPage } from "@/components/landing/landing-page";
 import { getCurrentProfile, requireProfile } from "@/lib/auth";
@@ -127,6 +127,13 @@ export default async function StudentHome() {
           </span>
           <TrackBox />
         </div>
+        <Link href="/lost-found" className="flex items-center gap-4 rounded-3xl border border-border bg-surface p-5 transition-colors hover:border-accent-blue sm:col-span-2">
+          <span className="grid size-11 place-items-center rounded-2xl bg-surface-accent text-accent-text"><PackageSearch className="size-5" /></span>
+          <span>
+            <span className="block font-bold text-text">Lost &amp; Found</span>
+            <span className="block text-sm text-text-muted">Lost your earbuds, ID card or bottle? Post it or find what others handed in — we match them for you</span>
+          </span>
+        </Link>
       </div>
     </div>
   );

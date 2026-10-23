@@ -12,6 +12,8 @@ import {
   Building2,
   History,
   Mail,
+  PackageSearch,
+  ScanSearch,
   UsersRound,
   type LucideIcon,
 } from "lucide-react";
@@ -20,6 +22,8 @@ import type { Role } from "@/config/roles";
 export interface NavItem {
   href: string;
   label: string;
+  /** Shorter label for the mobile bottom bar. */
+  shortLabel?: string;
   icon: LucideIcon;
 }
 
@@ -29,6 +33,7 @@ export const STUDENT_NAV: NavItem[] = [
   { href: "/education", label: "Education", icon: GraduationCap },
   { href: "/safety", label: "Safety", icon: ShieldCheck },
   { href: "/tickets", label: "My Tickets", icon: Ticket },
+  { href: "/lost-found", label: "Lost & Found", shortLabel: "Lost/Found", icon: PackageSearch },
 ];
 
 const BOARD: NavItem = { href: "/staff", label: "Ticket Board", icon: LayoutDashboard };
@@ -37,6 +42,8 @@ const INSIGHTS: NavItem = { href: "/insights", label: "Insights", icon: BarChart
 const ESCALATIONS: NavItem = { href: "/escalations", label: "Escalations", icon: Siren };
 const EMAIL_LOG: NavItem = { href: "/email-log", label: "Notification log", icon: Mail };
 const DIRECTORY: NavItem = { href: "/directory", label: "Staff directory", icon: UsersRound };
+const LOST_FOUND: NavItem = { href: "/lost-found", label: "Lost & Found", icon: PackageSearch };
+const LF_DESK: NavItem = { href: "/lost-found/desk", label: "Lost & Found desk", icon: ScanSearch };
 const QA: NavItem = { href: "/qa", label: "Q&A Board", icon: MessagesSquare };
 
 const FACULTY_HOME: NavItem = { href: "/faculty", label: "Home", icon: House };
@@ -47,13 +54,13 @@ const MY_ANSWERS: NavItem = { href: "/answers", label: "My Answers", icon: Messa
 /** Sidebar items for every non-student role (must agree with ROUTE_ACCESS in config/roles). */
 export const STAFF_NAV: Record<Exclude<Role, "student">, NavItem[]> = {
   staff: [BOARD, HISTORY],
-  academic_office: [BOARD, HISTORY, QA, REPORT, MY_REPORTS],
-  security_officer: [BOARD, HISTORY],
+  academic_office: [BOARD, HISTORY, QA, REPORT, MY_REPORTS, LOST_FOUND],
+  security_officer: [BOARD, HISTORY, LOST_FOUND, LF_DESK],
   arc: [BOARD, HISTORY],
-  warden: [BOARD, HISTORY, INSIGHTS, ESCALATIONS, DIRECTORY, EMAIL_LOG],
+  warden: [BOARD, HISTORY, INSIGHTS, ESCALATIONS, DIRECTORY, LOST_FOUND, LF_DESK, EMAIL_LOG],
   dean: [ESCALATIONS, INSIGHTS, BOARD, HISTORY, DIRECTORY, QA, EMAIL_LOG],
-  hod: [ESCALATIONS, INSIGHTS, BOARD, HISTORY, QA, REPORT, MY_REPORTS],
-  teacher: [FACULTY_HOME, QA, REPORT, MY_REPORTS, MY_ANSWERS],
+  hod: [ESCALATIONS, INSIGHTS, BOARD, HISTORY, QA, REPORT, MY_REPORTS, LOST_FOUND],
+  teacher: [FACULTY_HOME, QA, REPORT, MY_REPORTS, MY_ANSWERS, LOST_FOUND],
 };
 
 export function isActive(pathname: string, href: string, items?: NavItem[]): boolean {

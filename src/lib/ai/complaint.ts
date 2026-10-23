@@ -60,6 +60,17 @@ export const AnalyzeRequestSchema = z.object({
 });
 export type AnalyzeRequest = z.infer<typeof AnalyzeRequestSchema>;
 
+/** Moderation shapes shared by the complaint analysis and the Lost & Found analysis (same rules, one call). */
+export const TextModerationSchema = z.object({
+  level: z.enum(TEXT_LEVELS),
+  reason: z.string().describe("One short friendly sentence for the student, in the complaint's language; empty string when level is allow"),
+});
+export const PhotoModerationSchema = z.object({
+  level: z.enum(PHOTO_LEVELS),
+  reason: z.string().describe("One short friendly sentence for the student; empty string when level is allow"),
+  contains_people: z.boolean().describe("true whenever a person's face or body is clearly visible in the photo, whatever the level"),
+});
+
 /** What Gemini must return (converted to a JSON response schema). */
 export function buildAnalysisSchema(module: TicketModule, audience: ReporterAudience = "student", hasPhoto = false) {
   const categories = categoriesFor(module, audience) as [string, ...string[]];
@@ -74,15 +85,8 @@ export function buildAnalysisSchema(module: TicketModule, audience: ReporterAudi
     priority: z.string(),
   });
 
-  const textModeration = z.object({
-    level: z.enum(TEXT_LEVELS),
-    reason: z.string().describe("One short friendly sentence for the student, in the complaint's language; empty string when level is allow"),
-  });
-  const photoModeration = z.object({
-    level: z.enum(PHOTO_LEVELS),
-    reason: z.string().describe("One short friendly sentence for the student; empty string when level is allow"),
-    contains_people: z.boolean().describe("true whenever a person's face or body is clearly visible in the photo, whatever the level"),
-  });
+  const textModeration = TextModerationSchema;
+  const photoModeration = PhotoModerationSchema;
 
   const full = z.object({
     text_moderation: textModeration,
