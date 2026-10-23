@@ -5,3 +5,4 @@ export * from "./statuses";
 export * from "./qa";
 export * from "./roles";
 export * from "./styles";
+export * from "./storage";

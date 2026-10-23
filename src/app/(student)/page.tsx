@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ArrowRight, Building2, GraduationCap, Search, Ticket } from "lucide-react";
+import { TrackBox } from "@/components/tickets/track-box";
 import { requireProfile } from "@/lib/auth";
 import { COLLEGE_NAME } from "@/config/college";
 import { CATEGORY_STYLES } from "@/config/styles";
@@ -90,13 +91,16 @@ export default async function StudentHome() {
             <span className="block text-sm text-slate-500">See progress on everything you reported</span>
           </span>
         </Link>
-        <Link href="/tickets" className="flex items-center gap-4 rounded-3xl border border-slate-200 bg-white p-5 transition-colors hover:border-accent-blue">
-          <span className="grid size-11 place-items-center rounded-2xl bg-sky-tint text-accent-blue"><Search className="size-5" /></span>
-          <span>
-            <span className="block font-bold text-navy">Track by ticket number</span>
-            <span className="block text-sm text-slate-500">Got a number like CC-1004? Look it up</span>
+        <div className="space-y-3 rounded-3xl border border-slate-200 bg-white p-5">
+          <span className="flex items-center gap-4">
+            <span className="grid size-11 place-items-center rounded-2xl bg-sky-tint text-accent-blue"><Search className="size-5" /></span>
+            <span>
+              <span className="block font-bold text-navy">Track by ticket number</span>
+              <span className="block text-sm text-slate-500">Got a number like CC-1004? Look it up</span>
+            </span>
           </span>
-        </Link>
+          <TrackBox />
+        </div>
       </div>
     </div>
   );

@@ -1,9 +1,13 @@
 import "server-only";
-import { GoogleGenAI, type Part } from "@google/genai";
+import { GoogleGenAI, ThinkingLevel, type Part } from "@google/genai";
 import { z } from "zod";
 
 /** Model from env, defaulting to Google's alias for the newest Flash model. */
 export const GEMINI_MODEL = process.env.GEMINI_MODEL?.trim() || "gemini-flash-latest";
+
+/** Used when the main model is overloaded (503) or too slow. */
+export const GEMINI_FALLBACK_MODEL =
+  process.env.GEMINI_FALLBACK_MODEL?.trim() || "gemini-flash-lite-latest";
 
 const DEFAULT_TIMEOUT_MS = 20_000;
 
@@ -33,40 +37,36 @@ export interface StructuredOptions<S extends z.ZodType> {
 }
 
 /**
- * Calls Gemini with structured JSON output and returns typed, validated data.
- * Never throws: on timeout / API error / bad JSON you get { ok: false, error, fallback }.
+ * When the main model is rate-limited (free tier: ~20 requests/day), overloaded or timing
+ * out, skip it for a few minutes so students don't wait for a doomed first attempt.
  */
-export async function generateStructured<S extends z.ZodType>(
+const PRIMARY_COOLDOWN_MS = 5 * 60_000;
+const UNAVAILABLE = /429|503|RESOURCE_EXHAUSTED|UNAVAILABLE|quota|high demand|timed out/i;
+let primaryCooldownUntil = 0;
+
+type Attempt<T> = { ok: true; data: T } | { ok: false; error: string };
+
+async function attempt<S extends z.ZodType>(
+  model: string,
   opts: StructuredOptions<S>,
-): Promise<AiResult<z.infer<S>>> {
-  const started = Date.now();
+  timeoutMs: number,
+): Promise<Attempt<z.infer<S>>> {
   const controller = new AbortController();
-  const timeoutMs = opts.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const timer = setTimeout(() => controller.abort(), timeoutMs);
-
-  const fail = (error: string): AiResult<z.infer<S>> => ({
-    ok: false,
-    error,
-    model: GEMINI_MODEL,
-    ms: Date.now() - started,
-    fallback: opts.fallback,
-  });
-
   try {
-    const ai = getClient();
     const contents =
-      typeof opts.prompt === "string"
-        ? opts.prompt
-        : [{ role: "user", parts: opts.prompt }];
+      typeof opts.prompt === "string" ? opts.prompt : [{ role: "user", parts: opts.prompt }];
 
-    const request = ai.models.generateContent({
-      model: GEMINI_MODEL,
+    const request = getClient().models.generateContent({
+      model,
       contents,
       config: {
         systemInstruction: opts.system,
         temperature: opts.temperature ?? 0.2,
         responseMimeType: "application/json",
         responseJsonSchema: toGeminiSchema(opts.schema),
+        // Low thinking keeps latency at a few seconds; these tasks don't need deep reasoning.
+        thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
         abortSignal: controller.signal,
       },
     });
@@ -76,33 +76,70 @@ export async function generateStructured<S extends z.ZodType>(
       request,
       new Promise<never>((_, reject) =>
         controller.signal.addEventListener("abort", () =>
-          reject(new Error(`Gemini timed out after ${timeoutMs / 1000}s`)),
+          reject(new Error(`timed out after ${timeoutMs / 1000}s`)),
         ),
       ),
     ]);
 
     const text = response.text;
-    if (!text) return fail("Gemini returned an empty response");
-
+    if (!text) return { ok: false, error: "empty response" };
     let json: unknown;
     try {
       json = JSON.parse(text);
     } catch {
-      return fail("Gemini returned invalid JSON");
+      return { ok: false, error: "invalid JSON" };
     }
-
     const parsed = opts.schema.safeParse(json);
     if (!parsed.success) {
-      return fail(`Gemini response did not match schema: ${z.prettifyError(parsed.error)}`);
+      return { ok: false, error: `response did not match schema: ${z.prettifyError(parsed.error)}` };
     }
-    return { ok: true, data: parsed.data, model: GEMINI_MODEL, ms: Date.now() - started };
+    return { ok: true, data: parsed.data };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    console.error("[gemini]", message);
-    return fail(controller.signal.aborted ? `Gemini timed out after ${timeoutMs / 1000}s` : message);
+    return { ok: false, error: controller.signal.aborted ? `timed out after ${timeoutMs / 1000}s` : message };
   } finally {
     clearTimeout(timer);
   }
+}
+
+/**
+ * Calls Gemini with structured JSON output and returns typed, validated data.
+ * Tries GEMINI_MODEL first; if it is overloaded, slow or returns bad JSON, retries once
+ * on GEMINI_FALLBACK_MODEL within the same overall time budget.
+ * Never throws: on failure you get { ok: false, error, fallback }.
+ */
+export async function generateStructured<S extends z.ZodType>(
+  opts: StructuredOptions<S>,
+): Promise<AiResult<z.infer<S>>> {
+  const started = Date.now();
+  const budget = opts.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  const skipPrimary = Date.now() < primaryCooldownUntil;
+  const models = [skipPrimary ? "" : GEMINI_MODEL, GEMINI_FALLBACK_MODEL].filter(
+    (m, i, all) => m && all.indexOf(m) === i,
+  );
+  const errors: string[] = [];
+
+  for (let i = 0; i < models.length; i++) {
+    const remaining = budget - (Date.now() - started);
+    if (remaining < 3_000) break;
+    // Give the primary model ~55% of the budget so the fallback still has time.
+    const slice = i < models.length - 1 ? Math.round(remaining * 0.55) : remaining;
+    const res = await attempt(models[i], opts, slice);
+    if (res.ok) return { ok: true, data: res.data, model: models[i], ms: Date.now() - started };
+    errors.push(`${models[i]}: ${res.error}`);
+    console.error("[gemini]", models[i], res.error.slice(0, 300));
+    if (models[i] === GEMINI_MODEL && models.length > 1 && UNAVAILABLE.test(res.error)) {
+      primaryCooldownUntil = Date.now() + PRIMARY_COOLDOWN_MS;
+    }
+  }
+
+  return {
+    ok: false,
+    error: errors.join(" | ") || "Gemini timed out",
+    model: GEMINI_MODEL,
+    ms: Date.now() - started,
+    fallback: opts.fallback,
+  };
 }
 
 /** Image part from a base64 string (no "data:" prefix) for multimodal prompts. */
