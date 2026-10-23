@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import {
   ArrowBigUp,
   BadgeCheck,
@@ -70,12 +70,9 @@ function useRun() {
 }
 
 function VoteButton({ count, voted, disabled, onClick, busy, label }: { count: number; voted: boolean; disabled?: boolean; onClick: () => void; busy: boolean; label: string }) {
-  // Optimistic: flip instantly on click; drop the guess once the server round-trip is over (success or failure).
+  // Optimistic: flip instantly on click, but only while the request is in flight, so a failure falls back to the real values.
   const [guess, setGuess] = useState<{ voted: boolean; count: number } | null>(null);
-  useEffect(() => {
-    if (!busy) setGuess(null);
-  }, [busy]);
-  const shown = guess ?? { voted, count };
+  const shown = busy && guess ? guess : { voted, count };
 
   return (
     <button
