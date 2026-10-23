@@ -11,6 +11,7 @@ import {
   Ticket,
   Building2,
   History,
+  Mail,
   type LucideIcon,
 } from "lucide-react";
 import type { Role } from "@/config/roles";
@@ -33,6 +34,7 @@ const BOARD: NavItem = { href: "/staff", label: "Ticket Board", icon: LayoutDash
 const HISTORY: NavItem = { href: "/staff/history", label: "All Tickets", icon: History };
 const INSIGHTS: NavItem = { href: "/insights", label: "Insights", icon: BarChart3 };
 const ESCALATIONS: NavItem = { href: "/escalations", label: "Escalations", icon: Siren };
+const EMAIL_LOG: NavItem = { href: "/email-log", label: "Email log", icon: Mail };
 const QA: NavItem = { href: "/qa", label: "Q&A Board", icon: MessagesSquare };
 
 const FACULTY_HOME: NavItem = { href: "/faculty", label: "Home", icon: House };
@@ -46,8 +48,8 @@ export const STAFF_NAV: Record<Exclude<Role, "student">, NavItem[]> = {
   academic_office: [BOARD, HISTORY, QA, REPORT, MY_REPORTS],
   security_officer: [BOARD, HISTORY],
   arc: [BOARD, HISTORY],
-  warden: [BOARD, HISTORY, INSIGHTS, ESCALATIONS],
-  dean: [ESCALATIONS, INSIGHTS, BOARD, HISTORY, QA],
+  warden: [BOARD, HISTORY, INSIGHTS, ESCALATIONS, EMAIL_LOG],
+  dean: [ESCALATIONS, INSIGHTS, BOARD, HISTORY, QA, EMAIL_LOG],
   hod: [ESCALATIONS, INSIGHTS, BOARD, HISTORY, QA, REPORT, MY_REPORTS],
   teacher: [FACULTY_HOME, QA, REPORT, MY_REPORTS, MY_ANSWERS],
 };

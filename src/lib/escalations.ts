@@ -4,6 +4,7 @@ import type { Role } from "@/config/roles";
 import type { TicketModule } from "@/config/routing";
 import { ESCALATION_RULES, OPEN_STATUSES } from "@/config/statuses";
 import { escalationBrief, type EscalationContext } from "@/lib/ai/escalation";
+import { sendEscalationEmail } from "@/lib/email/notify";
 import { floorHotspotKey, hotspotKey, hotspotLabel, parseHotspotKey } from "@/lib/hotspots";
 import { normaliseRoom } from "@/config/locations";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -342,7 +343,11 @@ export function escalationWhere(esc: Pick<Escalation, "hotspot_key">, tickets: T
 export function scheduleBriefs(ids: string[]) {
   if (ids.length === 0) return;
   const job = async () => {
-    for (const id of ids) await generateEscalationBrief(id);
+    for (const id of ids) {
+      await generateEscalationBrief(id);
+      // After the brief exists, so the Dean/HOD email carries it. Sent once per escalation.
+      await sendEscalationEmail(id);
+    }
   };
   try {
     after(job);

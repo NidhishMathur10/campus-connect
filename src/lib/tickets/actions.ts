@@ -16,6 +16,7 @@ import { CONFIDENTIAL_REPORTER } from "@/config/safety";
 import { DUPLICATE_FLAG_THRESHOLD } from "@/config/statuses";
 import { isFaculty } from "@/config/faculty";
 import { getCurrentProfile } from "@/lib/auth";
+import { notifyTicketCreated } from "@/lib/email/notify";
 import { checkEscalations, createSafetyEscalation } from "@/lib/escalations";
 import { photoPublicUrl } from "@/lib/photos";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -256,6 +257,7 @@ export async function createTicket(
 
   if (isSecurity && rule.escalateToDean) await createSafetyEscalation({ id: ticket.id, category: t.category, title: t.title });
   await checkEscalations({ ticketId: ticket.id });
+  notifyTicketCreated(ticket.id);
   revalidatePath(myTicketsPath(profile));
   return { ok: true, id: ticket.id, ticket_no: ticket.ticket_no };
 }

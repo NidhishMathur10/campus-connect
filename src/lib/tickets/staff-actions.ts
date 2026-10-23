@@ -13,6 +13,7 @@ import {
 } from "@/config/routing";
 import { canTransition, NOTE_REQUIRED_STATUSES, TICKET_STATUSES, type TicketStatus } from "@/config/statuses";
 import { getCurrentProfile } from "@/lib/auth";
+import { notifyStaffAssigned, notifyTicketMerged, notifyTicketStatus } from "@/lib/email/notify";
 import { checkEscalations, createManualEscalation } from "@/lib/escalations";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Profile, Ticket } from "@/lib/types";
@@ -106,6 +107,8 @@ export async function assignTicket(ticketId: string, assigneeId: string | null):
     events.push({ ticket_id: ticket.id, ...actor(profile), type: "status_change", from_status: ticket.status, to_status: "Assigned" });
   }
   await addEvents(admin, events);
+  if (assignee) notifyStaffAssigned(ticket.id, assignee.id);
+  if (moveToAssigned) notifyTicketStatus(ticket.id, "Assigned");
   return done(ticket.id, ticket.ticket_no);
 }
 
@@ -171,6 +174,7 @@ export async function changeTicketStatus(
     note: note || (resolving ? "Marked resolved." : null),
   });
   await addEvents(admin, events);
+  notifyTicketStatus(ticket.id, to.data, note);
   return done(ticket.id, ticket.ticket_no);
 }
 
@@ -324,6 +328,7 @@ export async function mergeDuplicate(ticketId: string): Promise<ActionResult> {
     },
   ]);
   await checkEscalations({ ticketId: original.id });
+  notifyTicketMerged(ticket.id, original.ticket_no);
   revalidatePath(`/tickets/${original.ticket_no}`);
   return done(ticket.id, ticket.ticket_no);
 }

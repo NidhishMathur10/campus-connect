@@ -21,7 +21,7 @@ Optional extensions (we do both): Hindi complaint entry, recurring-issue analysi
 - Supabase: Postgres, Auth, Storage (bucket `complaint-photos`), Realtime
 - Gemini via `@google/genai` SDK, called ONLY from server code (route handlers / server actions). Model name from env `GEMINI_MODEL` (default: latest Gemini Flash model). Always use structured JSON output with a response schema; validate with zod.
 - Deploy: Vercel
-- Env vars: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `GEMINI_API_KEY`, `GEMINI_MODEL`, `NEXT_PUBLIC_COLLEGE_NAME`
+- Env vars: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `GEMINI_API_KEY`, `GEMINI_MODEL`, `NEXT_PUBLIC_COLLEGE_NAME`; email (§15): `COLLEGE_EMAIL_DOMAIN`, `APP_URL`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `EMAIL_FROM`, `DEMO_NOTIFY_EMAIL`
 - Never expose service role key or Gemini key to the browser.
 
 ## 3. Config (keep in `src/config/*.ts`, single source of truth)
@@ -195,3 +195,12 @@ Faculty = `teacher`, `hod`, `academic_office` (`src/config/faculty.ts`: `FACULTY
 - **Staff side:** board cards, list rows and the drawer show a violet "Reported by faculty · name (role)" badge (`FacultyBadge`, `BoardTicket.faculty_reporter`). Duplicates and "Me too" work across student and faculty reports (same module + category + building).
 - **RLS (schema.sql):** `tickets_insert` allows student/teacher/hod/academic_office reporters; `events_select` hides internal events from teachers and from staff on tickets they reported; `followers_select` excludes teachers; the notification trigger links faculty to `/reports/<no>`.
 - **Seed:** Prof. Khan's "Projector not turning on in C-204" (Block C, 2nd floor, High, In Progress, Suresh).
+
+## 15. Email notifications (nodemailer)
+- **Addresses:** `profiles.email` is the contact address (login stays `<rollno>@campusconnect.app`). It must end with `@<COLLEGE_EMAIL_DOMAIN>` (default `zenithschool.ai`, case-insensitive, rules in `src/config/email.ts`; the client forms get the domain as a prop). Students enter it at sign-up (pre-filled `<rollno>@zenithschool.ai`, editable; error "Please use your college email (@zenithschool.ai)"); every user can change it on `/profile` (user menu → Profile). Emails are unique. Users without an email are simply not emailed.
+- **Sending:** `src/lib/email/` — `send.ts` (SMTP transport from env, `inBackground()` = Next.js `after()`, `deliver()` logs every attempt to `email_log`), `templates.ts` (navy/white HTML + plain text), `notify.ts` (who gets what). Missing `SMTP_HOST` = skipped silently. Failures are logged (`email_log.status = 'failed'` + error) and never affect the user's action. Gmail SMTP (App password) or Mailpit (`localhost:1025`, no auth).
+- **Demo redirect:** if `DEMO_NOTIFY_EMAIL` is set, mail for seeded demo accounts (`isDemoEmail`) goes there with "[Demo: originally to x@zenithschool.ai]" on top; real users get mail at their own address. `npm run seed` gives every demo account an address (students `<rollno>@`, staff name-based like `ramesh@`, `dr.iyer@`, `prof.das@`).
+- **Emails:** ticket created → reporter; Assigned / In Progress / Resolved (staff note + "Please confirm it's fixed") → reporter + all followers ("Me too" and merged); Merged into CC-xxxx → duplicate's reporter + followers; assignment → assigned staff; escalation → Dean/HOD with AI brief + recommended action (sent once, after the brief is written; `escalations.emailed_at`); teacher answer → the student who asked.
+- **Confidential Safety tickets:** only the reporter, `arc` (own department) and `dean` are emailed, and the email only says "Update on your confidential report CC-xxxx — open the app to view". No details, never to the assigned security officer, warden or HOD.
+- **Email log:** `/email-log` (warden, dean) shows recent sends and failures; the warden never sees rows about Safety tickets.
+- **Schema:** `profiles.email` (+ unique index), `escalations.emailed_at`, `email_log` table (RLS: warden/dean read). Re-run `schema.sql` after pulling.

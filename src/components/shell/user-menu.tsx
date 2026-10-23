@@ -1,6 +1,7 @@
 "use client";
 
-import { LogOut } from "lucide-react";
+import Link from "next/link";
+import { LogOut, UserRound } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -56,6 +57,12 @@ export function UserMenu({ user, align = "end" }: { user: ShellUser; align?: "st
           </p>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
+        <DropdownMenuItem asChild className="rounded-xl">
+          <Link href="/profile">
+            <UserRound className="size-4" />
+            Profile
+          </Link>
+        </DropdownMenuItem>
         <form action={signOut}>
           <DropdownMenuItem asChild className="rounded-xl">
             <button type="submit" className="w-full">

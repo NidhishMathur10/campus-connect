@@ -13,6 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { collegeEmailError, defaultStudentEmail, isCollegeEmail } from "@/config/email";
 import { HOSTELS, type Hostel } from "@/config/locations";
 import { signUp, type FormState } from "../actions";
 
@@ -20,13 +21,26 @@ function FieldError({ message }: { message?: string }) {
   return message ? <p className="text-xs font-medium text-red-600">{message}</p> : null;
 }
 
-export function SignupForm() {
+export function SignupForm({ emailDomain }: { emailDomain: string }) {
   const [state, formAction, pending] = useActionState<FormState, FormData>(signUp, {});
+  const [rollNo, setRollNo] = useState("");
+  // Pre-filled as <roll number>@<domain> until the student edits it.
+  const [email, setEmail] = useState("");
+  const [emailTouched, setEmailTouched] = useState(false);
+  const [emailError, setEmailError] = useState<string | null>(null);
   const [hostel, setHostel] = useState<Hostel | "">("");
   const [wing, setWing] = useState("");
   const fe = state.fieldErrors ?? {};
   const v = state.values ?? {};
   const wings = hostel ? HOSTELS[hostel] : [];
+  const shownEmailError = emailError ?? fe.email;
+
+  function onSubmit(e: React.FormEvent<HTMLFormElement>) {
+    if (!isCollegeEmail(email, emailDomain)) {
+      e.preventDefault();
+      setEmailError(collegeEmailError(emailDomain));
+    }
+  }
 
   return (
     <div className="space-y-8">
@@ -36,7 +50,7 @@ export function SignupForm() {
         <p className="text-sm text-slate-600">Your roll number will be your username.</p>
       </div>
 
-      <form action={formAction} className="space-y-4">
+      <form action={formAction} onSubmit={onSubmit} noValidate className="space-y-4">
         <div className="space-y-2">
           <Label htmlFor="fullName">Full name</Label>
           <Input id="fullName" name="fullName" defaultValue={v.fullName} key={`n${v.fullName}`} autoComplete="name" required aria-invalid={!!fe.fullName} />
@@ -44,8 +58,43 @@ export function SignupForm() {
         </div>
         <div className="space-y-2">
           <Label htmlFor="rollNo">Roll number</Label>
-          <Input id="rollNo" name="rollNo" defaultValue={v.rollNo} key={`r${v.rollNo}`} inputMode="numeric" placeholder="e.g. 2616400155" required aria-invalid={!!fe.rollNo} />
+          <Input
+            id="rollNo"
+            name="rollNo"
+            value={rollNo}
+            onChange={(e) => {
+              setRollNo(e.target.value);
+              if (!emailTouched) setEmail(defaultStudentEmail(e.target.value, emailDomain));
+            }}
+            inputMode="numeric"
+            placeholder="e.g. 2616400155"
+            required
+            aria-invalid={!!fe.rollNo}
+          />
           <FieldError message={fe.rollNo} />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="email">College email</Label>
+          <Input
+            id="email"
+            name="email"
+            type="email"
+            value={email}
+            onChange={(e) => {
+              setEmail(e.target.value);
+              setEmailTouched(true);
+              setEmailError(null);
+            }}
+            autoComplete="email"
+            placeholder={`yourrollno@${emailDomain}`}
+            required
+            aria-invalid={!!shownEmailError}
+          />
+          {shownEmailError ? (
+            <FieldError message={shownEmailError} />
+          ) : (
+            <p className="text-xs text-slate-500">We send ticket updates here. Must end with @{emailDomain}.</p>
+          )}
         </div>
 
         <div className="grid gap-4 sm:grid-cols-3">

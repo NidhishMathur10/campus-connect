@@ -6,7 +6,8 @@
 import "./load-env";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { loginIdToEmail } from "../src/config/college";
-import { DEMO_ACCOUNTS, DEMO_PASSWORD } from "../src/config/demo-accounts";
+import { DEMO_ACCOUNTS, DEMO_PASSWORD, demoAccountEmail } from "../src/config/demo-accounts";
+import { collegeEmailDomain } from "../src/config/email";
 import {
   computeSlaDueAt,
   getRoutingRule,
@@ -95,6 +96,7 @@ async function seedAccounts() {
       await db.from("profiles").upsert({
         id,
         full_name: a.fullName,
+        email: demoAccountEmail(a, collegeEmailDomain()),
         roll_no: a.rollNo ?? null,
         role: a.role,
         department: a.department ?? null,
@@ -106,7 +108,11 @@ async function seedAccounts() {
     );
     users.set(a.loginId, { id, name: a.fullName, role: a.role });
   }
-  console.log(`✔ ${DEMO_ACCOUNTS.length} demo accounts ready (password: ${DEMO_PASSWORD})`);
+  const notify = process.env.DEMO_NOTIFY_EMAIL?.trim();
+  console.log(
+    `✔ ${DEMO_ACCOUNTS.length} demo accounts ready (password: ${DEMO_PASSWORD}); emails @${collegeEmailDomain()}` +
+      (notify ? `, all redirected to ${notify}` : " (set DEMO_NOTIFY_EMAIL to redirect them to your inbox)"),
+  );
 }
 
 function u(loginId: string): SeededUser {
@@ -124,6 +130,7 @@ async function wipe() {
   must(await db.from("tickets").delete().not("id", "is", null), "wipe tickets");
   must(await db.from("questions").delete().not("id", "is", null), "wipe questions");
   must(await db.from("notifications").delete().not("id", "is", null), "wipe notifications");
+  must(await db.from("email_log").delete().not("id", "is", null), "wipe email log");
   const { error } = await db.rpc("reset_ticket_seq");
   if (error) console.warn(`! Could not reset ticket numbers (${error.message}). Did you run schema.sql?`);
   console.log("✔ Cleared old tickets, escalations and Q&A");

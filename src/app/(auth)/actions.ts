@@ -5,6 +5,7 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { loginIdToEmail } from "@/config/college";
+import { collegeEmailDomain, collegeEmailError, isCollegeEmail, normaliseEmail } from "@/config/email";
 import { HOSTELS } from "@/config/locations";
 import { isRole, ROLE_HOME } from "@/config/roles";
 
@@ -60,8 +61,13 @@ const SignUpSchema = z
     }),
     wing: z.string().min(1, "Choose your wing"),
     room: z.string().trim().min(1, "Enter your room number").max(20),
+    email: z.string().trim().min(1, "Enter your college email"),
     password: z.string().min(6, "Password must be at least 6 characters"),
     confirm: z.string(),
+  })
+  .refine((v) => isCollegeEmail(v.email, collegeEmailDomain()), {
+    path: ["email"],
+    message: collegeEmailError(collegeEmailDomain()),
   })
   .refine((v) => v.password === v.confirm, { path: ["confirm"], message: "Passwords don't match" })
   .refine((v) => (HOSTELS[v.hostel] as readonly string[]).includes(v.wing), {
@@ -74,6 +80,7 @@ export async function signUp(_prev: FormState, formData: FormData): Promise<Form
   const values = {
     fullName: raw.fullName ?? "",
     rollNo: raw.rollNo ?? "",
+    email: raw.email ?? "",
     hostel: raw.hostel ?? "",
     wing: raw.wing ?? "",
     room: raw.room ?? "",
@@ -104,6 +111,9 @@ export async function signUp(_prev: FormState, formData: FormData): Promise<Form
       .eq("roll_no", rollNo)
       .maybeSingle();
     if (existing) return fail("An account with this roll number already exists. Try logging in.");
+    const email = normaliseEmail(v.email);
+    const { data: emailTaken } = await admin.from("profiles").select("id").eq("email", email).maybeSingle();
+    if (emailTaken) return fail("That college email is already used by another account.", { email: "Already in use" });
 
     // Created server-side with the service role so the account is confirmed instantly
     // and the role is locked to "student" (app_metadata can't be set by users).
@@ -127,6 +137,10 @@ export async function signUp(_prev: FormState, formData: FormData): Promise<Form
           : `Could not create account: ${createError.message}`,
       );
     }
+
+    // Contact address for notifications (the login itself stays roll-number based).
+    const { error: emailError } = await admin.from("profiles").update({ email }).eq("roll_no", rollNo);
+    if (emailError) console.error("[signUp] could not save email:", emailError.message);
 
     const supabase = await createClient();
     const { error: loginError } = await supabase.auth.signInWithPassword({

@@ -296,6 +296,25 @@ create index if not exists answers_question_idx    on public.answers (question_i
 create index if not exists answer_comments_answer_idx on public.answer_comments (answer_id, created_at);
 create index if not exists notifications_user_idx on public.notifications (user_id, created_at desc);
 
+-- Email notifications: contact address on the profile (college domain, checked by the app),
+-- a send log, and a once-only marker for escalation emails.
+alter table public.profiles    add column if not exists email text;
+create unique index if not exists profiles_email_key on public.profiles (lower(email));
+alter table public.escalations add column if not exists emailed_at timestamptz;
+
+create table if not exists public.email_log (
+  id          uuid primary key default gen_random_uuid(),
+  to_email    text not null,
+  -- Set when a demo account's email was redirected to DEMO_NOTIFY_EMAIL.
+  original_to text,
+  template    text not null,
+  ticket_id   uuid references public.tickets(id) on delete set null,
+  status      text not null check (status in ('sent','failed')),
+  error       text,
+  created_at  timestamptz not null default now()
+);
+create index if not exists email_log_created_idx on public.email_log (created_at desc);
+
 -- ---------------------------------------------------------------------
 -- Helper functions (SECURITY DEFINER so RLS policies can read the caller's role)
 -- ---------------------------------------------------------------------
@@ -475,6 +494,7 @@ alter table public.question_votes   enable row level security;
 alter table public.hotspot_insights enable row level security;
 alter table public.answer_votes     enable row level security;
 alter table public.notifications    enable row level security;
+alter table public.email_log        enable row level security;
 
 -- profiles: everyone reads their own; non-students read all (to see roll numbers / staff lists).
 drop policy if exists "profiles_select_own"   on public.profiles;
@@ -598,6 +618,11 @@ drop policy if exists "notifications_update" on public.notifications;
 create policy "notifications_select" on public.notifications for select to authenticated using (user_id = auth.uid());
 create policy "notifications_update" on public.notifications for update to authenticated
   using (user_id = auth.uid()) with check (user_id = auth.uid());
+
+-- email_log: the warden and the Dean read it; rows are written by the server (service role).
+drop policy if exists "email_log_select" on public.email_log;
+create policy "email_log_select" on public.email_log for select to authenticated
+  using (public.app_role()::text in ('warden','dean'));
 
 -- ---------------------------------------------------------------------
 -- Realtime (live ticket timelines). RLS still applies to subscribers.

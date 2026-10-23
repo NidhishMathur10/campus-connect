@@ -5,6 +5,7 @@ import { z } from "zod";
 import { QA_ANSWER_ROLES, QA_MODERATOR_ROLES, QA_SUBJECTS } from "@/config/qa";
 import { getCurrentProfile } from "@/lib/auth";
 import { moderatePost, type ModerateRequest } from "@/lib/ai/qa";
+import { notifyTeacherAnswered } from "@/lib/email/notify";
 import { notify } from "@/lib/notifications";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { ActionResult } from "@/lib/tickets/actions";
@@ -125,6 +126,7 @@ export async function postAnswer(questionId: string, text: string): Promise<Post
         link: studentLink(question.id),
       },
     ]);
+    if (isTeacher(profile) && !mod.pending) notifyTeacherAnswered(question.id, question.author_id, question.title, profile.full_name);
   }
   refreshQa(question.id);
   return { ok: true, id: data.id, pending_review: mod.pending };

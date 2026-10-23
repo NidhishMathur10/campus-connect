@@ -9,6 +9,8 @@ export interface Profile {
   id: string;
   full_name: string;
   roll_no: string | null;
+  /** College email used for notifications (null until set). */
+  email: string | null;
   role: Role;
   department: string | null;
   hostel: string | null;
