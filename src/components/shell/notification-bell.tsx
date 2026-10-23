@@ -52,33 +52,33 @@ export function NotificationBell({ userId, align = "end" }: { userId: string; al
 
   return (
     <DropdownMenu onOpenChange={(open) => !open && void markAllRead()}>
-      <DropdownMenuTrigger className="relative grid size-10 place-items-center rounded-full text-slate-600 outline-none hover:bg-slate-100 focus-visible:ring-3 focus-visible:ring-ring/50">
+      <DropdownMenuTrigger className="relative grid size-10 place-items-center rounded-full text-text-muted outline-none hover:bg-surface-2 focus-visible:ring-3 focus-visible:ring-ring/50">
         <Bell className="size-5" />
         {unread > 0 && (
-          <span className="absolute top-1 right-1 grid min-w-4.5 place-items-center rounded-full bg-red-600 px-1 text-[10px] font-bold text-white">
+          <span className="absolute top-1 right-1 grid min-w-4.5 place-items-center rounded-full bg-danger-solid px-1 text-[10px] font-bold text-danger-solid-fg">
             {unread > 9 ? "9+" : unread}
           </span>
         )}
         <span className="sr-only">Notifications{unread ? ` (${unread} unread)` : ""}</span>
       </DropdownMenuTrigger>
       <DropdownMenuContent align={align} className="w-[min(22rem,calc(100vw-2rem))] rounded-2xl p-2">
-        <DropdownMenuLabel className="px-2 py-1.5 text-sm font-bold text-foreground">Notifications</DropdownMenuLabel>
+        <DropdownMenuLabel className="px-2 py-1.5 text-sm font-bold text-text">Notifications</DropdownMenuLabel>
         <DropdownMenuSeparator />
         {items.length === 0 ? (
-          <p className="px-3 py-6 text-center text-sm text-slate-500">Nothing yet — answers to your questions and ticket updates show up here.</p>
+          <p className="px-3 py-6 text-center text-sm text-text-muted">Nothing yet — answers to your questions and ticket updates show up here.</p>
         ) : (
           <ul className="max-h-96 space-y-0.5 overflow-y-auto">
             {items.map((n) => {
               const Icon = ICONS[n.kind] ?? Bell;
               const inner = (
                 <>
-                  <span className={cn("mt-0.5 grid size-8 shrink-0 place-items-center rounded-full", n.read_at ? "bg-slate-100 text-slate-500" : "bg-sky-tint-2 text-accent-text")}>
+                  <span className={cn("mt-0.5 grid size-8 shrink-0 place-items-center rounded-full", n.read_at ? "bg-surface-2 text-text-muted" : "bg-surface-accent-2 text-accent-text")}>
                     <Icon className="size-4" />
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className={cn("block text-sm", n.read_at ? "font-medium text-slate-700" : "font-bold text-foreground")}>{n.title}</span>
-                    {n.body && <span className="block truncate text-xs text-slate-500">{n.body}</span>}
-                    <span className="block text-[11px] text-slate-500">{timeAgo(n.created_at)}</span>
+                    <span className={cn("block text-sm", n.read_at ? "font-medium text-text" : "font-bold text-text")}>{n.title}</span>
+                    {n.body && <span className="block truncate text-xs text-text-muted">{n.body}</span>}
+                    <span className="block text-[11px] text-text-muted">{timeAgo(n.created_at)}</span>
                   </span>
                   {!n.read_at && <span className="mt-2 size-2 shrink-0 rounded-full bg-accent-blue" />}
                 </>
@@ -86,7 +86,7 @@ export function NotificationBell({ userId, align = "end" }: { userId: string; al
               return (
                 <li key={n.id}>
                   {n.link ? (
-                    <Link href={n.link} className="flex gap-3 rounded-xl p-2 hover:bg-sky-tint">
+                    <Link href={n.link} className="flex gap-3 rounded-xl p-2 hover:bg-surface-accent">
                       {inner}
                     </Link>
                   ) : (

@@ -35,27 +35,27 @@ export interface CategoryStyle extends BadgeStyle {
 }
 
 export const CATEGORY_STYLES: Record<Category, CategoryStyle> = {
-  Plumbing: { icon: Droplet, className: "bg-cyan-50 text-cyan-700 border-cyan-200" },
-  "Water Supply": { icon: Droplets, className: "bg-sky-50 text-sky-700 border-sky-200" },
-  Electricity: { icon: Zap, className: "bg-yellow-50 text-yellow-700 border-yellow-200" },
-  Cleanliness: { icon: SprayCan, className: "bg-emerald-50 text-emerald-700 border-emerald-200" },
-  Internet: { icon: Wifi, className: "bg-indigo-50 text-indigo-700 border-indigo-200" },
-  Laundry: { icon: WashingMachine, className: "bg-teal-50 text-teal-700 border-teal-200" },
-  "Room Repair": { icon: DoorOpen, className: "bg-orange-50 text-orange-700 border-orange-200" },
-  Gym: { icon: Dumbbell, className: "bg-rose-50 text-rose-700 border-rose-200" },
-  Sports: { icon: Trophy, className: "bg-lime-50 text-lime-700 border-lime-200" },
-  "Mess Food": { icon: Utensils, className: "bg-amber-50 text-amber-700 border-amber-200" },
-  "Classroom Facilities": { icon: Presentation, className: "bg-blue-50 text-blue-700 border-blue-200" },
-  "Lab Equipment": { icon: FlaskConical, className: "bg-violet-50 text-violet-700 border-violet-200" },
-  "Academic Admin": { icon: ClipboardList, className: "bg-fuchsia-50 text-fuchsia-700 border-fuchsia-200" },
-  Library: { icon: Library, className: "bg-purple-50 text-purple-700 border-purple-200" },
-  Ragging: { icon: UserX, className: "bg-rose-50 text-rose-700 border-rose-200" },
-  "Harassment / Bullying": { icon: ShieldAlert, className: "bg-pink-50 text-pink-700 border-pink-200" },
-  "Threat / Fight / Violence": { icon: HandMetal, className: "bg-red-50 text-red-700 border-red-200" },
-  "Theft / Lost item": { icon: PackageSearch, className: "bg-stone-50 text-stone-700 border-stone-200" },
-  "Unauthorized entry / Suspicious person": { icon: Eye, className: "bg-orange-50 text-orange-700 border-orange-200" },
-  "Other safety concern": { icon: ShieldQuestion, className: "bg-slate-50 text-slate-700 border-border" },
-  Other: { icon: CircleHelp, className: "bg-slate-50 text-slate-700 border-border" },
+  Plumbing: { icon: Droplet, className: "bg-cat-plumbing-bg text-cat-plumbing-fg border-cat-plumbing-fg/30" },
+  "Water Supply": { icon: Droplets, className: "bg-cat-water-bg text-cat-water-fg border-cat-water-fg/30" },
+  Electricity: { icon: Zap, className: "bg-cat-electricity-bg text-cat-electricity-fg border-cat-electricity-fg/30" },
+  Cleanliness: { icon: SprayCan, className: "bg-cat-cleanliness-bg text-cat-cleanliness-fg border-cat-cleanliness-fg/30" },
+  Internet: { icon: Wifi, className: "bg-cat-internet-bg text-cat-internet-fg border-cat-internet-fg/30" },
+  Laundry: { icon: WashingMachine, className: "bg-cat-laundry-bg text-cat-laundry-fg border-cat-laundry-fg/30" },
+  "Room Repair": { icon: DoorOpen, className: "bg-cat-room-repair-bg text-cat-room-repair-fg border-cat-room-repair-fg/30" },
+  Gym: { icon: Dumbbell, className: "bg-cat-gym-bg text-cat-gym-fg border-cat-gym-fg/30" },
+  Sports: { icon: Trophy, className: "bg-cat-sports-bg text-cat-sports-fg border-cat-sports-fg/30" },
+  "Mess Food": { icon: Utensils, className: "bg-cat-mess-bg text-cat-mess-fg border-cat-mess-fg/30" },
+  "Classroom Facilities": { icon: Presentation, className: "bg-cat-classroom-bg text-cat-classroom-fg border-cat-classroom-fg/30" },
+  "Lab Equipment": { icon: FlaskConical, className: "bg-cat-lab-bg text-cat-lab-fg border-cat-lab-fg/30" },
+  "Academic Admin": { icon: ClipboardList, className: "bg-cat-academic-bg text-cat-academic-fg border-cat-academic-fg/30" },
+  Library: { icon: Library, className: "bg-cat-library-bg text-cat-library-fg border-cat-library-fg/30" },
+  Ragging: { icon: UserX, className: "bg-cat-ragging-bg text-cat-ragging-fg border-cat-ragging-fg/30" },
+  "Harassment / Bullying": { icon: ShieldAlert, className: "bg-cat-harassment-bg text-cat-harassment-fg border-cat-harassment-fg/30" },
+  "Threat / Fight / Violence": { icon: HandMetal, className: "bg-cat-threat-bg text-cat-threat-fg border-cat-threat-fg/30" },
+  "Theft / Lost item": { icon: PackageSearch, className: "bg-cat-theft-bg text-cat-theft-fg border-cat-theft-fg/30" },
+  "Unauthorized entry / Suspicious person": { icon: Eye, className: "bg-cat-suspicious-bg text-cat-suspicious-fg border-cat-suspicious-fg/30" },
+  "Other safety concern": { icon: ShieldQuestion, className: "bg-cat-other-bg text-cat-other-fg border-cat-other-fg/30" },
+  Other: { icon: CircleHelp, className: "bg-cat-other-bg text-cat-other-fg border-cat-other-fg/30" },
 };
 
 export function getCategoryStyle(category: string): CategoryStyle {
@@ -63,18 +63,18 @@ export function getCategoryStyle(category: string): CategoryStyle {
 }
 
 export const PRIORITY_STYLES: Record<Priority, BadgeStyle> = {
-  Urgent: { className: "bg-red-100 text-red-700 border-red-200" },
-  High: { className: "bg-orange-100 text-orange-700 border-orange-200" },
-  Medium: { className: "bg-amber-100 text-amber-800 border-amber-200" },
-  Low: { className: "bg-slate-100 text-slate-600 border-border" },
+  Urgent: { className: "bg-prio-urgent-bg text-prio-urgent-fg border-prio-urgent-fg/30" },
+  High: { className: "bg-prio-high-bg text-prio-high-fg border-prio-high-fg/30" },
+  Medium: { className: "bg-prio-medium-bg text-prio-medium-fg border-prio-medium-fg/30" },
+  Low: { className: "bg-prio-low-bg text-prio-low-fg border-prio-low-fg/30" },
 };
 
 export const STATUS_STYLES: Record<TicketStatus, BadgeStyle & { dot: string }> = {
-  Submitted: { className: "bg-slate-100 text-slate-700 border-border", dot: "bg-slate-400" },
-  Assigned: { className: "bg-blue-50 text-blue-700 border-blue-200", dot: "bg-blue-500" },
-  "In Progress": { className: "bg-violet-50 text-violet-700 border-violet-200", dot: "bg-violet-500" },
-  Resolved: { className: "bg-emerald-50 text-emerald-700 border-emerald-200", dot: "bg-emerald-500" },
-  Closed: { className: "bg-ink text-white border-ink", dot: "bg-ink" },
-  Reopened: { className: "bg-rose-50 text-rose-700 border-rose-200", dot: "bg-rose-500" },
-  Merged: { className: "bg-zinc-100 text-zinc-500 border-zinc-200", dot: "bg-zinc-400" },
+  Submitted: { className: "bg-neutral-bg text-neutral-fg border-neutral-fg/30", dot: "bg-text-muted" },
+  Assigned: { className: "bg-info-bg text-info-fg border-info-fg/30", dot: "bg-info-fg" },
+  "In Progress": { className: "bg-violet-bg text-violet-fg border-violet-fg/30", dot: "bg-violet-fg" },
+  Resolved: { className: "bg-success-bg text-success-fg border-success-fg/30", dot: "bg-success-fg" },
+  Closed: { className: "bg-surface-inverse text-text-inverse border-text-muted/40", dot: "bg-text" },
+  Reopened: { className: "bg-danger-bg text-danger-fg border-danger-fg/30", dot: "bg-danger-fg" },
+  Merged: { className: "bg-neutral-bg text-neutral-fg border-neutral-fg/30", dot: "bg-text-muted" },
 };

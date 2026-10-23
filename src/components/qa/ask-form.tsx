@@ -95,7 +95,7 @@ export function AskQuestionForm({ basePath }: { basePath: string }) {
 
   return (
     <div className="grid gap-5 lg:grid-cols-[1fr_340px]">
-      <form onSubmit={submit} className="animate-slide-up space-y-5 rounded-3xl border border-border bg-card p-5 shadow-sm sm:p-7">
+      <form onSubmit={submit} className="animate-slide-up space-y-5 rounded-3xl border border-border bg-surface p-5 shadow-sm sm:p-7">
         <div className="space-y-2">
           <Label htmlFor="q-title" className="eyebrow">Your question</Label>
           <Input
@@ -107,7 +107,7 @@ export function AskQuestionForm({ basePath }: { basePath: string }) {
             maxLength={160}
             autoFocus
           />
-          <p className="text-xs text-slate-500">Write it as a full question. English or Hindi are both fine.</p>
+          <p className="text-xs text-text-muted">Write it as a full question. English or Hindi are both fine.</p>
         </div>
 
         <div className="space-y-2">
@@ -140,7 +140,7 @@ export function AskQuestionForm({ basePath }: { basePath: string }) {
         </div>
 
         {blocked && (
-          <div className="flex animate-fade-in items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800" role="alert">
+          <div className="flex animate-fade-in items-start gap-3 rounded-2xl border border-danger-fg/30 bg-danger-bg p-4 text-sm text-danger-fg" role="alert">
             <ShieldAlert className="mt-0.5 size-5 shrink-0" />
             <div>
               <p className="font-bold">We couldn&apos;t post this</p>
@@ -148,27 +148,27 @@ export function AskQuestionForm({ basePath }: { basePath: string }) {
             </div>
           </div>
         )}
-        {error && <p className="text-sm text-red-700">{error}</p>}
+        {error && <p className="text-sm text-danger-fg">{error}</p>}
 
         <div className="flex flex-wrap items-center gap-3">
           <Button type="submit" size="lg" disabled={!!posting}>
             {posting ? <Loader2 className="animate-spin" /> : <Send />}
             {posting === "checking" ? "Checking…" : posting === "posting" ? "Posting…" : "Post question"}
           </Button>
-          <p className="text-xs text-slate-500">Posted under your name. Classmates see your name; teachers also see your roll number.</p>
+          <p className="text-xs text-text-muted">Posted under your name. Classmates see your name; teachers also see your roll number.</p>
         </div>
       </form>
 
-      <aside className="h-fit animate-slide-up space-y-3 rounded-3xl border border-sky-tint-2 bg-sky-tint p-5 [animation-delay:80ms]">
+      <aside className="h-fit animate-slide-up space-y-3 rounded-3xl border border-border bg-surface-accent p-5 [animation-delay:80ms]">
         <p className="eyebrow flex items-center gap-1.5">
           {searching ? <Loader2 className="size-3.5 animate-spin" /> : <Sparkles className="size-3.5" />}
           Similar questions already asked
         </p>
         {similar === null ? (
-          <p className="text-sm text-slate-600">Start typing your question — we&apos;ll check if someone already asked it.</p>
+          <p className="text-sm text-text-muted">Start typing your question — we&apos;ll check if someone already asked it.</p>
         ) : similar.length === 0 ? (
-          <p className="flex items-center gap-2 text-sm text-slate-600">
-            <CheckCircle2 className="size-4 text-emerald-700" /> Nothing similar yet — go ahead and ask!
+          <p className="flex items-center gap-2 text-sm text-text-muted">
+            <CheckCircle2 className="size-4 text-success-fg" /> Nothing similar yet — go ahead and ask!
           </p>
         ) : (
           <ul className="space-y-2">
@@ -177,16 +177,16 @@ export function AskQuestionForm({ basePath }: { basePath: string }) {
                 <Link
                   href={`${basePath}/${s.id}`}
                   target="_blank"
-                  className="group block space-y-1.5 rounded-2xl border border-card bg-card p-3 transition-colors hover:border-accent-blue"
+                  className="group block space-y-1.5 rounded-2xl border border-surface bg-surface p-3 transition-colors hover:border-accent-blue"
                 >
-                  <span className="flex items-start justify-between gap-2 text-sm font-bold text-foreground group-hover:text-accent-text">
+                  <span className="flex items-start justify-between gap-2 text-sm font-bold text-text group-hover:text-accent-text">
                     {s.title}
                     <ArrowUpRight className="size-4 shrink-0" />
                   </span>
                   <span className="flex flex-wrap gap-1.5">
                     <SubjectBadge subject={s.subject} />
                     {s.status === "answered" && (
-                      <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700">
+                      <span className="inline-flex items-center gap-1 text-xs font-semibold text-success-fg">
                         <CheckCircle2 className="size-3" /> Answered
                       </span>
                     )}

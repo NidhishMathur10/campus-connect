@@ -7,17 +7,17 @@ import type { EscalationReason, EscalationStatus } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const REASON_STYLES: Record<EscalationReason, { icon: LucideIcon; className: string }> = {
-  recurring: { icon: Repeat, className: "bg-violet-100 text-violet-800 border-violet-200" },
-  reopened: { icon: RotateCcw, className: "bg-rose-100 text-rose-800 border-rose-200" },
-  sla_breach: { icon: Timer, className: "bg-red-600 text-white border-red-600" },
-  manual: { icon: ShieldAlert, className: "bg-ink text-white border-ink" },
-  safety: { icon: Lock, className: "bg-rose-600 text-white border-rose-600" },
+  recurring: { icon: Repeat, className: "bg-violet-bg text-violet-fg border-violet-fg/30" },
+  reopened: { icon: RotateCcw, className: "bg-danger-bg text-danger-fg border-danger-fg/30" },
+  sla_breach: { icon: Timer, className: "bg-danger-solid text-danger-solid-fg border-danger-solid" },
+  manual: { icon: ShieldAlert, className: "bg-surface-inverse text-text-inverse border-surface-inverse" },
+  safety: { icon: Lock, className: "bg-danger-solid text-danger-solid-fg border-danger-solid" },
 };
 
 const STATUS_STYLES: Record<EscalationStatus, string> = {
-  open: "bg-amber-100 text-amber-800 border-amber-200",
-  acknowledged: "bg-blue-50 text-blue-700 border-blue-200",
-  resolved: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  open: "bg-warning-bg text-warning-fg border-warning-fg/30",
+  acknowledged: "bg-info-bg text-info-fg border-info-fg/30",
+  resolved: "bg-success-bg text-success-fg border-success-fg/30",
 };
 
 const pill = "inline-flex w-fit items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-bold whitespace-nowrap";
@@ -40,23 +40,23 @@ export function EscalationCard({ e }: { e: EscalationListItem }) {
     <Link
       href={`/escalations/${e.id}`}
       className={cn(
-        "group flex animate-slide-up flex-col gap-3 rounded-3xl border bg-card p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-accent-blue hover:shadow-md",
-        e.status === "open" ? "border-red-200" : "border-border",
+        "group flex animate-slide-up flex-col gap-3 rounded-3xl border bg-surface p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-accent-blue hover:shadow-md",
+        e.status === "open" ? "border-danger-fg/30" : "border-border",
       )}
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <ReasonBadge reason={e.reason} />
         <EscalationStatusBadge status={e.status} />
       </div>
-      <h3 className="text-lg leading-snug font-extrabold text-foreground group-hover:text-accent-text">
+      <h3 className="text-lg leading-snug font-extrabold text-text group-hover:text-accent-text">
         {e.headline ?? e.where}
       </h3>
       {e.brief && e.brief_model ? (
-        <p className="line-clamp-2 text-sm text-slate-600">{e.brief}</p>
+        <p className="line-clamp-2 text-sm text-text-muted">{e.brief}</p>
       ) : (
-        <p className="flex items-center gap-1.5 text-sm text-slate-500"><Siren className="size-4 animate-pulse" /> AI brief being written…</p>
+        <p className="flex items-center gap-1.5 text-sm text-text-muted"><Siren className="size-4 animate-pulse" /> AI brief being written…</p>
       )}
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs font-semibold text-slate-500">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs font-semibold text-text-muted">
         <span className="flex items-center gap-1"><MapPin className="size-3.5" /> {e.where}</span>
         <span className="flex items-center gap-1"><Users className="size-3.5" /> {e.affected_count} student{e.affected_count === 1 ? "" : "s"} affected</span>
         <span>{e.ticket_count} ticket{e.ticket_count === 1 ? "" : "s"} · {e.open_ticket_count} open</span>

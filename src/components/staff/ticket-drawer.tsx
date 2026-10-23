@@ -60,7 +60,7 @@ type ActionResult = { ok: true } | { ok: false; error: string };
 
 function Section({ title, icon: Icon, children, className }: { title: string; icon?: typeof Sparkles; children: React.ReactNode; className?: string }) {
   return (
-    <section className={cn("space-y-3 rounded-3xl border border-border bg-card p-4 sm:p-5", className)}>
+    <section className={cn("space-y-3 rounded-3xl border border-border bg-surface p-4 sm:p-5", className)}>
       <p className="eyebrow flex items-center gap-1.5">
         {Icon && <Icon className="size-3.5" />} {title}
       </p>
@@ -75,18 +75,18 @@ function ConfidenceBar({ label, value, meta }: { label: string; value: string; m
     <div className="space-y-1">
       <div className="flex items-center justify-between gap-2">
         <p className="eyebrow">{label}</p>
-        {pct != null && <span className="text-xs font-bold text-slate-600">{pct}%</span>}
+        {pct != null && <span className="text-xs font-bold text-text-muted">{pct}%</span>}
       </div>
-      <p className="text-sm font-bold text-foreground">{value}</p>
+      <p className="text-sm font-bold text-text">{value}</p>
       {pct != null && (
-        <div className="h-1.5 overflow-hidden rounded-full bg-slate-100">
+        <div className="h-1.5 overflow-hidden rounded-full bg-surface-2">
           <div
-            className={cn("h-full rounded-full", pct >= 80 ? "bg-emerald-500" : pct >= 55 ? "bg-amber-400" : "bg-red-500")}
+            className={cn("h-full rounded-full", pct >= 80 ? "bg-success-fg" : pct >= 55 ? "bg-warning-fg" : "bg-danger-fg")}
             style={{ width: `${pct}%` }}
           />
         </div>
       )}
-      {meta?.reason && <p className="text-xs text-slate-500">{meta.reason}</p>}
+      {meta?.reason && <p className="text-xs text-text-muted">{meta.reason}</p>}
     </div>
   );
 }
@@ -123,21 +123,21 @@ function CompareColumn({
   reporters: number;
 }) {
   return (
-    <div className="min-w-0 space-y-2 rounded-2xl border border-amber-200 bg-card p-3 text-sm">
-      <p className="eyebrow text-amber-700">{heading}</p>
+    <div className="min-w-0 space-y-2 rounded-2xl border border-warning-fg/30 bg-surface p-3 text-sm">
+      <p className="eyebrow text-warning-fg">{heading}</p>
       <div className="flex flex-wrap items-center gap-1.5">
-        <span className="font-mono text-xs font-bold text-foreground">{t.ticket_no}</span>
+        <span className="font-mono text-xs font-bold text-text">{t.ticket_no}</span>
         <StatusBadge status={t.status} className="text-[11px]" />
       </div>
-      <p className="font-bold text-foreground">{t.title}</p>
-      {t.summary && <p className="text-xs text-slate-600">{t.summary}</p>}
-      <p className="flex items-start gap-1 text-xs text-slate-500"><MapPin className="mt-0.5 size-3.5 shrink-0" /> {formatLocation(t)}</p>
-      <p className="flex items-center gap-1 text-xs text-slate-500"><Users className="size-3.5" /> {reporters} student{reporters === 1 ? "" : "s"}</p>
-      <p className="text-xs text-slate-500">Reported {formatDateTime(t.created_at)}</p>
+      <p className="font-bold text-text">{t.title}</p>
+      {t.summary && <p className="text-xs text-text-muted">{t.summary}</p>}
+      <p className="flex items-start gap-1 text-xs text-text-muted"><MapPin className="mt-0.5 size-3.5 shrink-0" /> {formatLocation(t)}</p>
+      <p className="flex items-center gap-1 text-xs text-text-muted"><Users className="size-3.5" /> {reporters} student{reporters === 1 ? "" : "s"}</p>
+      <p className="text-xs text-text-muted">Reported {formatDateTime(t.created_at)}</p>
       {t.photo_url ? (
         <Photo url={t.photo_url} alt={`Photo on ${t.ticket_no}`} className="h-28 w-full" />
       ) : (
-        <p className="rounded-xl bg-slate-50 p-2 text-center text-xs text-slate-500">No photo</p>
+        <p className="rounded-xl bg-surface-2 p-2 text-center text-xs text-text-muted">No photo</p>
       )}
     </div>
   );
@@ -161,10 +161,10 @@ function DuplicateBanner({
   const pct = Math.round((ticket.duplicate_score ?? 0) * 100);
   const origNo = original?.ticket_no ?? "the original";
   return (
-    <div className="space-y-3 rounded-3xl border-2 border-amber-300 bg-amber-50 p-4 sm:p-5">
+    <div className="space-y-3 rounded-3xl border-2 border-warning-fg/30 bg-warning-bg p-4 sm:p-5">
       <div className="space-y-1">
-        <p className="eyebrow flex items-center gap-1.5 text-amber-700"><Copy className="size-3.5" /> Duplicate review</p>
-        <p className="text-lg font-extrabold text-foreground">
+        <p className="eyebrow flex items-center gap-1.5 text-warning-fg"><Copy className="size-3.5" /> Duplicate review</p>
+        <p className="text-lg font-extrabold text-text">
           Possible duplicate of{" "}
           {original ? (
             <button type="button" onClick={() => onOpenTicket(original.ticket_no)} className="text-accent-text underline-offset-2 hover:underline">
@@ -175,7 +175,7 @@ function DuplicateBanner({
           )}{" "}
           ({pct}% similar)
         </p>
-        {ticket.duplicate_reason && <p className="text-sm text-amber-900"><Sparkles className="mr-1 inline size-3.5" />{ticket.duplicate_reason}</p>}
+        {ticket.duplicate_reason && <p className="text-sm text-warning-fg"><Sparkles className="mr-1 inline size-3.5" />{ticket.duplicate_reason}</p>}
       </div>
       {original && (
         <div className="grid gap-2 sm:grid-cols-2">
@@ -186,7 +186,7 @@ function DuplicateBanner({
       {canManage && (
         <div className="flex flex-col gap-2 sm:flex-row">
           <Button
-            className="flex-1 bg-[#b45309] text-white hover:brightness-90"
+            className="flex-1 bg-warning-solid text-warning-solid-fg hover:brightness-90"
             disabled={!original}
             onClick={() => run("merge", () => mergeDuplicate(ticket.id), `Merged into ${origNo}`)}
           >
@@ -248,21 +248,21 @@ function ActionsPanel({
     <Section title="Actions" icon={Wrench}>
       {closed ? (
         <div className="space-y-3">
-          <p className="text-sm text-slate-500">This ticket is {ticket.status.toLowerCase()} — read-only.</p>
+          <p className="text-sm text-text-muted">This ticket is {ticket.status.toLowerCase()} — read-only.</p>
           {viewer.role === "warden" && ticket.status === "Closed" && (
-            <div className="space-y-2 rounded-2xl bg-rose-50 p-3">
-              <Label htmlFor="reopen-reason" className="text-rose-800">Reopen this ticket (warden)</Label>
+            <div className="space-y-2 rounded-2xl bg-danger-bg p-3">
+              <Label htmlFor="reopen-reason" className="text-danger-fg">Reopen this ticket (warden)</Label>
               <Input
                 id="reopen-reason"
                 value={reopenReason}
                 onChange={(e) => setReopenReason(e.target.value)}
                 placeholder="Why? e.g. Problem is back according to the floor rep"
                 maxLength={500}
-                className="bg-card"
+                className="bg-surface"
               />
               <Button
                 size="sm"
-                className="bg-rose-600 hover:brightness-90"
+                className="bg-danger-solid hover:brightness-90"
                 disabled={reopenReason.trim().length < 3 || busy === "reopen"}
                 onClick={() =>
                   run(
@@ -299,7 +299,7 @@ function ActionsPanel({
             <div className="space-y-1.5">
               <Label>Move status</Label>
               <div className="flex flex-wrap gap-1.5">
-                {moves.length === 0 && <p className="text-xs text-slate-500">Waiting for the student to confirm.</p>}
+                {moves.length === 0 && <p className="text-xs text-text-muted">Waiting for the student to confirm.</p>}
                 {moves.map((to) => (
                   <Button key={to} size="sm" variant={to === "Resolved" ? "default" : "outline"} onClick={() => onRequestMove({ ticket, to })}>
                     <ArrowRight /> {to}
@@ -309,7 +309,7 @@ function ActionsPanel({
             </div>
           </div>
 
-          <div className="space-y-2 rounded-2xl bg-slate-50 p-3">
+          <div className="space-y-2 rounded-2xl bg-surface-2 p-3">
             <Label htmlFor="drawer-note" className="flex items-center gap-1.5"><MessageSquarePlus className="size-4" /> Add a note</Label>
             <Textarea
               id="drawer-note"
@@ -317,11 +317,11 @@ function ActionsPanel({
               onChange={(e) => setNote(e.target.value)}
               placeholder={noteVisible ? "Message the student sees in their timeline" : "Internal note — only staff can see this"}
               maxLength={1000}
-              className="min-h-16 bg-card"
+              className="min-h-16 bg-surface"
             />
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <label className="flex items-center gap-2 text-xs font-semibold text-slate-600">
-                <input type="checkbox" checked={noteVisible} onChange={(e) => setNoteVisible(e.target.checked)} className="size-4 accent-navy" />
+              <label className="flex items-center gap-2 text-xs font-semibold text-text-muted">
+                <input type="checkbox" checked={noteVisible} onChange={(e) => setNoteVisible(e.target.checked)} className="size-4 accent-primary" />
                 Visible to the student
               </label>
               <Button
@@ -346,7 +346,7 @@ function ActionsPanel({
           </div>
 
           <details className="group rounded-2xl border border-border p-3">
-            <summary className="cursor-pointer text-sm font-semibold text-foreground">Correct the AI (override category / department / priority)</summary>
+            <summary className="cursor-pointer text-sm font-semibold text-text">Correct the AI (override category / department / priority)</summary>
             <div className="mt-3 grid gap-2 sm:grid-cols-2">
               <SimpleSelect
                 value={OVERRIDE_LABELS[field]}
@@ -363,7 +363,7 @@ function ActionsPanel({
               <SimpleSelect value={value} onChange={setValue} options={valueOptions} placeholder={`Current: ${ticket[field]}`} />
               <Input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Reason (required)" maxLength={300} className="sm:col-span-2" />
               {field === "department" && (
-                <p className="text-xs text-slate-500 sm:col-span-2">Changing the department reroutes the ticket to that team (and releases the current assignee).</p>
+                <p className="text-xs text-text-muted sm:col-span-2">Changing the department reroutes the ticket to that team (and releases the current assignee).</p>
               )}
               <Button
                 size="sm"
@@ -420,14 +420,14 @@ function EscalationPanel({
   if (!canEscalate && escalations.length === 0) return null;
 
   return (
-    <Section title="Escalation" icon={ShieldAlert} className={ticket.escalated ? "border-red-200" : undefined}>
+    <Section title="Escalation" icon={ShieldAlert} className={ticket.escalated ? "border-danger-fg/30" : undefined}>
       {escalations.length > 0 && (
         <ul className="space-y-1.5">
           {escalations.map((e) => (
             <li key={e.id}>
               <Link
                 href={`/escalations/${e.id}`}
-                className="flex items-center justify-between gap-2 rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-800 hover:border-red-400"
+                className="flex items-center justify-between gap-2 rounded-2xl border border-danger-fg/30 bg-danger-bg px-3 py-2 text-sm font-semibold text-danger-fg hover:border-danger-fg/30"
               >
                 <span className="flex items-center gap-2">
                   <ShieldAlert className="size-4" /> {ESCALATION_REASON_LABELS[e.reason]} · {e.status}
@@ -446,7 +446,7 @@ function EscalationPanel({
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="rounded-3xl sm:max-w-md">
           <DialogHeader className="text-left">
-            <DialogTitle className="text-lg font-extrabold text-foreground">Escalate {ticket.ticket_no} to the {target}</DialogTitle>
+            <DialogTitle className="text-lg font-extrabold text-text">Escalate {ticket.ticket_no} to the {target}</DialogTitle>
             <DialogDescription>It appears in their Escalations inbox with an AI-written brief.</DialogDescription>
           </DialogHeader>
           <Textarea
@@ -589,11 +589,11 @@ function DrawerBody({
     <div className="space-y-4 p-4 pb-10 sm:p-6">
       <SheetHeader className="space-y-2 p-0 pr-10">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="rounded-full bg-primary px-3 py-1 font-mono text-sm font-bold text-primary-foreground">{ticket.ticket_no}</span>
+          <span className="rounded-full bg-primary px-3 py-1 font-mono text-sm font-bold text-primary-fg">{ticket.ticket_no}</span>
           <span className="eyebrow">{MODULE_LABELS[ticket.module]}</span>
-          {!canManage && <span className="rounded-full bg-border px-2.5 py-0.5 text-xs font-semibold text-slate-600">Read-only</span>}
+          {!canManage && <span className="rounded-full bg-border px-2.5 py-0.5 text-xs font-semibold text-text-muted">Read-only</span>}
         </div>
-        <SheetTitle className="text-2xl font-extrabold tracking-tight text-foreground">{ticket.title}</SheetTitle>
+        <SheetTitle className="text-2xl font-extrabold tracking-tight text-text">{ticket.title}</SheetTitle>
         <SheetDescription asChild>
           <div className="space-y-2">
             <div className="flex flex-wrap gap-1.5">
@@ -614,7 +614,7 @@ function DrawerBody({
               {ticket.is_confidential && <ConfidentialBadge />}
               {ai?.moderation === "unchecked" && <NotModeratedBadge />}
             </div>
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-text-muted">
               <span>Reported {formatDateTime(ticket.created_at)} ({timeAgo(ticket.created_at, now)})</span>
               <SlaCountdown dueAt={ticket.sla_due_at} status={ticket.status} now={now} />
               <span>{ticket.department}{assignee ? ` · ${assignee.full_name}` : " · Unassigned"}</span>
@@ -630,7 +630,7 @@ function DrawerBody({
         <button
           type="button"
           onClick={() => onOpenTicket(original.ticket_no)}
-          className="flex w-full items-center gap-3 rounded-3xl border border-zinc-200 bg-zinc-50 p-4 text-left text-sm font-semibold text-zinc-700 hover:border-accent-blue"
+          className="flex w-full items-center gap-3 rounded-3xl border border-neutral-fg/30 bg-neutral-bg p-4 text-left text-sm font-semibold text-neutral-fg hover:border-accent-blue"
         >
           <GitMerge className="size-5" /> Merged into {original.ticket_no} — open the original <ExternalLink className="ml-auto size-4" />
         </button>
@@ -641,58 +641,58 @@ function DrawerBody({
 
       <Section title="AI analysis" icon={Sparkles}>
         {ticket.details_incomplete && (
-          <p className="flex items-start gap-2 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+          <p className="flex items-start gap-2 rounded-2xl border border-warning-fg/30 bg-warning-bg p-3 text-sm text-warning-fg">
             <AlertCircle className="mt-0.5 size-4 shrink-0" /> Details incomplete — the student didn&apos;t answer every follow-up question. You may need to contact them.
           </p>
         )}
         {ai?.extracted_issue && (
           <div>
             <p className="eyebrow">Extracted issue</p>
-            <p className="text-sm font-semibold text-foreground">{ai.extracted_issue}</p>
+            <p className="text-sm font-semibold text-text">{ai.extracted_issue}</p>
           </div>
         )}
         <div>
           <p className="eyebrow">Summary</p>
-          <p className="text-sm whitespace-pre-wrap text-slate-700">{ticket.summary ?? ticket.english_text ?? ticket.original_text}</p>
+          <p className="text-sm whitespace-pre-wrap text-text">{ticket.summary ?? ticket.english_text ?? ticket.original_text}</p>
         </div>
         <div className="grid gap-4 sm:grid-cols-3">
           <ConfidenceBar label="Category" value={ticket.category} meta={ai?.category} />
           <ConfidenceBar label="Department" value={ticket.department} meta={ai?.department} />
           <ConfidenceBar label="Priority" value={ticket.priority} meta={ai?.priority} />
         </div>
-        {ai?.model === "manual" && <p className="text-xs text-slate-500">AI was unavailable — the student filled these in by hand.</p>}
+        {ai?.model === "manual" && <p className="text-xs text-text-muted">AI was unavailable — the student filled these in by hand.</p>}
         {ticket.photo_analysis && (
-          <div className="space-y-1 rounded-2xl bg-slate-50 p-3 text-sm">
+          <div className="space-y-1 rounded-2xl bg-surface-2 p-3 text-sm">
             <p className="eyebrow flex items-center gap-1.5"><Camera className="size-3.5" /> Photo analysis</p>
-            <p className="text-slate-700"><span className="font-semibold">Observed:</span> {ticket.photo_analysis.observed}</p>
-            <p className={cn("flex items-center gap-1.5 font-semibold", ticket.photo_analysis.matches_complaint ? "text-emerald-700" : "text-red-700")}>
+            <p className="text-text"><span className="font-semibold">Observed:</span> {ticket.photo_analysis.observed}</p>
+            <p className={cn("flex items-center gap-1.5 font-semibold", ticket.photo_analysis.matches_complaint ? "text-success-fg" : "text-danger-fg")}>
               {ticket.photo_analysis.matches_complaint ? <CheckCircle2 className="size-4" /> : <XCircle className="size-4" />}
               {ticket.photo_analysis.matches_complaint ? "Matches the complaint" : "Doesn't match the complaint"}
             </p>
-            {ticket.photo_analysis.notes && <p className="text-slate-600">{ticket.photo_analysis.notes}</p>}
+            {ticket.photo_analysis.notes && <p className="text-text-muted">{ticket.photo_analysis.notes}</p>}
           </div>
         )}
       </Section>
 
       <Section title={`Original complaint${translated ? ` (${languageName(ticket.language)})` : ""}`}>
-        <p className="text-sm whitespace-pre-wrap text-slate-700">{ticket.original_text}</p>
+        <p className="text-sm whitespace-pre-wrap text-text">{ticket.original_text}</p>
         {translated && (
           <>
             <p className="eyebrow flex items-center gap-1.5"><Languages className="size-3.5" /> English translation</p>
-            <p className="text-sm text-slate-700">{ticket.english_text}</p>
+            <p className="text-sm text-text">{ticket.english_text}</p>
           </>
         )}
-        <div className="flex flex-wrap items-center gap-2 text-sm font-semibold text-slate-700">
-          <MapPin className="size-4 text-slate-500" />
+        <div className="flex flex-wrap items-center gap-2 text-sm font-semibold text-text">
+          <MapPin className="size-4 text-text-muted" />
           {formatPlace(ticket) && (
-            <span className="rounded-full bg-primary px-3 py-0.5 text-sm font-bold text-primary-foreground">{formatPlace(ticket)}</span>
+            <span className="rounded-full bg-primary px-3 py-0.5 text-sm font-bold text-primary-fg">{formatPlace(ticket)}</span>
           )}
           <span>{formatLocation({ building: ticket.building, floor: ticket.floor })}</span>
           <ScopeBadge scope={ticket.scope} />
         </div>
         {ticket.photo_url && <Photo url={ticket.photo_url} alt="Complaint photo" className="h-56 w-full sm:w-80" />}
         {!ticket.photo_url && ai?.photo_has_people && (
-          <p className="flex items-center gap-2 rounded-2xl bg-slate-50 p-3 text-xs font-semibold text-slate-600">
+          <p className="flex items-center gap-2 rounded-2xl bg-surface-2 p-3 text-xs font-semibold text-text-muted">
             <Lock className="size-4 shrink-0" /> A photo showing people is attached. Only the Anti-Ragging Committee and the Dean can view it.
           </p>
         )}
@@ -701,8 +701,8 @@ function DrawerBody({
       <Section title="Reporter" icon={User}>
         <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
           <div>
-            <p className="font-bold text-foreground">{reporterHidden ? CONFIDENTIAL_REPORTER : (reporter?.full_name ?? "Student")}</p>
-            <p className="text-slate-500">
+            <p className="font-bold text-text">{reporterHidden ? CONFIDENTIAL_REPORTER : (reporter?.full_name ?? "Student")}</p>
+            <p className="text-text-muted">
               {reporterHidden
                 ? "The student asked to hide their name. Only the Anti-Ragging Committee and the Dean can see who reported this."
                 : detail.faculty_reporter
@@ -712,10 +712,10 @@ function DrawerBody({
                     .join(" · ") || "No profile details"}
             </p>
             {!reporterHidden && ticket.hide_identity && (
-              <p className="mt-1 text-xs font-semibold text-rose-700">Name hidden from investigating staff — you can see it as {ticket.department === "Anti-Ragging Committee" ? "the committee" : "Dean"}.</p>
+              <p className="mt-1 text-xs font-semibold text-danger-fg">Name hidden from investigating staff — you can see it as {ticket.department === "Anti-Ragging Committee" ? "the committee" : "Dean"}.</p>
             )}
           </div>
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-sky-tint px-3 py-1 text-xs font-bold text-blue-700">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-accent px-3 py-1 text-xs font-bold text-info-fg">
             <Users className="size-3.5" /> {affected} {detail.faculty_reporter ? "reporter" : "student"}{affected === 1 ? "" : "s"} affected
           </span>
         </div>

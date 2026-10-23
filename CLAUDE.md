@@ -213,3 +213,10 @@ Faculty = `teacher`, `hod`, `academic_office` (`src/config/faculty.ts`: `FACULTY
 - **Log + flag:** `moderation_log` (user_id, roll_no, module, kind, level, reason — never the complaint text) records every rephrase/privacy/block. 3+ `block` rows in 24h list the roll number (faculty: name) with the count on the warden's Ticket Board (`ModerationFlags`). No automatic bans.
 - **Limit:** moderation runs in the report flow (browser → `/api/ai/analyze`); `createTicket` trusts the result, like the rest of the flow.
 - **Schema:** adds `moderation_log` (RLS: warden reads).
+
+## 17. Theme (light / dark / system)
+- **One source of truth:** `scripts/theme-tokens.json` (light + dark value for every token) → `npm run theme:build` writes `src/app/globals.css`. Never edit the generated token block by hand.
+- **Tokens:** `--bg --surface --surface-2 --surface-inverse --border --text --text-muted --text-inverse --primary --primary-fg --accent --input-bg --input-border --placeholder --ring`, plus a `-bg`/`-fg` pair for success, warning, danger, info, violet, neutral, every priority (`prio-*`) and category (`cat-*`). Tailwind utilities: `bg-surface`, `text-text-muted`, `bg-warning-bg text-warning-fg`, ...
+- **Rules:** use no raw palette colours (`bg-white`, `text-slate-500`, `border-amber-200`, hex/rgb) in `src/`; a `*-bg` / surface token is always used with its matching `*-fg` / text token. `npm run check:theme` enforces both and checks WCAG contrast of every pair in both modes; run it before committing UI changes.
+- Toggle: `src/components/theme/theme-toggle.tsx` (next-themes, class strategy, default System).
+

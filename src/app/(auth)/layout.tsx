@@ -14,26 +14,26 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
   return (
     <div className="grid min-h-dvh lg:grid-cols-[1fr_1.1fr]">
       {/* Brand panel (laptop) */}
-      <aside className="relative hidden overflow-hidden bg-navy p-12 text-white lg:flex lg:flex-col">
+      <aside className="relative hidden overflow-hidden bg-surface-inverse p-12 text-text-inverse lg:flex lg:flex-col">
         <div className="absolute -top-24 -right-24 size-96 rounded-full border-[40px] border-accent-blue/20" />
         <div className="absolute -bottom-32 -left-16 size-96 rounded-full border-[40px] border-accent-violet/20" />
-        <div className="relative inline-flex w-fit items-center gap-2 rounded-full bg-card px-4 py-2">
+        <div className="relative inline-flex w-fit items-center gap-2 rounded-full bg-surface px-4 py-2">
           <Logo />
         </div>
         <div className="relative my-auto w-full max-w-xl space-y-6 py-10">
-          <p className="eyebrow text-sky-300">{COLLEGE_NAME}</p>
+          <p className="eyebrow text-info-on-inverse">{COLLEGE_NAME}</p>
           <h2 className="text-4xl leading-tight font-extrabold tracking-tight xl:text-5xl">
             Say what&apos;s wrong in your own words. We&apos;ll make it a ticket.
           </h2>
-          <p className="text-slate-300">
+          <p className="text-text-inverse-muted">
             Hindi or English, with a photo or without — Gemini turns your complaint into a clear,
             routed, trackable ticket.
           </p>
           <ul className="space-y-3 pt-2">
             {HIGHLIGHTS.map(({ icon: Icon, text }) => (
-              <li key={text} className="flex items-center gap-3 text-sm font-semibold text-slate-200">
-                <span className="grid size-8 shrink-0 place-items-center rounded-full bg-white/10">
-                  <Icon className="size-4 text-sky-300" />
+              <li key={text} className="flex items-center gap-3 text-sm font-semibold text-text-inverse-muted">
+                <span className="grid size-8 shrink-0 place-items-center rounded-full bg-text-inverse/10">
+                  <Icon className="size-4 text-info-on-inverse" />
                 </span>
                 {text}
               </li>

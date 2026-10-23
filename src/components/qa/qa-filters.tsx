@@ -35,12 +35,12 @@ export function QaFilters({ filters }: { filters: QaFilter[] }) {
             update({ q: q.trim() || null });
           }}
         >
-          <Search className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-slate-500" />
+          <Search className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-text-muted" />
           <Input
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="Search questions… (press Enter)"
-            className="rounded-full bg-card pr-9 pl-10"
+            className="rounded-full bg-surface pr-9 pl-10"
             maxLength={80}
             aria-label="Search questions"
           />
@@ -51,7 +51,7 @@ export function QaFilters({ filters }: { filters: QaFilter[] }) {
                 setQ("");
                 update({ q: null });
               }}
-              className="absolute top-1/2 right-3 -translate-y-1/2 text-slate-500 hover:text-foreground"
+              className="absolute top-1/2 right-3 -translate-y-1/2 text-text-muted hover:text-text"
               aria-label="Clear search"
             >
               <X className="size-4" />
@@ -64,10 +64,10 @@ export function QaFilters({ filters }: { filters: QaFilter[] }) {
           options={QA_SUBJECTS}
           placeholder="All subjects"
           noneLabel="All subjects"
-          className="rounded-full bg-card sm:w-56"
+          className="rounded-full bg-surface sm:w-56"
         />
       </div>
-      <nav className="flex w-full gap-1 overflow-x-auto rounded-full border border-border bg-card p-1 sm:w-fit">
+      <nav className="flex w-full gap-1 overflow-x-auto rounded-full border border-border bg-surface p-1 sm:w-fit">
         {filters.map((f) => (
           <button
             key={f}
@@ -75,7 +75,7 @@ export function QaFilters({ filters }: { filters: QaFilter[] }) {
             onClick={() => update({ filter: f === "all" ? null : f })}
             className={cn(
               "rounded-full px-4 py-1.5 text-sm font-semibold whitespace-nowrap",
-              f === filter ? "bg-primary text-primary-foreground" : "text-slate-600 hover:bg-slate-100",
+              f === filter ? "bg-primary text-primary-fg" : "text-text-muted hover:bg-surface-2",
             )}
           >
             {QA_FILTER_LABELS[f]}

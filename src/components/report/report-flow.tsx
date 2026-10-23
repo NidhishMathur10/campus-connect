@@ -582,7 +582,7 @@ export function ReportFlow({
       {/* The complaint as the student's first chat message */}
       <Bubble from="student">
         <p className="whitespace-pre-wrap">{draft.text}</p>
-        <p className="mt-2 flex items-center gap-1 text-xs text-slate-300">
+        <p className="mt-2 flex items-center gap-1 text-xs text-text-inverse-muted">
           <MapPin className="size-3" /> {formatLocation(locationOf(draft, module))}
         </p>
         {draft.photo && (

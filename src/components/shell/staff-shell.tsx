@@ -29,7 +29,7 @@ function NavLinks({ items, pathname, onNavigate }: { items: NavItem[]; pathname:
               onClick={onNavigate}
               className={cn(
                 "flex items-center gap-3 rounded-2xl px-3.5 py-2.5 text-sm font-semibold transition-colors",
-                active ? "bg-primary text-primary-foreground shadow-sm" : "text-slate-600 hover:bg-sky-tint hover:text-foreground",
+                active ? "bg-primary text-primary-fg shadow-sm" : "text-text-muted hover:bg-surface-accent hover:text-text",
               )}
             >
               <Icon className="size-4.5" />
@@ -64,11 +64,11 @@ export function StaffShell({
     <div className="min-h-dvh lg:pl-72">
       {/* Desktop sidebar */}
       <aside className="fixed inset-y-0 left-0 z-40 hidden w-72 p-4 lg:block">
-        <div className="flex h-full flex-col rounded-3xl border border-border/80 bg-card p-4 shadow-[0_8px_30px_-12px_rgba(15,23,42,0.15)]">
+        <div className="flex h-full flex-col rounded-3xl border border-border/80 bg-surface p-4 shadow-float">
           <Link href={items[0]?.href ?? "/"} className="px-2 pt-1">
             <Logo />
           </Link>
-          <p className="mt-1 px-2 text-xs font-semibold text-slate-500">{COLLEGE_NAME}</p>
+          <p className="mt-1 px-2 text-xs font-semibold text-text-muted">{COLLEGE_NAME}</p>
 
           <p className="eyebrow mt-8 mb-2 px-3">Workspace</p>
           <NavLinks items={items} pathname={pathname} />
@@ -77,11 +77,11 @@ export function StaffShell({
             <span className="eyebrow">Theme</span>
             <ThemeToggle />
           </div>
-          <div className="flex items-center gap-3 rounded-2xl bg-sky-tint p-3">
+          <div className="flex items-center gap-3 rounded-2xl bg-surface-accent p-3">
             <UserAvatar name={user.fullName} />
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-bold text-foreground">{user.fullName}</p>
-              <p className="truncate text-xs text-slate-500">{user.subtitle ?? user.roleLabel}</p>
+              <p className="truncate text-sm font-bold text-text">{user.fullName}</p>
+              <p className="truncate text-xs text-text-muted">{user.subtitle ?? user.roleLabel}</p>
             </div>
             {showBell && <NotificationBell userId={userId} align="start" />}
             <UserMenu user={user} align="start" />
@@ -91,7 +91,7 @@ export function StaffShell({
 
       {/* Mobile top bar */}
       <header className="sticky top-0 z-40 px-3 pt-3 lg:hidden">
-        <nav className="flex h-14 items-center justify-between gap-2 rounded-full border border-border/80 bg-card/90 py-2 pr-2 pl-2 shadow-[0_8px_30px_-12px_rgba(15,23,42,0.18)] backdrop-blur">
+        <nav className="flex h-14 items-center justify-between gap-2 rounded-full border border-border/80 bg-surface/90 py-2 pr-2 pl-2 shadow-float backdrop-blur">
           <Sheet open={open} onOpenChange={setOpen}>
             <SheetTrigger asChild>
               <Button variant="ghost" size="icon" aria-label="Open menu">
@@ -103,7 +103,7 @@ export function StaffShell({
                 <SheetTitle asChild>
                   <div><Logo /></div>
                 </SheetTitle>
-                <p className="text-xs font-semibold text-slate-500">{COLLEGE_NAME}</p>
+                <p className="text-xs font-semibold text-text-muted">{COLLEGE_NAME}</p>
               </SheetHeader>
               <p className="eyebrow mt-6 mb-2 px-3">Workspace</p>
               <NavLinks items={items} pathname={pathname} onNavigate={() => setOpen(false)} />

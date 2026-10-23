@@ -35,13 +35,13 @@ export function SuccessCard({
   }
 
   return (
-    <div className="animate-slide-up overflow-hidden rounded-3xl bg-navy p-7 text-center text-white shadow-xl shadow-slate-900/10 sm:p-10">
-      <div className="mx-auto grid size-16 place-items-center rounded-full bg-white/10">
-        {followed ? <Users className="size-8 text-sky-300" /> : <PartyPopper className="size-8 text-sky-300" />}
+    <div className="animate-slide-up overflow-hidden rounded-3xl bg-surface-inverse p-7 text-center text-text-inverse shadow-xl sm:p-10">
+      <div className="mx-auto grid size-16 place-items-center rounded-full bg-text-inverse/10">
+        {followed ? <Users className="size-8 text-info-on-inverse" /> : <PartyPopper className="size-8 text-info-on-inverse" />}
       </div>
-      <p className="eyebrow mt-5 text-sky-300">{followed ? "You're following" : "Ticket created"}</p>
+      <p className="eyebrow mt-5 text-info-on-inverse">{followed ? "You're following" : "Ticket created"}</p>
       <p className="mt-2 font-mono text-5xl font-extrabold tracking-tight sm:text-6xl">{ticketNo}</p>
-      <p className="mx-auto mt-3 max-w-md text-sm text-slate-300">
+      <p className="mx-auto mt-3 max-w-md text-sm text-text-inverse-muted">
         {followed
           ? `You've been added to this ticket. Every update will show up in ${trackBase === "/reports" ? "My Reports" : "My Tickets"}.`
           : confidential
@@ -49,7 +49,7 @@ export function SuccessCard({
             : "Your complaint has been sent to the right team. Keep this number — you can also track it from the login page without logging in."}
       </p>
       {confidential && (
-        <p className="mx-auto mt-3 flex max-w-md items-center justify-center gap-1.5 text-xs font-semibold text-sky-300">
+        <p className="mx-auto mt-3 flex max-w-md items-center justify-center gap-1.5 text-xs font-semibold text-info-on-inverse">
           <Lock className="size-3.5" /> Safety reports are never shown in public tracking.
         </p>
       )}
@@ -57,7 +57,7 @@ export function SuccessCard({
         <Button size="lg" variant="secondary" onClick={copy}>
           {copied ? <Check /> : <Copy />} {copied ? "Copied" : "Copy number"}
         </Button>
-        <Button size="lg" className="bg-card text-foreground hover:bg-sky-tint" asChild>
+        <Button size="lg" className="bg-surface text-text hover:bg-surface-accent" asChild>
           <Link href={`${trackBase}/${ticketNo}`}>
             Track this ticket <ArrowRight />
           </Link>
@@ -66,7 +66,7 @@ export function SuccessCard({
       <button
         type="button"
         onClick={onReportAnother}
-        className="mt-5 inline-flex items-center gap-1 text-sm font-semibold text-slate-300 hover:text-white"
+        className="mt-5 inline-flex items-center gap-1 text-sm font-semibold text-text-inverse-muted hover:text-text-inverse"
       >
         <Plus className="size-4" /> Report another problem
       </button>

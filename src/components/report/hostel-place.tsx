@@ -60,7 +60,7 @@ export function HostelPlace({
 
   return (
     <div className="space-y-3">
-      <div className="grid grid-cols-2 gap-1 rounded-full border border-border bg-slate-50 p-1" role="tablist" aria-label="Where in the hostel">
+      <div className="grid grid-cols-2 gap-1 rounded-full border border-border bg-surface-2 p-1" role="tablist" aria-label="Where in the hostel">
         {(
           [
             { value: "room", label: "A room", icon: DoorOpen },
@@ -76,7 +76,7 @@ export function HostelPlace({
             onClick={() => onChange({ place: value })}
             className={cn(
               "flex items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-bold transition-colors",
-              draft.place === value ? "bg-primary text-primary-foreground shadow-sm" : "text-slate-600 hover:bg-card",
+              draft.place === value ? "bg-primary text-primary-fg shadow-sm" : "text-text-muted hover:bg-surface",
             )}
           >
             <Icon className="size-4" /> {label}
@@ -88,8 +88,8 @@ export function HostelPlace({
         <div className="space-y-1.5">
           <Label htmlFor="room-no">Room number</Label>
           {usingOwn ? (
-            <div className="flex animate-fade-in flex-wrap items-center justify-between gap-2 rounded-2xl border border-sky-tint-2 bg-sky-tint px-4 py-3">
-              <span className="flex items-center gap-2 text-sm font-bold text-foreground">
+            <div className="flex animate-fade-in flex-wrap items-center justify-between gap-2 rounded-2xl border border-border bg-surface-accent px-4 py-3">
+              <span className="flex items-center gap-2 text-sm font-bold text-text">
                 <Home className="size-4 text-accent-text" /> Your room · {ownRoom}
               </span>
               <Button
@@ -130,7 +130,7 @@ export function HostelPlace({
               )}
             </div>
           )}
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-text-muted">
             Each room has its own washroom, bathroom and balcony — the room number is enough. Add any detail in your complaint.
           </p>
         </div>
@@ -162,7 +162,7 @@ export function HostelPlace({
             </div>
           )}
           {draft.area === "Laundry machine" && (
-            <div className="animate-fade-in space-y-1.5 rounded-2xl bg-sky-tint p-3">
+            <div className="animate-fade-in space-y-1.5 rounded-2xl bg-surface-accent p-3">
               <Label htmlFor="machine">Washing machine ID</Label>
               {machines.length > 0 ? (
                 <SimpleSelect
@@ -175,7 +175,7 @@ export function HostelPlace({
                   disabled={disabled}
                 />
               ) : (
-                <p className="text-xs text-slate-600">
+                <p className="text-xs text-text-muted">
                   There are washing machines on New Hostel Ground &amp; 3rd floor and Old Hostel Ground &amp; Basement — choose
                   the right building and floor above to pick the machine.
                 </p>
@@ -184,7 +184,7 @@ export function HostelPlace({
           )}
         </div>
       )}
-      {error && <p className="text-sm text-red-700">{error}</p>}
+      {error && <p className="text-sm text-danger-fg">{error}</p>}
     </div>
   );
 }

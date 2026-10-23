@@ -49,7 +49,7 @@ export function SlaCountdown({
       suppressHydrationWarning
       className={cn(
         "inline-flex items-center gap-1 text-xs font-bold whitespace-nowrap",
-        overdue ? "text-red-700" : soon ? "text-orange-700" : "text-slate-500",
+        overdue ? "text-danger-fg" : soon ? "text-prio-high-fg" : "text-text-muted",
         className,
       )}
       title={`SLA due ${new Date(dueAt).toLocaleString("en-IN")}`}

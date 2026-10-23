@@ -27,8 +27,8 @@ export default async function SafetyPage() {
           </Button>
         }
       />
-      <p className="mb-5 flex items-start gap-2 rounded-2xl border border-border bg-card p-4 text-sm text-slate-600">
-        <Lock className="mt-0.5 size-4 shrink-0 text-foreground" />
+      <p className="mb-5 flex items-start gap-2 rounded-2xl border border-border bg-surface p-4 text-sm text-text-muted">
+        <Lock className="mt-0.5 size-4 shrink-0 text-text" />
         Ragging, harassment and threat reports are confidential: only you, the Anti-Ragging Committee or the assigned
         Security Officer, and the Dean of Student Affairs can see them. You can also hide your name from the
         investigating staff.

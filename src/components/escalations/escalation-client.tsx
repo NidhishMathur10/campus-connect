@@ -106,7 +106,7 @@ export function EscalationActions({
             maxLength={1000}
             className="min-h-24"
           />
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-text-muted">
             Posted on every linked ticket as “Directive from {targetLabel}”, visible to staff and the students.
           </p>
           <Button
@@ -134,18 +134,18 @@ export function EscalationActions({
         <div className="space-y-1.5 border-t border-border/60 pt-4">
           <Button
             variant="ghost"
-            className="w-full text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800"
+            className="w-full text-success-fg hover:bg-success-bg hover:text-success-fg"
             disabled={!allClosed || !!busy}
             onClick={() => run("resolve", () => resolveEscalation(escalationId), "Escalation resolved")}
           >
             {busy === "resolve" ? <Loader2 className="animate-spin" /> : <CheckCircle2 />} Mark resolved
           </Button>
-          {!allClosed && <p className="text-center text-xs text-slate-500">Available once every linked ticket is closed.</p>}
+          {!allClosed && <p className="text-center text-xs text-text-muted">Available once every linked ticket is closed.</p>}
         </div>
       )}
 
       {status === "resolved" && (
-        <p className="flex items-center gap-2 rounded-2xl bg-emerald-50 p-3 text-sm font-semibold text-emerald-800">
+        <p className="flex items-center gap-2 rounded-2xl bg-success-bg p-3 text-sm font-semibold text-success-fg">
           <Sparkles className="size-4" /> Resolved — all linked tickets are closed.
         </p>
       )}

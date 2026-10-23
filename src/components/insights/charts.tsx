@@ -16,28 +16,28 @@ import {
 import type { TicketStatus } from "@/config/statuses";
 
 /** Brand-aligned single series colours (one hue per chart = no colour legend needed). */
-const BLUE = "#3b82f6";
+const BLUE = "var(--chart-1)";
 /** Chart colours come from CSS variables (globals.css) so they follow the light/dark theme. */
 const AXIS = { fontSize: 11, fill: "var(--chart-axis)" };
 const GRID = "var(--chart-grid)";
 
 /** Status hues match the status badges used everywhere else. */
 const STATUS_FILL: Record<TicketStatus, string> = {
-  Submitted: "#94a3b8",
-  Assigned: "#3b82f6",
-  "In Progress": "#8b5cf6",
-  Resolved: "#10b981",
-  Closed: "var(--ink)",
-  Reopened: "#f43f5e",
-  Merged: "#a1a1aa",
+  Submitted: "var(--chart-submitted)",
+  Assigned: "var(--chart-1)",
+  "In Progress": "var(--chart-progress)",
+  Resolved: "var(--chart-resolved)",
+  Closed: "var(--chart-closed)",
+  Reopened: "var(--chart-reopened)",
+  Merged: "var(--chart-merged)",
 };
 
 function ChartTooltip({ active, payload, label, unit = "tickets" }: { active?: boolean; payload?: { value: number }[]; label?: string; unit?: string }) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="rounded-xl border border-border bg-card px-3 py-2 text-xs shadow-lg">
-      <p className="font-bold text-foreground">{label}</p>
-      <p className="text-muted-foreground">
+    <div className="rounded-xl border border-border bg-surface px-3 py-2 text-xs shadow-lg">
+      <p className="font-bold text-text">{label}</p>
+      <p className="text-text-muted">
         {payload[0].value} {unit}
       </p>
     </div>
@@ -45,7 +45,7 @@ function ChartTooltip({ active, payload, label, unit = "tickets" }: { active?: b
 }
 
 function Empty() {
-  return <p className="grid h-full place-items-center text-sm text-slate-500">No tickets in this period</p>;
+  return <p className="grid h-full place-items-center text-sm text-text-muted">No tickets in this period</p>;
 }
 
 /** Horizontal bars, sorted by count — good for long category / building names. */

@@ -32,7 +32,7 @@ export function UserAvatar({ name, className }: { name: string; className?: stri
   return (
     <span
       className={cn(
-        "grid size-9 shrink-0 place-items-center rounded-full bg-gradient-to-br from-accent-blue to-accent-violet text-xs font-bold text-white",
+        "grid size-9 shrink-0 place-items-center rounded-full bg-gradient-to-br from-accent-blue to-accent-violet text-xs font-bold text-accent-fg",
         className,
       )}
     >
@@ -50,8 +50,8 @@ export function UserMenu({ user, align = "end" }: { user: ShellUser; align?: "st
       </DropdownMenuTrigger>
       <DropdownMenuContent align={align} className="w-60 rounded-2xl p-2">
         <DropdownMenuLabel className="space-y-0.5 px-2 py-1.5">
-          <p className="truncate text-sm font-bold text-foreground">{user.fullName}</p>
-          <p className="truncate text-xs font-medium text-slate-500">
+          <p className="truncate text-sm font-bold text-text">{user.fullName}</p>
+          <p className="truncate text-xs font-medium text-text-muted">
             {user.roleLabel}
             {user.subtitle ? ` · ${user.subtitle}` : ""}
           </p>

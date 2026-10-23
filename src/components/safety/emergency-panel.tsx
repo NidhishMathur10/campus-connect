@@ -6,9 +6,9 @@ import { cn } from "@/lib/utils";
 export function EmergencyPanel({ emergency = false, className }: { emergency?: boolean; className?: string }) {
   const link = cn(
     "inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-bold transition-colors",
-    emergency ? "bg-white text-[#b91c1c] hover:bg-[#fee2e2]" : "bg-navy text-white hover:bg-ink/90",
+    emergency ? "bg-danger-solid-fg text-danger-solid hover:bg-danger-bg" : "bg-surface-inverse text-text-inverse hover:bg-surface-inverse/90",
   );
-  const sub = emergency ? "text-white/80" : "text-slate-500";
+  const sub = emergency ? "text-danger-solid-fg/80" : "text-text-muted";
 
   return (
     <section
@@ -16,19 +16,19 @@ export function EmergencyPanel({ emergency = false, className }: { emergency?: b
       aria-label="Emergency contacts"
       className={cn(
         "animate-fade-in space-y-4 rounded-3xl border p-5 shadow-sm transition-colors sm:p-6",
-        emergency ? "border-red-700 bg-red-600 text-white shadow-red-900/20" : "border-rose-200 bg-rose-50 text-foreground",
+        emergency ? "border-danger-solid bg-danger-solid text-danger-solid-fg" : "border-danger-fg/30 bg-danger-bg text-text",
         className,
       )}
     >
       <div className="flex items-start gap-3">
-        <span className={cn("grid size-10 shrink-0 place-items-center rounded-2xl", emergency ? "bg-white/15" : "bg-card")}>
-          <Siren className={cn("size-5", emergency ? "animate-pulse text-white" : "text-rose-700")} />
+        <span className={cn("grid size-10 shrink-0 place-items-center rounded-2xl", emergency ? "bg-text-inverse/15" : "bg-surface")}>
+          <Siren className={cn("size-5", emergency ? "animate-pulse text-danger-solid-fg" : "text-danger-fg")} />
         </span>
         <div>
           <p className="font-extrabold">
             {emergency ? "It sounds like you may be in danger right now." : "If you are in immediate danger"}
           </p>
-          <p className={cn("text-sm", emergency ? "text-white/90" : "text-slate-600")}>
+          <p className={cn("text-sm", emergency ? "text-danger-solid-fg/90" : "text-text-muted")}>
             {emergency
               ? "Please call for help now — your report is saved and the right people are being told."
               : "Call Campus Security or 112 first, then report here."}
@@ -45,7 +45,7 @@ export function EmergencyPanel({ emergency = false, className }: { emergency?: b
         </a>
       </div>
 
-      <div className={cn("space-y-1.5 border-t pt-3 text-sm", emergency ? "border-white/20" : "border-rose-200")}>
+      <div className={cn("space-y-1.5 border-t pt-3 text-sm", emergency ? "border-text-inverse/20" : "border-danger-fg/30")}>
         <p className="font-bold">National Anti-Ragging Helpline · 24x7 · toll free</p>
         <div className="flex flex-wrap gap-x-4 gap-y-1 font-semibold">
           <a href={telHref(ANTI_RAGGING_HELPLINE.phone)} className="inline-flex items-center gap-1.5 underline-offset-2 hover:underline">

@@ -9,6 +9,8 @@
     "lint": "eslint",
     "seed": "tsx scripts/seed.ts",
     "typecheck": "tsc --noEmit",
+    "theme:build": "node scripts/build-theme-css.mjs",
+    "check:theme": "node scripts/check-theme.mjs && node scripts/check-theme-contrast.mjs",
     "check:db": "tsx scripts/check-phase3.ts",
     "check:phase3": "tsx scripts/check-phase3.ts",
     "test:ai": "tsx --conditions=react-server scripts/test-ai.ts"

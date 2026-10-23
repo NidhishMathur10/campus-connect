@@ -49,7 +49,7 @@ export function HistoryView({
   return (
     <>
       <div className="mb-3 flex items-center justify-between gap-2">
-        <p className="text-sm font-semibold text-slate-600">
+        <p className="text-sm font-semibold text-text-muted">
           {tickets.length} ticket{tickets.length === 1 ? "" : "s"}
           {tickets.length === 300 && " (showing the newest 300 — narrow the filters)"}
         </p>

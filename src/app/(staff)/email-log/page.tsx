@@ -75,32 +75,32 @@ export default async function EmailLogPage({ searchParams }: { searchParams: Pro
       />
 
       {!emailEnabled() && (
-        <p className="mb-6 flex items-start gap-2 rounded-3xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-amber-900">
+        <p className="mb-6 flex items-start gap-2 rounded-3xl border border-warning-fg/30 bg-warning-bg p-4 text-sm font-semibold text-warning-fg">
           <AlertTriangle className="mt-0.5 size-4 shrink-0" />
           Email is switched off: SMTP_HOST is not set, so nothing is being sent.
         </p>
       )}
 
       <div className="mb-6 flex flex-wrap items-center gap-3">
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-sm font-bold text-emerald-800">
+        <span className="inline-flex items-center gap-1.5 rounded-full border border-success-fg/30 bg-success-bg px-3 py-1 text-sm font-bold text-success-fg">
           <CheckCircle2 className="size-4" /> {sent} sent
         </span>
         <span
           className={cn(
             "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm font-bold",
-            failed ? "border-red-200 bg-red-50 text-red-700" : "border-border bg-card text-slate-500",
+            failed ? "border-danger-fg/30 bg-danger-bg text-danger-fg" : "border-border bg-surface text-text-muted",
           )}
         >
           <AlertTriangle className="size-4" /> {failed} failed
         </span>
-        <nav className="ml-auto flex gap-1 rounded-full border border-border bg-card p-1" aria-label="Filter emails">
+        <nav className="ml-auto flex gap-1 rounded-full border border-border bg-surface p-1" aria-label="Filter emails">
           {FILTERS.map((f) => (
             <Link
               key={f.value}
               href={f.value === "all" ? "/email-log" : `/email-log?status=${f.value}`}
               className={cn(
                 "rounded-full px-4 py-1.5 text-sm font-semibold transition-colors",
-                (f.value === "failed") === failedOnly ? "bg-primary text-primary-foreground" : "text-slate-600 hover:bg-slate-100",
+                (f.value === "failed") === failedOnly ? "bg-primary text-primary-fg" : "text-text-muted hover:bg-surface-2",
               )}
             >
               {f.label}
@@ -116,9 +116,9 @@ export default async function EmailLogPage({ searchParams }: { searchParams: Pro
           description="Emails show up here as soon as tickets are created, assigned or resolved."
         />
       ) : (
-        <div className="overflow-x-auto rounded-3xl border border-border bg-card shadow-sm">
+        <div className="overflow-x-auto rounded-3xl border border-border bg-surface shadow-sm">
           <table className="w-full min-w-[720px] text-left text-sm">
-            <thead className="border-b border-border bg-slate-50 text-xs font-bold tracking-wider text-slate-500 uppercase">
+            <thead className="border-b border-border bg-surface-2 text-xs font-bold tracking-wider text-text-muted uppercase">
               <tr>
                 <th className="px-4 py-3">When</th>
                 <th className="px-4 py-3">To</th>
@@ -129,27 +129,27 @@ export default async function EmailLogPage({ searchParams }: { searchParams: Pro
             </thead>
             <tbody className="divide-y divide-border">
               {shown.map((r) => (
-                <tr key={r.id} className={r.status === "failed" ? "bg-red-50/40" : undefined}>
-                  <td className="px-4 py-3 whitespace-nowrap text-slate-600">{formatDateTime(r.created_at)}</td>
+                <tr key={r.id} className={r.status === "failed" ? "bg-danger-bg/40" : undefined}>
+                  <td className="px-4 py-3 whitespace-nowrap text-text-muted">{formatDateTime(r.created_at)}</td>
                   <td className="px-4 py-3">
-                    <p className="font-semibold text-foreground">{r.to_email}</p>
-                    {r.original_to && <p className="text-xs text-slate-500">Demo — meant for {r.original_to}</p>}
+                    <p className="font-semibold text-text">{r.to_email}</p>
+                    {r.original_to && <p className="text-xs text-text-muted">Demo — meant for {r.original_to}</p>}
                   </td>
-                  <td className="px-4 py-3 font-semibold text-slate-700">{TEMPLATE_LABELS[r.template] ?? r.template}</td>
+                  <td className="px-4 py-3 font-semibold text-text">{TEMPLATE_LABELS[r.template] ?? r.template}</td>
                   <td className="px-4 py-3 font-mono text-xs font-bold text-accent-text">
                     {r.ticket_id ? (tickets.get(r.ticket_id)?.ticket_no ?? "—") : "—"}
                   </td>
                   <td className="px-4 py-3">
                     {r.status === "sent" ? (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-bold text-emerald-700">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-success-bg px-2.5 py-0.5 text-xs font-bold text-success-fg">
                         <CheckCircle2 className="size-3.5" /> Sent
                       </span>
                     ) : (
                       <div className="space-y-0.5">
-                        <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-bold text-red-700">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-danger-bg px-2.5 py-0.5 text-xs font-bold text-danger-fg">
                           <AlertTriangle className="size-3.5" /> Failed
                         </span>
-                        {r.error && <p className="max-w-xs text-xs break-words text-red-700">{r.error}</p>}
+                        {r.error && <p className="max-w-xs text-xs break-words text-danger-fg">{r.error}</p>}
                       </div>
                     )}
                   </td>

@@ -25,9 +25,9 @@ async function fetchInsight(key: string, days: number, force: boolean): Promise<
 }
 
 const TREND = {
-  up: { icon: TrendingUp, className: "text-red-700", label: "Rising" },
-  down: { icon: TrendingDown, className: "text-emerald-700", label: "Falling" },
-  flat: { icon: Minus, className: "text-slate-500", label: "Steady" },
+  up: { icon: TrendingUp, className: "text-danger-fg", label: "Rising" },
+  down: { icon: TrendingDown, className: "text-success-fg", label: "Falling" },
+  flat: { icon: Minus, className: "text-text-muted", label: "Steady" },
 };
 
 export function Hotspots({ hotspots, days }: { hotspots: Hotspot[]; days: number }) {
@@ -59,7 +59,7 @@ export function Hotspots({ hotspots, days }: { hotspots: Hotspot[]; days: number
   }, []);
 
   if (hotspots.length === 0) {
-    return <p className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-500">No room, place or floor has repeated complaints in this period. 🎉</p>;
+    return <p className="rounded-2xl bg-surface-2 p-4 text-sm text-text-muted">No room, place or floor has repeated complaints in this period. 🎉</p>;
   }
 
   return (
@@ -70,27 +70,27 @@ export function Hotspots({ hotspots, days }: { hotspots: Hotspot[]; days: number
         const rec = recs[h.key] ?? h.insight?.recommendation;
         const isOpen = open === h.key;
         return (
-          <li key={h.key} className={cn("rounded-2xl border bg-card transition-colors", isOpen ? "border-accent-blue" : "border-border")}>
+          <li key={h.key} className={cn("rounded-2xl border bg-surface transition-colors", isOpen ? "border-accent-blue" : "border-border")}>
             <button type="button" onClick={() => setOpen(isOpen ? null : h.key)} className="flex w-full items-center gap-3 p-3.5 text-left">
               <span
                 className={cn(
                   "grid size-9 shrink-0 place-items-center rounded-xl text-sm font-extrabold",
-                  i === 0 ? "bg-red-600 text-white" : "bg-orange-50 text-orange-700",
+                  i === 0 ? "bg-danger-solid text-danger-solid-fg" : "bg-prio-high-bg text-prio-high-fg",
                 )}
               >
                 {i === 0 ? <Flame className="size-4" /> : h.count}
               </span>
               <div className="min-w-0 flex-1">
-                <p className="flex items-center gap-2 font-bold text-foreground">
+                <p className="flex items-center gap-2 font-bold text-text">
                   <span className="truncate">{h.label}</span>
                   {h.floorLevel && (
-                    <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-indigo-200 bg-indigo-50 px-2 py-0.5 text-[11px] font-semibold text-indigo-700">
+                    <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-info-fg/30 bg-info-bg px-2 py-0.5 text-[11px] font-semibold text-info-fg">
                       <Layers className="size-3" /> Floor-level
                     </span>
                   )}
                 </p>
-                <p className="flex flex-wrap items-center gap-x-3 text-xs text-slate-500">
-                  <span className="font-semibold text-slate-700">
+                <p className="flex flex-wrap items-center gap-x-3 text-xs text-text-muted">
+                  <span className="font-semibold text-text">
                     {h.count} tickets in {h.floorLevel ? 7 : days} days{h.floorLevel ? " · different rooms" : ""}
                   </span>
                   <span className={cn("inline-flex items-center gap-1 font-semibold", trend.className)}>
@@ -98,15 +98,15 @@ export function Hotspots({ hotspots, days }: { hotspots: Hotspot[]; days: number
                   </span>
                 </p>
               </div>
-              <ChevronDown className={cn("size-4 shrink-0 text-slate-500 transition-transform", isOpen && "rotate-180")} />
+              <ChevronDown className={cn("size-4 shrink-0 text-text-muted transition-transform", isOpen && "rotate-180")} />
             </button>
 
             <div className="space-y-3 border-t border-border/60 px-3.5 pt-3 pb-3.5">
-              <div className="flex items-start gap-2 rounded-xl bg-sky-tint p-2.5 text-sm">
+              <div className="flex items-start gap-2 rounded-xl bg-surface-accent p-2.5 text-sm">
                 <Sparkles className="mt-0.5 size-4 shrink-0 text-accent-text" />
-                <p className="flex-1 text-slate-800">
+                <p className="flex-1 text-text">
                   {rec ?? (loading[h.key] ? "Gemini is thinking…" : "No recommendation yet.")}
-                  {h.insight?.stale && !recs[h.key] && <span className="ml-1 text-xs text-amber-700">(new tickets since — refresh)</span>}
+                  {h.insight?.stale && !recs[h.key] && <span className="ml-1 text-xs text-warning-fg">(new tickets since — refresh)</span>}
                 </p>
                 <Button
                   variant="ghost"
@@ -127,11 +127,11 @@ export function Hotspots({ hotspots, days }: { hotspots: Hotspot[]; days: number
                     <li key={t.ticket_no}>
                       <Link
                         href={`/staff/history?t=${t.ticket_no}`}
-                        className="flex items-center gap-2 rounded-xl px-2 py-1.5 text-sm hover:bg-slate-50"
+                        className="flex items-center gap-2 rounded-xl px-2 py-1.5 text-sm hover:bg-surface-2"
                       >
                         <span className="font-mono text-xs font-bold text-accent-text">{t.ticket_no}</span>
-                        <span className="min-w-0 flex-1 truncate text-slate-700">{t.title}</span>
-                        <span className="hidden text-xs text-slate-500 sm:inline">{timeAgo(t.created_at)}</span>
+                        <span className="min-w-0 flex-1 truncate text-text">{t.title}</span>
+                        <span className="hidden text-xs text-text-muted sm:inline">{timeAgo(t.created_at)}</span>
                         <StatusBadge status={t.status} className="text-[11px]" />
                       </Link>
                     </li>

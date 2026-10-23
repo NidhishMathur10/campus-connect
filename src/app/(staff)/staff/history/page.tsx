@@ -18,7 +18,7 @@ import {
 export const metadata: Metadata = { title: "All Tickets" };
 
 const field =
-  "h-10 w-full rounded-full border border-border bg-card px-3.5 text-sm text-foreground outline-none focus-visible:ring-3 focus-visible:ring-ring/50";
+  "h-10 w-full rounded-full border border-border bg-surface px-3.5 text-sm text-text outline-none focus-visible:ring-3 focus-visible:ring-ring/50";
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -64,7 +64,7 @@ export default async function HistoryPage({ searchParams }: { searchParams: Prom
       />
 
       {/* Plain GET form: filters live in the URL, so they can be shared and survive refresh. */}
-      <form className="mb-5 grid animate-slide-up gap-3 rounded-3xl border border-border bg-card p-4 shadow-sm sm:grid-cols-2 lg:grid-cols-4">
+      <form className="mb-5 grid animate-slide-up gap-3 rounded-3xl border border-border bg-surface p-4 shadow-sm sm:grid-cols-2 lg:grid-cols-4">
         <Field label="Ticket no. or text">
           <input name="q" defaultValue={filters.q ?? ""} placeholder="CC-1004 or 'tap'" className={field} />
         </Field>

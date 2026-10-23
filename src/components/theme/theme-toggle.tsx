@@ -30,7 +30,7 @@ function Segmented({ className }: { className?: string }) {
   const mounted = useMounted();
   const current = mounted ? (theme ?? "system") : "system";
   return (
-    <div role="radiogroup" aria-label="Theme" className={cn("inline-flex items-center rounded-full border border-border bg-muted p-0.5", className)}>
+    <div role="radiogroup" aria-label="Theme" className={cn("inline-flex items-center rounded-full border border-border bg-surface-2 p-0.5", className)}>
       {OPTIONS.map(({ value, label, icon: Icon }) => {
         const active = current === value;
         return (
@@ -44,7 +44,7 @@ function Segmented({ className }: { className?: string }) {
             onClick={() => setTheme(value)}
             className={cn(
               "grid size-7 place-items-center rounded-full transition-colors",
-              active ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
+              active ? "bg-primary text-primary-fg shadow-sm" : "text-text-muted hover:text-text",
             )}
           >
             <Icon className="size-3.5" />
@@ -64,7 +64,7 @@ function Menu({ className }: { className?: string }) {
     <DropdownMenu>
       <DropdownMenuTrigger
         aria-label="Change theme"
-        className={cn("grid size-9 place-items-center rounded-full text-muted-foreground transition-colors outline-none hover:bg-muted hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50", className)}
+        className={cn("grid size-9 place-items-center rounded-full text-text-muted transition-colors outline-none hover:bg-surface-2 hover:text-text focus-visible:ring-3 focus-visible:ring-ring/50", className)}
       >
         <Icon className="size-4" />
       </DropdownMenuTrigger>

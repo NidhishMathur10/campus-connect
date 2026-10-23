@@ -13,7 +13,7 @@ export function SubjectBadge({ subject, className }: { subject: string; classNam
 
 export function TeacherBadge({ className }: { className?: string }) {
   return (
-    <span className={cn(pill, "border-violet-200 bg-violet-50 text-violet-700", className)}>
+    <span className={cn(pill, "border-violet-fg/30 bg-violet-bg text-violet-fg", className)}>
       <GraduationCap className="size-3" /> Teacher
     </span>
   );
@@ -21,7 +21,7 @@ export function TeacherBadge({ className }: { className?: string }) {
 
 export function TeacherAnsweredBadge() {
   return (
-    <span className={cn(pill, "border-emerald-200 bg-emerald-50 text-emerald-700")}>
+    <span className={cn(pill, "border-success-fg/30 bg-success-bg text-success-fg")}>
       <CheckCircle2 className="size-3" /> Answered by teacher
     </span>
   );
@@ -29,7 +29,7 @@ export function TeacherAnsweredBadge() {
 
 export function BestAnswerBadge() {
   return (
-    <span className={cn(pill, "border-[#047857] bg-[#047857] text-white")}>
+    <span className={cn(pill, "border-success-solid bg-success-solid text-success-solid-fg")}>
       <BadgeCheck className="size-3" /> Best answer
     </span>
   );
@@ -37,7 +37,7 @@ export function BestAnswerBadge() {
 
 export function PendingReviewBadge() {
   return (
-    <span className={cn(pill, "border-amber-200 bg-amber-50 text-amber-800")} title="Automatic check was unavailable — a teacher will review it">
+    <span className={cn(pill, "border-warning-fg/30 bg-warning-bg text-warning-fg")} title="Automatic check was unavailable — a teacher will review it">
       <Hourglass className="size-3" /> Pending review
     </span>
   );
@@ -45,7 +45,7 @@ export function PendingReviewBadge() {
 
 export function HiddenNotice({ reason, className }: { reason: string | null; className?: string }) {
   return (
-    <p className={cn("flex items-start gap-2 rounded-2xl bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-600", className)}>
+    <p className={cn("flex items-start gap-2 rounded-2xl bg-surface-2 px-3 py-2 text-xs font-semibold text-text-muted", className)}>
       <EyeOff className="mt-0.5 size-3.5 shrink-0" />
       <span>Hidden by a teacher{reason ? ` — ${reason}` : ""}. Only you and teachers can see this.</span>
     </p>
@@ -55,9 +55,9 @@ export function HiddenNotice({ reason, className }: { reason: string | null; cla
 /** "Aarav Mehta · 2616400101 · 3h ago" — roll number only reaches roles allowed to see it. */
 export function AuthorLine({ author, at, className }: { author: QaAuthor; at: string; className?: string }) {
   return (
-    <p className={cn("flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-slate-500", className)}>
-      <span className="font-semibold text-slate-700">{author.name}</span>
-      {author.roll_no && <span className="rounded-full bg-slate-100 px-2 py-0.5 font-mono text-[11px] text-slate-600">{author.roll_no}</span>}
+    <p className={cn("flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-text-muted", className)}>
+      <span className="font-semibold text-text">{author.name}</span>
+      {author.roll_no && <span className="rounded-full bg-surface-2 px-2 py-0.5 font-mono text-[11px] text-text-muted">{author.roll_no}</span>}
       {author.role === "teacher" && <TeacherBadge className="px-2 py-0 text-[11px]" />}
       <span aria-hidden>·</span>
       <time dateTime={at} suppressHydrationWarning>

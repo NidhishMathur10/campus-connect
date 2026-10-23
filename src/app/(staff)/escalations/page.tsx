@@ -37,15 +37,15 @@ export default async function EscalationsPage({ searchParams }: { searchParams: 
 
   const cards = stats
     ? [
-        { label: "Open escalations", value: stats.openEscalations, icon: Siren, tone: "text-red-700" },
-        { label: "Acknowledged", value: stats.acknowledged, icon: CheckCircle2, tone: "text-blue-700" },
-        { label: "Open tickets", value: stats.openTickets, icon: Inbox, tone: "text-foreground" },
-        { label: "Past deadline", value: stats.overdueTickets, icon: Timer, tone: "text-orange-700" },
+        { label: "Open escalations", value: stats.openEscalations, icon: Siren, tone: "text-danger-fg" },
+        { label: "Acknowledged", value: stats.acknowledged, icon: CheckCircle2, tone: "text-info-fg" },
+        { label: "Open tickets", value: stats.openTickets, icon: Inbox, tone: "text-text" },
+        { label: "Past deadline", value: stats.overdueTickets, icon: Timer, tone: "text-prio-high-fg" },
         {
           label: "Avg rating (30d)",
           value: stats.avgRating ? stats.avgRating.toFixed(1) : "—",
           icon: Star,
-          tone: "text-amber-500",
+          tone: "text-warning-fg",
           hint: `${stats.closedLast30} closed`,
         },
       ]
@@ -62,25 +62,25 @@ export default async function EscalationsPage({ searchParams }: { searchParams: 
 
       <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         {cards.map(({ label, value, icon: Icon, tone, hint }) => (
-          <div key={label} className="animate-slide-up rounded-3xl border border-border bg-card p-4 shadow-sm sm:p-5">
+          <div key={label} className="animate-slide-up rounded-3xl border border-border bg-surface p-4 shadow-sm sm:p-5">
             <div className="flex items-center justify-between">
               <p className="eyebrow">{label}</p>
               <Icon className={cn("size-4", tone)} />
             </div>
             <p className={cn("mt-2 text-3xl font-extrabold", tone)}>{value}</p>
-            {hint && <p className="text-xs text-slate-500">{hint}</p>}
+            {hint && <p className="text-xs text-text-muted">{hint}</p>}
           </div>
         ))}
       </div>
 
-      <nav className="mb-5 flex w-full gap-1 overflow-x-auto rounded-full border border-border bg-card p-1 sm:w-fit" aria-label="Filter escalations">
+      <nav className="mb-5 flex w-full gap-1 overflow-x-auto rounded-full border border-border bg-surface p-1 sm:w-fit" aria-label="Filter escalations">
         {TABS.map((t) => (
           <Link
             key={t.value}
             href={t.value === "active" ? "/escalations" : `/escalations?tab=${t.value}`}
             className={cn(
               "rounded-full px-4 py-2 text-sm font-semibold whitespace-nowrap transition-colors",
-              tab === t.value ? "bg-primary text-primary-foreground" : "text-slate-600 hover:bg-slate-100",
+              tab === t.value ? "bg-primary text-primary-fg" : "text-text-muted hover:bg-surface-2",
             )}
             aria-current={tab === t.value ? "page" : undefined}
           >

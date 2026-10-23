@@ -37,11 +37,11 @@ export function PublicTrackCard({ className, compact = false }: { className?: st
   }
 
   return (
-    <section className={cn("space-y-4 rounded-3xl border border-border bg-card p-5 shadow-sm sm:p-6", className)}>
+    <section className={cn("space-y-4 rounded-3xl border border-border bg-surface p-5 shadow-sm sm:p-6", className)}>
       <div>
         <p className="eyebrow flex items-center gap-1.5"><Search className="size-3.5" /> Track a ticket</p>
-        {!compact && <h2 className="mt-1 text-xl font-extrabold text-foreground">No login needed</h2>}
-        <p className="text-sm text-slate-500">Enter the ticket number from the confirmation screen, e.g. CC-1043.</p>
+        {!compact && <h2 className="mt-1 text-xl font-extrabold text-text">No login needed</h2>}
+        <p className="text-sm text-text-muted">Enter the ticket number from the confirmation screen, e.g. CC-1043.</p>
       </div>
       <form onSubmit={submit} className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
         <div className="space-y-1.5">
@@ -54,15 +54,15 @@ export function PublicTrackCard({ className, compact = false }: { className?: st
       </form>
 
       {result && !result.ok && (
-        <p role="alert" className="flex items-center gap-2 rounded-2xl bg-slate-50 p-3 text-sm font-semibold text-slate-700">
-          <SearchX className="size-4 shrink-0 text-slate-500" /> {result.error}
+        <p role="alert" className="flex items-center gap-2 rounded-2xl bg-surface-2 p-3 text-sm font-semibold text-text">
+          <SearchX className="size-4 shrink-0 text-text-muted" /> {result.error}
         </p>
       )}
 
       {result?.ok && (
-        <div className="animate-fade-in space-y-4 rounded-2xl border border-border bg-slate-50/60 p-4">
+        <div className="animate-fade-in space-y-4 rounded-2xl border border-border bg-surface-2/60 p-4">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-full bg-primary px-3 py-1 font-mono text-sm font-bold text-primary-foreground">{result.ticket.ticket_no}</span>
+            <span className="rounded-full bg-primary px-3 py-1 font-mono text-sm font-bold text-primary-fg">{result.ticket.ticket_no}</span>
             <span className="eyebrow">{MODULE_LABELS[result.ticket.module]}</span>
           </div>
           <div className="flex flex-wrap gap-1.5">
@@ -70,18 +70,18 @@ export function PublicTrackCard({ className, compact = false }: { className?: st
             <CategoryBadge category={result.ticket.category} />
             <PriorityBadge priority={result.ticket.priority} />
           </div>
-          <div className="grid gap-1 text-sm font-semibold text-slate-700 sm:grid-cols-2">
-            <p className="flex items-center gap-2"><Building2 className="size-4 text-slate-500" /> {result.ticket.building ?? "Location not given"}</p>
-            <p className="flex items-center gap-2"><CalendarDays className="size-4 text-slate-500" /> Reported {formatDateTime(result.ticket.created_at)}</p>
+          <div className="grid gap-1 text-sm font-semibold text-text sm:grid-cols-2">
+            <p className="flex items-center gap-2"><Building2 className="size-4 text-text-muted" /> {result.ticket.building ?? "Location not given"}</p>
+            <p className="flex items-center gap-2"><CalendarDays className="size-4 text-text-muted" /> Reported {formatDateTime(result.ticket.created_at)}</p>
           </div>
           <div>
             <p className="eyebrow mb-2">Progress</p>
             <ol className="space-y-2.5 border-l-2 border-border pl-4">
               {result.events.map((e, i) => (
                 <li key={i} className="relative text-sm">
-                  <span className={cn("absolute top-1.5 -left-[21px] size-2.5 rounded-full ring-4 ring-card", STATUS_STYLES[e.status]?.dot ?? "bg-slate-400")} />
-                  <span className="font-bold text-foreground">{e.status}</span>
-                  <span className="text-slate-500"> · {e.actor} · {formatDateTime(e.at)}</span>
+                  <span className={cn("absolute top-1.5 -left-[21px] size-2.5 rounded-full ring-4 ring-surface", STATUS_STYLES[e.status]?.dot ?? "bg-text-muted")} />
+                  <span className="font-bold text-text">{e.status}</span>
+                  <span className="text-text-muted"> · {e.actor} · {formatDateTime(e.at)}</span>
                 </li>
               ))}
             </ol>

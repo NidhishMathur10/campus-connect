@@ -81,20 +81,20 @@ export function PreviewCard({
   const translated = draft.language !== "en" && draft.english_text && draft.english_text !== originalText;
 
   return (
-    <div className="animate-slide-up overflow-hidden rounded-3xl border border-border bg-card shadow-lg shadow-slate-900/5">
-      <div className="bg-navy px-5 py-5 text-white sm:px-7">
-        <p className="eyebrow flex items-center gap-1.5 text-sky-300">
+    <div className="animate-slide-up overflow-hidden rounded-3xl border border-border bg-surface shadow-lg">
+      <div className="bg-surface-inverse px-5 py-5 text-text-inverse sm:px-7">
+        <p className="eyebrow flex items-center gap-1.5 text-info-on-inverse">
           <Sparkles className="size-3.5" /> {manual ? "Your ticket" : "AI ticket preview"}
         </p>
         {manual ? (
           <div className="mt-2 space-y-1">
-            <Label htmlFor="title" className="text-xs text-slate-300">Short title</Label>
+            <Label htmlFor="title" className="text-xs text-text-inverse-muted">Short title</Label>
             <Input
               id="title"
               value={draft.title}
               onChange={(e) => onTitleChange(e.target.value)}
               maxLength={80}
-              className="border-white/20 bg-white/10 text-white placeholder:text-slate-400"
+              className="border-text-inverse/20 bg-text-inverse/10 text-text-inverse placeholder:text-text-inverse-muted/70"
             />
           </div>
         ) : (
@@ -111,10 +111,10 @@ export function PreviewCard({
         {!manual && (
           <section className="space-y-1">
             <p className="eyebrow">AI summary</p>
-            <p className="text-slate-800">{draft.summary}</p>
+            <p className="text-text">{draft.summary}</p>
             {draft.extracted_issue && (
-              <p className="text-sm text-slate-500">
-                <span className="font-semibold text-slate-700">Issue:</span> {draft.extracted_issue}
+              <p className="text-sm text-text-muted">
+                <span className="font-semibold text-text">Issue:</span> {draft.extracted_issue}
               </p>
             )}
           </section>
@@ -136,19 +136,19 @@ export function PreviewCard({
               disabled={busy}
             />
             {aiCategory && draft.ai?.reasons.category && (
-              <p className="text-xs text-slate-500">{draft.ai.reasons.category}</p>
+              <p className="text-xs text-text-muted">{draft.ai.reasons.category}</p>
             )}
             {draft.ai && !aiCategory && (
-              <p className="text-xs text-slate-500">You changed this (AI suggested {draft.ai.category}).</p>
+              <p className="text-xs text-text-muted">You changed this (AI suggested {draft.ai.category}).</p>
             )}
           </section>
           <section className="space-y-1.5">
             <p className="eyebrow">Department</p>
-            <p className="flex h-11 items-center gap-2 font-semibold text-foreground">
-              <Building2 className="size-4 text-slate-500" /> {draft.category ? draft.department : "—"}
+            <p className="flex h-11 items-center gap-2 font-semibold text-text">
+              <Building2 className="size-4 text-text-muted" /> {draft.category ? draft.department : "—"}
             </p>
             {aiCategory && draft.ai?.reasons.department && (
-              <p className="text-xs text-slate-500">{draft.ai.reasons.department}</p>
+              <p className="text-xs text-text-muted">{draft.ai.reasons.department}</p>
             )}
           </section>
           <section className="space-y-1.5">
@@ -158,15 +158,15 @@ export function PreviewCard({
             </div>
             <p className="flex h-11 items-center"><PriorityBadge priority={draft.priority} className="text-sm" /></p>
             {aiCategory && draft.ai?.reasons.priority && (
-              <p className="text-xs text-slate-500">{draft.ai.reasons.priority}</p>
+              <p className="text-xs text-text-muted">{draft.ai.reasons.priority}</p>
             )}
           </section>
         </div>
 
         <section className="space-y-1">
           <p className="eyebrow">Location</p>
-          <p className="flex items-center gap-2 text-sm font-semibold text-slate-700">
-            <MapPin className="size-4 text-slate-500" /> {formatLocation(draft.location)}
+          <p className="flex items-center gap-2 text-sm font-semibold text-text">
+            <MapPin className="size-4 text-text-muted" /> {formatLocation(draft.location)}
             <ScopeBadge scope={draft.scope} />
           </p>
         </section>
@@ -181,15 +181,15 @@ export function PreviewCard({
           </div>
         )}
 
-        <section className="space-y-2 rounded-2xl bg-slate-50 p-4">
+        <section className="space-y-2 rounded-2xl bg-surface-2 p-4">
           <p className="eyebrow">Your words</p>
-          <p className="text-sm whitespace-pre-wrap text-slate-700">{originalText}</p>
+          <p className="text-sm whitespace-pre-wrap text-text">{originalText}</p>
           {translated && (
             <>
               <p className="eyebrow flex items-center gap-1.5 pt-2">
                 <Languages className="size-3.5" /> English translation (from {languageName(draft.language)})
               </p>
-              <p className="text-sm text-slate-700">{draft.english_text}</p>
+              <p className="text-sm text-text">{draft.english_text}</p>
             </>
           )}
         </section>
@@ -199,7 +199,7 @@ export function PreviewCard({
         )}
 
         {draft.missing_fields.length > 0 && (
-          <p className="flex items-start gap-2 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+          <p className="flex items-start gap-2 rounded-2xl border border-warning-fg/30 bg-warning-bg p-3 text-sm text-warning-fg">
             <AlertCircle className="mt-0.5 size-4 shrink-0" />
             Still missing: {draft.missing_fields.join(", ")}. You can submit anyway — the ticket will be marked
             &quot;details incomplete&quot; and staff may ask you.
@@ -239,15 +239,15 @@ function PrivacyOptions({
 }) {
   const mode = getRoutingRule("security", draft.category!).confidential ?? "never";
   const confidential = isConfidentialCategory(draft.category!, draft.confidential_choice);
-  const toggle = "mt-0.5 size-4 shrink-0 accent-navy";
+  const toggle = "mt-0.5 size-4 shrink-0 accent-primary";
 
   return (
-    <section className={`space-y-3 rounded-2xl border p-4 ${confidential ? "border-ink bg-ink text-white" : "border-border bg-slate-50"}`}>
-      <p className={`eyebrow flex items-center gap-1.5 ${confidential ? "text-sky-300" : ""}`}>
+    <section className={`space-y-3 rounded-2xl border p-4 ${confidential ? "border-surface-inverse bg-surface-inverse text-text-inverse" : "border-border bg-surface-2"}`}>
+      <p className={`eyebrow flex items-center gap-1.5 ${confidential ? "text-info-on-inverse" : ""}`}>
         {confidential ? <Lock className="size-3.5" /> : <Unlock className="size-3.5" />}
         {confidential ? "Confidential report" : "Not confidential"}
       </p>
-      <p className={`text-sm ${confidential ? "text-slate-200" : "text-slate-600"}`}>
+      <p className={`text-sm ${confidential ? "text-text-inverse-muted" : "text-text-muted"}`}>
         {confidential
           ? `Only you, the ${draft.department === "Anti-Ragging Committee" ? "Anti-Ragging Committee" : "assigned Security Officer"} and the Dean of Student Affairs can see this report. It never appears in public tracking or to other students.`
           : "This goes to the Security Office so they can act quickly. It never appears in public tracking."}
@@ -275,7 +275,7 @@ function PrivacyOptions({
           />
           <span>
             <span className="flex items-center gap-1.5"><EyeOff className="size-4" /> Hide my name from the investigating staff</span>
-            <span className="block text-xs font-normal text-slate-300">
+            <span className="block text-xs font-normal text-text-inverse-muted">
               Only the Anti-Ragging Committee and the Dean will know it was you. Others see &quot;Confidential reporter&quot;.
             </span>
           </span>

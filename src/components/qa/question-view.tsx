@@ -80,8 +80,8 @@ function VoteButton({ count, voted, disabled, onClick, busy, label }: { count: n
       title={disabled ? "You can't upvote your own post" : label}
       className={cn(
         "flex w-12 shrink-0 flex-col items-center rounded-2xl border px-2 py-1.5 transition-colors disabled:cursor-not-allowed",
-        voted ? "border-accent-blue bg-sky-tint-2 text-accent-text" : "border-border bg-card text-slate-500 hover:border-accent-blue hover:text-accent-text",
-        disabled && "opacity-60 hover:border-border hover:text-slate-500",
+        voted ? "border-accent-blue bg-surface-accent-2 text-accent-text" : "border-border bg-surface text-text-muted hover:border-accent-blue hover:text-accent-text",
+        disabled && "opacity-60 hover:border-border hover:text-text-muted",
       )}
     >
       {busy ? <Loader2 className="size-5 animate-spin" /> : <ArrowBigUp className={cn("size-5", voted && "fill-current")} />}
@@ -120,14 +120,14 @@ function ModerationTools({
           <RotateCcw /> Restore
         </Button>
       ) : (
-        <Button size="xs" variant="ghost" className="text-slate-500 hover:text-red-700" onClick={() => setOpen(true)} disabled={!!busy}>
+        <Button size="xs" variant="ghost" className="text-text-muted hover:text-danger-fg" onClick={() => setOpen(true)} disabled={!!busy}>
           <EyeOff /> Hide
         </Button>
       )}
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="rounded-3xl sm:max-w-md">
           <DialogHeader className="text-left">
-            <DialogTitle className="text-lg font-extrabold text-foreground">Hide this {kind}?</DialogTitle>
+            <DialogTitle className="text-lg font-extrabold text-text">Hide this {kind}?</DialogTitle>
             <DialogDescription>Students won&apos;t see it any more. The author sees it greyed out with your reason.</DialogDescription>
           </DialogHeader>
           <Input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Reason, e.g. Not respectful / Off-topic" maxLength={300} autoFocus />
@@ -188,7 +188,7 @@ function usePoster() {
 
 function BlockedNotice({ reason }: { reason: string }) {
   return (
-    <div className="flex animate-fade-in items-start gap-2.5 rounded-2xl border border-red-200 bg-red-50 p-3 text-sm text-red-800" role="alert">
+    <div className="flex animate-fade-in items-start gap-2.5 rounded-2xl border border-danger-fg/30 bg-danger-bg p-3 text-sm text-danger-fg" role="alert">
       <ShieldAlert className="mt-0.5 size-4 shrink-0" />
       <p>
         <span className="font-bold">We couldn&apos;t post this. </span>
@@ -204,7 +204,7 @@ function CommentBox({ answerId, questionTitle }: { answerId: string; questionTit
   const { busy, blocked, post } = usePoster();
   if (!open) {
     return (
-      <button type="button" onClick={() => setOpen(true)} className="flex items-center gap-1 text-xs font-semibold text-slate-500 hover:text-accent-text">
+      <button type="button" onClick={() => setOpen(true)} className="flex items-center gap-1 text-xs font-semibold text-text-muted hover:text-accent-text">
         <MessageSquarePlus className="size-3.5" /> Add a comment
       </button>
     );
@@ -250,8 +250,8 @@ function AnswerCard({
   return (
     <li
       className={cn(
-        "animate-slide-up rounded-3xl border bg-card p-4 shadow-sm sm:p-5",
-        answer.is_best ? "border-emerald-300 ring-2 ring-emerald-100" : answer.is_teacher ? "border-violet-200" : "border-border",
+        "animate-slide-up rounded-3xl border bg-surface p-4 shadow-sm sm:p-5",
+        answer.is_best ? "border-success-fg/30 ring-2 ring-success-bg" : answer.is_teacher ? "border-violet-fg/30" : "border-border",
         answer.hidden && "opacity-70",
       )}
     >
@@ -271,7 +271,7 @@ function AnswerCard({
             {answer.pending_review && <PendingReviewBadge />}
           </div>
           {answer.hidden && <HiddenNotice reason={answer.hidden_reason} />}
-          <p className="text-[15px] leading-relaxed whitespace-pre-wrap text-slate-800">{answer.body}</p>
+          <p className="text-[15px] leading-relaxed whitespace-pre-wrap text-text">{answer.body}</p>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <AuthorLine author={answer.author} at={answer.created_at} />
             <div className="flex flex-wrap items-center gap-1.5">
@@ -279,7 +279,7 @@ function AnswerCard({
                 <Button
                   size="xs"
                   variant={answer.is_best ? "outline" : "secondary"}
-                  className={cn(!answer.is_best && "bg-emerald-50 text-emerald-800 hover:bg-emerald-100")}
+                  className={cn(!answer.is_best && "bg-success-bg text-success-fg hover:bg-success-bg")}
                   disabled={!!busy}
                   onClick={() =>
                     run(`best-${answer.id}`, () => markBestAnswer(detail.question.id, answer.id), answer.is_best ? "Best answer removed" : "Marked as best answer")
@@ -298,9 +298,9 @@ function AnswerCard({
           {(answer.comments.length > 0 || viewer.canPost) && (
             <div className="space-y-2 border-t border-border/60 pt-3">
               {answer.comments.map((c) => (
-                <div key={c.id} className={cn("rounded-2xl bg-slate-50 px-3 py-2", c.hidden && "opacity-70")}>
-                  {c.hidden && <HiddenNotice reason={c.hidden_reason} className="mb-1.5 bg-card" />}
-                  <p className="text-sm whitespace-pre-wrap text-slate-700">{c.body}</p>
+                <div key={c.id} className={cn("rounded-2xl bg-surface-2 px-3 py-2", c.hidden && "opacity-70")}>
+                  {c.hidden && <HiddenNotice reason={c.hidden_reason} className="mb-1.5 bg-surface" />}
+                  <p className="text-sm whitespace-pre-wrap text-text">{c.body}</p>
                   <div className="mt-1 flex flex-wrap items-center justify-between gap-2">
                     <span className="flex items-center gap-1.5">
                       <AuthorLine author={c.author} at={c.created_at} />
@@ -348,7 +348,7 @@ function AnswerBox({ detail, viewer }: { detail: QuestionDetail; viewer: QaViewe
 
   return (
     <form
-      className="space-y-3 rounded-3xl border border-border bg-card p-4 shadow-sm sm:p-5"
+      className="space-y-3 rounded-3xl border border-border bg-surface p-4 shadow-sm sm:p-5"
       onSubmit={(e) => {
         e.preventDefault();
         if (text.trim().length < 2) return;
@@ -375,7 +375,7 @@ function AnswerBox({ detail, viewer }: { detail: QuestionDetail; viewer: QaViewe
         maxLength={5000}
       />
       {fromAi && (
-        <p className="flex items-center gap-1.5 rounded-2xl bg-violet-50 px-3 py-2 text-xs font-semibold text-violet-800">
+        <p className="flex items-center gap-1.5 rounded-2xl bg-violet-bg px-3 py-2 text-xs font-semibold text-violet-fg">
           <Sparkles className="size-3.5" /> AI draft — please review and edit it. It will be posted under your name.
         </p>
       )}
@@ -395,7 +395,7 @@ export function QuestionView({ detail, viewer }: { detail: QuestionDetail; viewe
 
   return (
     <div className="space-y-6">
-      <article className={cn("animate-slide-up rounded-3xl border border-border bg-card p-5 shadow-sm sm:p-7", q.hidden && "opacity-80")}>
+      <article className={cn("animate-slide-up rounded-3xl border border-border bg-surface p-5 shadow-sm sm:p-7", q.hidden && "opacity-80")}>
         <div className="flex gap-3 sm:gap-5">
           <VoteButton
             count={q.upvotes}
@@ -409,15 +409,15 @@ export function QuestionView({ detail, viewer }: { detail: QuestionDetail; viewe
             <div className="flex flex-wrap items-center gap-1.5">
               <SubjectBadge subject={q.subject} />
               {q.status === "answered" && (
-                <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
+                <span className="inline-flex items-center gap-1 rounded-full border border-success-fg/30 bg-success-bg px-2.5 py-0.5 text-xs font-semibold text-success-fg">
                   <BadgeCheck className="size-3" /> Answered
                 </span>
               )}
               {q.pending_review && <PendingReviewBadge />}
             </div>
-            <h1 className="text-2xl font-extrabold tracking-tight text-foreground sm:text-3xl">{q.title}</h1>
+            <h1 className="text-2xl font-extrabold tracking-tight text-text sm:text-3xl">{q.title}</h1>
             {q.hidden && <HiddenNotice reason={q.hidden_reason} />}
-            <p className="text-[15px] leading-relaxed whitespace-pre-wrap text-slate-700">{q.body}</p>
+            <p className="text-[15px] leading-relaxed whitespace-pre-wrap text-text">{q.body}</p>
             <div className="flex flex-wrap items-center justify-between gap-2">
               <AuthorLine author={author} at={q.created_at} />
               {viewer.isTeacher && (
@@ -429,14 +429,14 @@ export function QuestionView({ detail, viewer }: { detail: QuestionDetail; viewe
       </article>
 
       <section className="space-y-3">
-        <h2 className="flex items-center gap-2 text-lg font-extrabold text-foreground">
+        <h2 className="flex items-center gap-2 text-lg font-extrabold text-text">
           {visibleAnswers} {visibleAnswers === 1 ? "answer" : "answers"}
           {detail.is_mine && answers.length > 0 && !q.best_answer_id && (
-            <span className="text-xs font-semibold text-slate-500">— tap “Mark as best answer” on the one that helped</span>
+            <span className="text-xs font-semibold text-text-muted">— tap “Mark as best answer” on the one that helped</span>
           )}
         </h2>
         {answers.length === 0 ? (
-          <p className="rounded-3xl border border-dashed border-border bg-card/60 p-6 text-center text-sm text-slate-500">
+          <p className="rounded-3xl border border-dashed border-border bg-surface/60 p-6 text-center text-sm text-text-muted">
             No answers yet. {viewer.isTeacher ? "Be the first to help." : "Teachers and classmates will see it soon."}
           </p>
         ) : (

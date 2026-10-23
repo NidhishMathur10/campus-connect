@@ -34,15 +34,15 @@ export const QA_FILTER_LABELS: Record<QaFilter, string> = {
 
 /** Soft color per subject badge. */
 export const SUBJECT_STYLES: Record<QaSubject, string> = {
-  "General Studies": "bg-slate-50 text-slate-700 border-border",
-  Mathematics: "bg-blue-50 text-blue-700 border-blue-200",
-  Programming: "bg-violet-50 text-violet-700 border-violet-200",
-  Physics: "bg-cyan-50 text-cyan-700 border-cyan-200",
-  "Basic Electrical": "bg-yellow-50 text-yellow-700 border-yellow-200",
-  "Introduction to AI": "bg-fuchsia-50 text-fuchsia-700 border-fuchsia-200",
-  "Communication Skills": "bg-orange-50 text-orange-700 border-orange-200",
-  "Environmental Studies": "bg-emerald-50 text-emerald-700 border-emerald-200",
-  Other: "bg-slate-50 text-slate-600 border-border",
+  "General Studies": "bg-surface-2 text-text border-border",
+  Mathematics: "bg-info-bg text-info-fg border-info-fg/30",
+  Programming: "bg-violet-bg text-violet-fg border-violet-fg/30",
+  Physics: "bg-info-bg text-info-fg border-info-fg/30",
+  "Basic Electrical": "bg-warning-bg text-warning-fg border-warning-fg/30",
+  "Introduction to AI": "bg-violet-bg text-violet-fg border-violet-fg/30",
+  "Communication Skills": "bg-prio-high-bg text-prio-high-fg border-prio-high-fg/30",
+  "Environmental Studies": "bg-success-bg text-success-fg border-success-fg/30",
+  Other: "bg-surface-2 text-text-muted border-border",
 };
 
 export function isQaSubject(value: unknown): value is QaSubject {

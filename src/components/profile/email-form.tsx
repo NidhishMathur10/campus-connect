@@ -51,9 +51,9 @@ export function EmailForm({ initialEmail, domain }: { initialEmail: string; doma
           aria-invalid={!!error}
           disabled={pending}
         />
-        {error && <p className="text-xs font-medium text-red-700">{error}</p>}
+        {error && <p className="text-xs font-medium text-danger-fg">{error}</p>}
         {!saved && !error && (
-          <p className="text-xs font-medium text-amber-700">No email saved yet, so you will not get email updates.</p>
+          <p className="text-xs font-medium text-warning-fg">No email saved yet, so you will not get email updates.</p>
         )}
       </div>
       <Button type="submit" disabled={pending || email.trim().toLowerCase() === saved}>

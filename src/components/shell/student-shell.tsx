@@ -18,10 +18,10 @@ export function StudentShell({ user, userId, children }: { user: ShellUser; user
   return (
     <div className="flex min-h-dvh flex-col">
       <header className="sticky top-0 z-40 px-3 pt-3 sm:px-6 sm:pt-4">
-        <nav className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-3 rounded-full border border-border/80 bg-card/90 py-2 pr-2 pl-4 shadow-[0_8px_30px_-12px_rgba(15,23,42,0.18)] backdrop-blur">
+        <nav className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-3 rounded-full border border-border/80 bg-surface/90 py-2 pr-2 pl-4 shadow-float backdrop-blur">
           <Link href="/" className="flex min-w-0 items-center gap-3">
             <Logo />
-            <span className="hidden truncate rounded-full bg-sky-tint px-2.5 py-1 text-xs font-semibold text-slate-600 lg:inline">
+            <span className="hidden truncate rounded-full bg-surface-accent px-2.5 py-1 text-xs font-semibold text-text-muted lg:inline">
               {COLLEGE_NAME}
             </span>
           </Link>
@@ -35,7 +35,7 @@ export function StudentShell({ user, userId, children }: { user: ShellUser; user
                     href={item.href}
                     className={cn(
                       "rounded-full px-4 py-2 text-sm font-semibold transition-colors",
-                      active ? "bg-primary text-primary-foreground" : "text-slate-600 hover:bg-slate-100 hover:text-foreground",
+                      active ? "bg-primary text-primary-fg" : "text-text-muted hover:bg-surface-2 hover:text-text",
                     )}
                   >
                     {item.label}
@@ -58,7 +58,7 @@ export function StudentShell({ user, userId, children }: { user: ShellUser; user
       </main>
 
       {/* Mobile bottom tab bar */}
-      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
         <ul className="grid grid-cols-5">
           {STUDENT_NAV.map((item) => {
             const active = isActive(pathname, item.href);
@@ -69,13 +69,13 @@ export function StudentShell({ user, userId, children }: { user: ShellUser; user
                   href={item.href}
                   className={cn(
                     "flex flex-col items-center gap-1 py-2.5 text-[11px] font-semibold transition-colors",
-                    active ? "text-foreground" : "text-slate-500",
+                    active ? "text-text" : "text-text-muted",
                   )}
                 >
                   <span
                     className={cn(
                       "grid h-7 w-12 place-items-center rounded-full transition-colors",
-                      active && "bg-sky-tint-2",
+                      active && "bg-surface-accent-2",
                     )}
                   >
                     <Icon className="size-5" />

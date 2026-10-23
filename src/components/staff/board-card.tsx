@@ -29,7 +29,7 @@ export function AssigneeAvatar({ name, className }: { name: string | null; class
   if (!name) {
     return (
       <span
-        className={cn("grid size-7 place-items-center rounded-full border border-dashed border-border text-[10px] text-slate-500", className)}
+        className={cn("grid size-7 place-items-center rounded-full border border-dashed border-border text-[10px] text-text-muted", className)}
         title="Unassigned"
       >
         —
@@ -39,7 +39,7 @@ export function AssigneeAvatar({ name, className }: { name: string | null; class
   return (
     <span
       className={cn(
-        "grid size-7 shrink-0 place-items-center rounded-full bg-gradient-to-br from-accent-blue to-accent-violet text-[10px] font-bold text-white",
+        "grid size-7 shrink-0 place-items-center rounded-full bg-gradient-to-br from-accent-blue to-accent-violet text-[10px] font-bold text-accent-fg",
         className,
       )}
       title={`Assigned to ${name}`}
@@ -55,13 +55,13 @@ export function TicketFlags({ ticket, showFaculty = true }: { ticket: BoardTicke
     <>
       {showFaculty && <FacultyBadge reporter={ticket.faculty_reporter} compact className="px-2 text-[11px]" />}
       {ticket.status === "Reopened" && (
-        <span className="inline-flex items-center gap-1 rounded-full bg-rose-600 px-2 py-0.5 text-[11px] font-bold text-white">
+        <span className="inline-flex items-center gap-1 rounded-full bg-danger-solid px-2 py-0.5 text-[11px] font-bold text-danger-solid-fg">
           <RotateCcw className="size-3" /> Reopened
         </span>
       )}
       {ticket.duplicate_status === "flagged" && (
         <span
-          className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[11px] font-bold text-amber-700"
+          className="inline-flex items-center gap-1 rounded-full border border-warning-fg/30 bg-warning-bg px-2 py-0.5 text-[11px] font-bold text-warning-fg"
           title="Possible duplicate — review it"
         >
           <Copy className="size-3" /> ⚠ Duplicate?
@@ -107,16 +107,16 @@ export function BoardCard({
         }
       }}
       className={cn(
-        "group relative w-full animate-fade-in space-y-2.5 rounded-2xl border border-l-4 border-border bg-card p-3.5 text-left shadow-sm transition-all hover:border-accent-blue hover:shadow-md focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none",
+        "group relative w-full animate-fade-in space-y-2.5 rounded-2xl border border-l-4 border-border bg-surface p-3.5 text-left shadow-sm transition-all hover:border-accent-blue hover:shadow-md focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none",
         PRIORITY_EDGE[ticket.priority],
-        overdue && "bg-red-50/40",
+        overdue && "bg-danger-bg/40",
         dragging && "rotate-1 shadow-xl ring-2 ring-accent-blue",
       )}
     >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <p className="font-mono text-[11px] font-bold text-accent-text">{ticket.ticket_no}</p>
-          <p className="line-clamp-2 text-sm leading-snug font-bold text-foreground">{ticket.title}</p>
+          <p className="line-clamp-2 text-sm leading-snug font-bold text-text">{ticket.title}</p>
         </div>
         {canManage && moves.length > 0 && (
           <DropdownMenu>
@@ -125,7 +125,7 @@ export function BoardCard({
                 variant="ghost"
                 size="icon-xs"
                 aria-label="Move ticket"
-                className="-mt-1 -mr-1 shrink-0 text-slate-500"
+                className="-mt-1 -mr-1 shrink-0 text-text-muted"
                 onClick={(e) => e.stopPropagation()}
                 onPointerDown={(e) => e.stopPropagation()}
               >
@@ -152,32 +152,32 @@ export function BoardCard({
       <FacultyBadge reporter={ticket.faculty_reporter} className="px-2 text-[11px]" />
 
       {ticket.status === "Resolved" && (
-        <p className="flex items-center gap-1.5 rounded-xl bg-emerald-50 px-2 py-1 text-[11px] font-bold text-emerald-800">
+        <p className="flex items-center gap-1.5 rounded-xl bg-success-bg px-2 py-1 text-[11px] font-bold text-success-fg">
           <Hourglass className="size-3" /> Awaiting student confirmation
         </p>
       )}
       {ticket.status === "Closed" && (
-        <p className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-500">
+        <p className="flex items-center gap-1.5 text-[11px] font-semibold text-text-muted">
           {ticket.rating ? <Stars rating={ticket.rating} className="size-3.5" /> : "Closed · not rated"}
         </p>
       )}
 
-      <p className="flex min-w-0 items-center gap-1 text-xs text-slate-500">
+      <p className="flex min-w-0 items-center gap-1 text-xs text-text-muted">
         <MapPin className="size-3.5 shrink-0" />
         <span className="truncate">
-          {formatPlace(ticket) && <strong className="font-bold text-foreground">{formatPlace(ticket)} · </strong>}
+          {formatPlace(ticket) && <strong className="font-bold text-text">{formatPlace(ticket)} · </strong>}
           {formatLocation({ building: ticket.building, floor: ticket.floor })}
         </span>
       </p>
 
-      <div className="flex items-center justify-between gap-2 text-xs text-slate-500">
+      <div className="flex items-center justify-between gap-2 text-xs text-text-muted">
         <div className="flex min-w-0 items-center gap-2">
           <Age iso={ticket.created_at} now={now} className="whitespace-nowrap" />
           <SlaCountdown dueAt={ticket.sla_due_at} status={ticket.status} now={now} />
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
           {ticket.follower_count > 0 && (
-            <span className="inline-flex items-center gap-0.5 font-semibold text-sky-700" title={`${ticket.follower_count + 1} students affected`}>
+            <span className="inline-flex items-center gap-0.5 font-semibold text-info-fg" title={`${ticket.follower_count + 1} students affected`}>
               <Users className="size-3.5" /> {ticket.follower_count + 1}
             </span>
           )}

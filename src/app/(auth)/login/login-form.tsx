@@ -27,8 +27,8 @@ export function LoginForm({ next }: { next?: string }) {
     <div className="space-y-8">
       <div className="space-y-2">
         <p className="eyebrow">Welcome back</p>
-        <h1 className="text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl">Log in</h1>
-        <p className="text-sm text-slate-600">
+        <h1 className="text-3xl font-extrabold tracking-tight text-text sm:text-4xl">Log in</h1>
+        <p className="text-sm text-text-muted">
           Students use their roll number. Staff use their staff ID.
         </p>
       </div>
@@ -60,7 +60,7 @@ export function LoginForm({ next }: { next?: string }) {
           />
         </div>
         {state.error && (
-          <p role="alert" className="rounded-2xl bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+          <p role="alert" className="rounded-2xl bg-danger-bg px-4 py-3 text-sm font-medium text-danger-fg">
             {state.error}
           </p>
         )}
@@ -68,7 +68,7 @@ export function LoginForm({ next }: { next?: string }) {
           {pending ? <Loader2 className="animate-spin" /> : <LogIn />}
           {pending ? "Logging in…" : "Log in"}
         </Button>
-        <p className="text-center text-sm text-slate-600">
+        <p className="text-center text-sm text-text-muted">
           New student?{" "}
           <Link href="/signup" className="font-bold text-accent-text hover:underline">
             Create an account
@@ -76,17 +76,17 @@ export function LoginForm({ next }: { next?: string }) {
         </p>
       </form>
 
-      <section className="rounded-3xl border border-border bg-card p-5 shadow-sm">
+      <section className="rounded-3xl border border-border bg-surface p-5 shadow-sm">
         <div className="mb-4 flex items-center justify-between gap-2">
           <p className="eyebrow">Demo quick login</p>
-          <span className="rounded-full bg-sky-tint px-2.5 py-1 text-[11px] font-semibold text-slate-600">
+          <span className="rounded-full bg-surface-accent px-2.5 py-1 text-[11px] font-semibold text-text-muted">
             password: {DEMO_PASSWORD}
           </span>
         </div>
         <div className="space-y-4">
           {DEMO_GROUPS.map((group) => (
             <div key={group.label}>
-              <p className="mb-2 text-xs font-bold text-slate-500">{group.label}</p>
+              <p className="mb-2 text-xs font-bold text-text-muted">{group.label}</p>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                 {DEMO_ACCOUNTS.filter((a) => !a.hidden && group.roles.includes(a.role)).map((a) => (
                   <button
@@ -96,11 +96,11 @@ export function LoginForm({ next }: { next?: string }) {
                     onClick={() => quickLogin(a)}
                     className={cn(
                       "rounded-2xl border border-border bg-page px-3 py-2 text-left transition-all",
-                      "hover:-translate-y-0.5 hover:border-accent-blue hover:bg-sky-tint disabled:opacity-50",
+                      "hover:-translate-y-0.5 hover:border-accent-blue hover:bg-surface-accent disabled:opacity-50",
                     )}
                   >
-                    <span className="block truncate text-sm font-bold text-foreground">{a.fullName}</span>
-                    <span className="block truncate text-[11px] text-slate-500">{a.caption}</span>
+                    <span className="block truncate text-sm font-bold text-text">{a.fullName}</span>
+                    <span className="block truncate text-[11px] text-text-muted">{a.caption}</span>
                   </button>
                 ))}
               </div>

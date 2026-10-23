@@ -18,7 +18,7 @@ import { HOSTELS, type Hostel } from "@/config/locations";
 import { signUp, type FormState } from "../actions";
 
 function FieldError({ message }: { message?: string }) {
-  return message ? <p className="text-xs font-medium text-red-700">{message}</p> : null;
+  return message ? <p className="text-xs font-medium text-danger-fg">{message}</p> : null;
 }
 
 export function SignupForm({ emailDomain }: { emailDomain: string }) {
@@ -46,8 +46,8 @@ export function SignupForm({ emailDomain }: { emailDomain: string }) {
     <div className="space-y-8">
       <div className="space-y-2">
         <p className="eyebrow">Students only</p>
-        <h1 className="text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl">Create your account</h1>
-        <p className="text-sm text-slate-600">Your roll number will be your username.</p>
+        <h1 className="text-3xl font-extrabold tracking-tight text-text sm:text-4xl">Create your account</h1>
+        <p className="text-sm text-text-muted">Your roll number will be your username.</p>
       </div>
 
       <form action={formAction} onSubmit={onSubmit} noValidate className="space-y-4">
@@ -93,7 +93,7 @@ export function SignupForm({ emailDomain }: { emailDomain: string }) {
           {shownEmailError ? (
             <FieldError message={shownEmailError} />
           ) : (
-            <p className="text-xs text-slate-500">We send ticket updates here. Must end with @{emailDomain}.</p>
+            <p className="text-xs text-text-muted">We send ticket updates here. Must end with @{emailDomain}.</p>
           )}
         </div>
 
@@ -156,7 +156,7 @@ export function SignupForm({ emailDomain }: { emailDomain: string }) {
         </div>
 
         {state.error && (
-          <p role="alert" className="rounded-2xl bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+          <p role="alert" className="rounded-2xl bg-danger-bg px-4 py-3 text-sm font-medium text-danger-fg">
             {state.error}
           </p>
         )}
@@ -165,7 +165,7 @@ export function SignupForm({ emailDomain }: { emailDomain: string }) {
           {pending ? <Loader2 className="animate-spin" /> : <UserPlus />}
           {pending ? "Creating account…" : "Create account"}
         </Button>
-        <p className="text-center text-sm text-slate-600">
+        <p className="text-center text-sm text-text-muted">
           Already have an account?{" "}
           <Link href="/login" className="font-bold text-accent-text hover:underline">
             Log in

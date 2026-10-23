@@ -49,23 +49,23 @@ export default async function MyAnswersPage() {
           {answers.map((a) => (
             <li
               key={a.answer_id}
-              className="group relative animate-slide-up space-y-2 rounded-3xl border border-border bg-card p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-accent-blue hover:shadow-md"
+              className="group relative animate-slide-up space-y-2 rounded-3xl border border-border bg-surface p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-accent-blue hover:shadow-md"
             >
               <div className="flex flex-wrap items-center gap-1.5">
                 <SubjectBadge subject={a.subject} />
                 {a.is_best && (
-                  <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-xs font-bold text-emerald-700">
+                  <span className="inline-flex items-center gap-1 rounded-full border border-success-fg/30 bg-success-bg px-2.5 py-0.5 text-xs font-bold text-success-fg">
                     <BadgeCheck className="size-3.5" /> Best answer
                   </span>
                 )}
               </div>
-              <h3 className="font-bold text-foreground group-hover:text-accent-text">
+              <h3 className="font-bold text-text group-hover:text-accent-text">
                 <Link href={`/qa/${a.question_id}`} className="after:absolute after:inset-0 after:rounded-3xl">
                   {a.question_title}
                 </Link>
               </h3>
-              <p className="line-clamp-3 text-sm text-slate-600">{a.excerpt}</p>
-              <p className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs font-semibold text-slate-500">
+              <p className="line-clamp-3 text-sm text-text-muted">{a.excerpt}</p>
+              <p className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs font-semibold text-text-muted">
                 <span className="inline-flex items-center gap-1" title="Upvotes on your answer">
                   <ArrowBigUp className="size-4" /> {a.answer_upvotes} on your answer
                 </span>

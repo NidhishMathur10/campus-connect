@@ -65,12 +65,12 @@ export function LiveBadge({ live, className }: { live: boolean; className?: stri
     <span
       className={cn(
         "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold",
-        live ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500",
+        live ? "bg-success-bg text-success-fg" : "bg-surface-2 text-text-muted",
         className,
       )}
       title={live ? "Updates appear automatically" : "Connecting to live updates…"}
     >
-      <span className={cn("size-1.5 rounded-full", live ? "animate-pulse bg-emerald-500" : "bg-slate-400")} />
+      <span className={cn("size-1.5 rounded-full", live ? "animate-pulse bg-success-fg" : "bg-text-muted")} />
       {live ? "Live" : "Connecting…"}
     </span>
   );
