@@ -8,7 +8,7 @@ export default async function TrackLayout({ children }: { children: React.ReactN
   const profile = await requireProfile();
   if (profile.role === "student") {
     return (
-      <StudentShell user={{ fullName: profile.full_name, roleLabel: `Roll ${profile.roll_no ?? ""}`, subtitle: null }}>
+      <StudentShell userId={profile.id} user={{ fullName: profile.full_name, roleLabel: `Roll ${profile.roll_no ?? ""}`, subtitle: null }}>
         {children}
       </StudentShell>
     );

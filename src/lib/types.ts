@@ -127,7 +127,16 @@ export interface HotspotInsight {
   generated_at: string;
 }
 
-export interface Question {
+/** Soft-delete + moderation fields shared by questions, answers and comments. */
+export interface Moderated {
+  /** Gemini moderation was unavailable when posted — a teacher should check it. */
+  pending_review: boolean;
+  /** Hidden by a teacher (soft delete). */
+  hidden: boolean;
+  hidden_reason: string | null;
+}
+
+export interface Question extends Moderated {
   id: string;
   author_id: string;
   subject: string;
@@ -136,13 +145,35 @@ export interface Question {
   status: "open" | "answered";
   best_answer_id: string | null;
   upvotes: number;
+  /** When the first teacher answer was posted. */
+  answered_at: string | null;
   created_at: string;
 }
 
-export interface Answer {
+export interface Answer extends Moderated {
   id: string;
   question_id: string;
   author_id: string;
   body: string;
+  upvotes: number;
+  created_at: string;
+}
+
+export interface AnswerComment extends Moderated {
+  id: string;
+  answer_id: string;
+  author_id: string;
+  body: string;
+  created_at: string;
+}
+
+export interface AppNotification {
+  id: string;
+  user_id: string;
+  kind: "answer" | "best_answer" | "comment" | "ticket";
+  title: string;
+  body: string | null;
+  link: string | null;
+  read_at: string | null;
   created_at: string;
 }

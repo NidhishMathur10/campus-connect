@@ -39,7 +39,7 @@ import { categoriesFor, DEPARTMENTS, MODULE_LABELS, PRIORITIES, SECURITY_DEPARTM
 import { CONFIDENTIAL_REPORTER } from "@/config/safety";
 import { ESCALATION_REASON_LABELS, STAFF_TRANSITIONS } from "@/config/statuses";
 import { formatDateTime, formatLocation, languageName, timeAgo } from "@/lib/format";
-import type { Viewer } from "@/lib/tickets/access";
+import { canEscalateManually, type Viewer } from "@/lib/tickets/access";
 import {
   addTicketNote,
   assignTicket,
@@ -413,8 +413,7 @@ function EscalationPanel({
   const { ticket, escalations } = detail;
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState("");
-  const canEscalate =
-    (viewer.role === "warden" && ticket.module === "hostel") || (viewer.role === "hod" && ticket.module === "academic");
+  const canEscalate = canEscalateManually(viewer, ticket);
   const target = ticket.module === "hostel" ? "Dean" : "HOD";
   const hasActive = escalations.some((e) => e.status !== "resolved");
   if (!canEscalate && escalations.length === 0) return null;

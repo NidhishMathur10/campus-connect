@@ -7,10 +7,11 @@ import { Logo } from "@/components/brand/logo";
 import { COLLEGE_NAME } from "@/config/college";
 import { cn } from "@/lib/utils";
 import { isActive, STUDENT_NAV } from "./nav-items";
+import { NotificationBell } from "./notification-bell";
 import { UserMenu, type ShellUser } from "./user-menu";
 
 /** Student layout: floating pill navbar on top, bottom tab bar on mobile. */
-export function StudentShell({ user, children }: { user: ShellUser; children: ReactNode }) {
+export function StudentShell({ user, userId, children }: { user: ShellUser; userId: string; children: ReactNode }) {
   const pathname = usePathname();
 
   return (
@@ -43,7 +44,10 @@ export function StudentShell({ user, children }: { user: ShellUser; children: Re
             })}
           </ul>
 
-          <UserMenu user={user} />
+          <div className="flex items-center gap-1">
+            <NotificationBell userId={userId} />
+            <UserMenu user={user} />
+          </div>
         </nav>
       </header>
 
@@ -53,7 +57,7 @@ export function StudentShell({ user, children }: { user: ShellUser; children: Re
 
       {/* Mobile bottom tab bar */}
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
-        <ul className="grid grid-cols-4">
+        <ul className="grid grid-cols-5">
           {STUDENT_NAV.map((item) => {
             const active = isActive(pathname, item.href);
             const Icon = item.icon;

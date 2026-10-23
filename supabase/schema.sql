@@ -227,6 +227,43 @@ create table if not exists public.question_votes (
   primary key (question_id, user_id)
 );
 
+-- Phase 5B: Q&A moderation, answer votes, notifications.
+-- pending_review = Gemini moderation was unavailable, so a teacher should look at it.
+-- hidden = soft-deleted by a teacher (with a reason).
+alter table public.questions       add column if not exists pending_review boolean not null default false;
+alter table public.questions       add column if not exists hidden         boolean not null default false;
+alter table public.questions       add column if not exists hidden_reason  text;
+alter table public.questions       add column if not exists hidden_by      uuid references public.profiles(id) on delete set null;
+-- First teacher answer (for "avg time to first teacher answer" on Insights).
+alter table public.questions       add column if not exists answered_at    timestamptz;
+alter table public.answers         add column if not exists pending_review boolean not null default false;
+alter table public.answers         add column if not exists hidden         boolean not null default false;
+alter table public.answers         add column if not exists hidden_reason  text;
+alter table public.answers         add column if not exists hidden_by      uuid references public.profiles(id) on delete set null;
+alter table public.answers         add column if not exists upvotes        int not null default 0;
+alter table public.answer_comments add column if not exists pending_review boolean not null default false;
+alter table public.answer_comments add column if not exists hidden         boolean not null default false;
+alter table public.answer_comments add column if not exists hidden_reason  text;
+
+create table if not exists public.answer_votes (
+  answer_id  uuid not null references public.answers(id) on delete cascade,
+  user_id    uuid not null references public.profiles(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key (answer_id, user_id)
+);
+
+-- In-app bell: "Prof. Das answered your question", ticket status changes.
+create table if not exists public.notifications (
+  id         uuid primary key default gen_random_uuid(),
+  user_id    uuid not null references public.profiles(id) on delete cascade,
+  kind       text not null,           -- 'answer' | 'best_answer' | 'comment' | 'ticket'
+  title      text not null,
+  body       text,
+  link       text,
+  read_at    timestamptz,
+  created_at timestamptz not null default now()
+);
+
 -- ---------------------------------------------------------------------
 -- Indexes
 -- ---------------------------------------------------------------------
@@ -246,6 +283,7 @@ create unique index if not exists escalations_one_open_ticket
 create index if not exists questions_subject_idx   on public.questions (subject, created_at desc);
 create index if not exists answers_question_idx    on public.answers (question_id, created_at);
 create index if not exists answer_comments_answer_idx on public.answer_comments (answer_id, created_at);
+create index if not exists notifications_user_idx on public.notifications (user_id, created_at desc);
 
 -- ---------------------------------------------------------------------
 -- Helper functions (SECURITY DEFINER so RLS policies can read the caller's role)
@@ -343,6 +381,54 @@ create trigger question_votes_sync
   after insert or delete on public.question_votes
   for each row execute function public.sync_question_upvotes();
 
+-- Keep answers.upvotes in sync with answer_votes.
+create or replace function public.sync_answer_upvotes()
+returns trigger language plpgsql security definer set search_path = public as $$
+declare aid uuid := coalesce(new.answer_id, old.answer_id);
+begin
+  update public.answers
+     set upvotes = (select count(*) from public.answer_votes v where v.answer_id = aid)
+   where id = aid;
+  return null;
+end $$;
+
+drop trigger if exists answer_votes_sync on public.answer_votes;
+create trigger answer_votes_sync
+  after insert or delete on public.answer_votes
+  for each row execute function public.sync_answer_upvotes();
+
+-- Phase 5B: bell notification for the reporter (and "Me too" followers) whenever a
+-- student-visible status change / merge / escalation is logged on their ticket.
+create or replace function public.notify_ticket_event()
+returns trigger language plpgsql security definer set search_path = public as $$
+declare t record; msg text;
+begin
+  if new.is_internal or new.type::text not in ('status_change','merged','escalated') then
+    return null;
+  end if;
+  select id, ticket_no, title, reporter_id, is_confidential into t from public.tickets where id = new.ticket_id;
+  if not found then return null; end if;
+  msg := case new.type::text
+    when 'status_change' then t.ticket_no || ' is now ' || coalesce(new.to_status::text, 'updated')
+    when 'merged' then t.ticket_no || ' was merged with an earlier report'
+    else t.ticket_no || ' was escalated for priority attention'
+  end;
+  insert into public.notifications (user_id, kind, title, body, link)
+  select r.uid, 'ticket', msg, t.title, '/tickets/' || t.ticket_no
+  from (
+    select t.reporter_id as uid
+    union
+    select f.user_id from public.ticket_followers f where f.ticket_id = t.id and not t.is_confidential
+  ) r
+  where r.uid is distinct from new.actor_id;
+  return null;
+end $$;
+
+drop trigger if exists ticket_events_notify on public.ticket_events;
+create trigger ticket_events_notify
+  after insert on public.ticket_events
+  for each row execute function public.notify_ticket_event();
+
 -- Used by the seed script to restart ticket numbers at CC-1001.
 create or replace function public.reset_ticket_seq()
 returns void language sql security definer set search_path = public as $$
@@ -373,6 +459,8 @@ alter table public.answers          enable row level security;
 alter table public.answer_comments  enable row level security;
 alter table public.question_votes   enable row level security;
 alter table public.hotspot_insights enable row level security;
+alter table public.answer_votes     enable row level security;
+alter table public.notifications    enable row level security;
 
 -- profiles: everyone reads their own; non-students read all (to see roll numbers / staff lists).
 drop policy if exists "profiles_select_own"   on public.profiles;
@@ -454,18 +542,24 @@ create policy "hotspot_insights_select" on public.hotspot_insights for select to
 drop policy if exists "questions_select" on public.questions;
 drop policy if exists "questions_insert" on public.questions;
 drop policy if exists "questions_update" on public.questions;
-create policy "questions_select" on public.questions for select to authenticated using (true);
+-- Posts hidden by a teacher stay visible to their author and to teachers/admins only.
+create policy "questions_select" on public.questions for select to authenticated
+  using (not hidden or author_id = auth.uid() or public.app_role()::text in ('teacher','academic_office','hod','dean'));
 create policy "questions_insert" on public.questions for insert to authenticated with check (author_id = auth.uid());
 create policy "questions_update" on public.questions for update to authenticated using (author_id = auth.uid());
 
 drop policy if exists "answers_select" on public.answers;
 drop policy if exists "answers_insert" on public.answers;
-create policy "answers_select" on public.answers for select to authenticated using (true);
+-- Posts hidden by a teacher stay visible to their author and to teachers/admins only.
+create policy "answers_select" on public.answers for select to authenticated
+  using (not hidden or author_id = auth.uid() or public.app_role()::text in ('teacher','academic_office','hod','dean'));
 create policy "answers_insert" on public.answers for insert to authenticated with check (author_id = auth.uid());
 
 drop policy if exists "answer_comments_select" on public.answer_comments;
 drop policy if exists "answer_comments_insert" on public.answer_comments;
-create policy "answer_comments_select" on public.answer_comments for select to authenticated using (true);
+-- Posts hidden by a teacher stay visible to their author and to teachers/admins only.
+create policy "answer_comments_select" on public.answer_comments for select to authenticated
+  using (not hidden or author_id = auth.uid() or public.app_role()::text in ('teacher','academic_office','hod','dean'));
 create policy "answer_comments_insert" on public.answer_comments for insert to authenticated with check (author_id = auth.uid());
 
 drop policy if exists "votes_select" on public.question_votes;
@@ -475,6 +569,20 @@ create policy "votes_select" on public.question_votes for select to authenticate
 create policy "votes_insert" on public.question_votes for insert to authenticated with check (user_id = auth.uid());
 create policy "votes_delete" on public.question_votes for delete to authenticated using (user_id = auth.uid());
 
+drop policy if exists "answer_votes_select" on public.answer_votes;
+drop policy if exists "answer_votes_insert" on public.answer_votes;
+drop policy if exists "answer_votes_delete" on public.answer_votes;
+create policy "answer_votes_select" on public.answer_votes for select to authenticated using (true);
+create policy "answer_votes_insert" on public.answer_votes for insert to authenticated with check (user_id = auth.uid());
+create policy "answer_votes_delete" on public.answer_votes for delete to authenticated using (user_id = auth.uid());
+
+-- notifications: each user reads / marks read only their own (rows are written by the server).
+drop policy if exists "notifications_select" on public.notifications;
+drop policy if exists "notifications_update" on public.notifications;
+create policy "notifications_select" on public.notifications for select to authenticated using (user_id = auth.uid());
+create policy "notifications_update" on public.notifications for update to authenticated
+  using (user_id = auth.uid()) with check (user_id = auth.uid());
+
 -- ---------------------------------------------------------------------
 -- Realtime (live ticket timelines). RLS still applies to subscribers.
 -- ---------------------------------------------------------------------
@@ -483,6 +591,9 @@ do $$ begin
 exception when duplicate_object then null; end $$;
 do $$ begin
   alter publication supabase_realtime add table public.ticket_events;
+exception when duplicate_object then null; end $$;
+do $$ begin
+  alter publication supabase_realtime add table public.notifications;
 exception when duplicate_object then null; end $$;
 
 -- ---------------------------------------------------------------------

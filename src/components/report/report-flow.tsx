@@ -114,6 +114,13 @@ const SAFETY_INTRO: Record<string, string> = {
   en: "Thank you for telling us — you did the right thing. This report is confidential. Just one or two things so the right people can help:",
 };
 
+/** Education: blocks only, and records issues (attendance, marks, timetable) need no place. */
+const ACADEMIC_FORM = {
+  buildingLabel: "Block",
+  noBuildingLabel: "No place — timetable, attendance or marks",
+  spotPlaceholder: "Room B-204, Lab D-2, Library reading hall…",
+};
+
 /**
  * Module-agnostic report flow: form → AI chat (one follow-up round) → preview →
  * duplicate check → ticket. The Education module reuses it with module="academic".
@@ -421,7 +428,8 @@ export function ReportFlow({
         onSubmit={submitComplaint}
         busy={false}
         textPlaceholder={textPlaceholder}
-        showMachines={!isSecurity}
+        showMachines={module === "hostel"}
+        {...(module === "academic" ? ACADEMIC_FORM : {})}
       />
     );
   }

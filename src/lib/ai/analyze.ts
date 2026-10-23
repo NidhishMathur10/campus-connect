@@ -1,10 +1,19 @@
 import "server-only";
 import type { Part } from "@google/genai";
 import { COLLEGE_NAME } from "@/config/college";
-import { BUILDING_INFO, BUILDINGS, FLOORS, locationsPromptText, type Building } from "@/config/locations";
+import {
+  BUILDING_INFO,
+  BUILDINGS,
+  FLOORS,
+  LIBRARY_BUILDING,
+  locationsPromptText,
+  parseRoomCode,
+  type Building,
+} from "@/config/locations";
 import {
   categoriesFor,
   getRoutingRule,
+  NON_LOCATION_CATEGORIES,
   ROUTING,
   routingGuidePromptText,
   SAFETY_HAZARDS,
@@ -51,10 +60,11 @@ function requiredDetailsText(module: TicketModule): string {
     .filter((r) => r.requiredDetails)
     .map((r) => `- ${r.category}: ${r.requiredDetails}`)
     .join("\n");
-  return [
-    "- Every complaint: building, floor (only for hostels and academic blocks — not for messes, Gym or Sports Complex), and the exact spot (room number, washroom, corridor, court, classroom...) — not for messes, where the meal is enough.",
-    perCategory,
-  ]
+  const location =
+    module === "academic"
+      ? "- Classroom Facilities / Lab Equipment / Library: the block (Block A–D), floor and room or lab number. Room codes like \"B-204\" mean Block B, 2nd floor (first digit = floor, 0 = Ground). The Library is in Block A.\n- Academic Admin (timetable, attendance, marks): NO physical location — never ask for block, floor or room."
+      : "- Every complaint: building, floor (only for hostels and academic blocks — not for messes, Gym or Sports Complex), and the exact spot (room number, washroom, corridor, court, classroom...) — not for messes, where the meal is enough.";
+  return [location, perCategory]
     .filter(Boolean)
     .join("\n");
 }
@@ -216,19 +226,40 @@ function normalise(
     };
   }
 
+  // Academic module: room codes fill block + floor; the Library is in Block A;
+  // records issues (attendance, marks, timetable) have no physical location at all.
+  const noLocation = module === "academic" && NON_LOCATION_CATEGORIES.includes(category);
+  if (module === "academic" && !noLocation) {
+    const room = parseRoomCode(location.spot);
+    location.building ??= room?.building ?? null;
+    location.floor ??= room && room.building === location.building ? room.floor : null;
+    if (category === "Library") {
+      location.building ??= LIBRARY_BUILDING;
+      location.spot ??= "Library";
+    }
+  }
+  const needFloor = (building: string | null) =>
+    floorNeeded(building) && !(module === "academic" && category === "Library");
+
   // Deterministic safety net for location gaps the model may have missed.
   const missing = [...raw.missing_fields];
   const has = (word: string) => missing.some((m) => m.toLowerCase().includes(word));
-  if (!location.building && !has("building")) missing.push("building");
-  if (!location.floor && floorNeeded(location.building) && !has("floor")) missing.push("floor");
-  if (!location.spot && spotNeeded(location.building) && !has("spot")) missing.push("exact spot");
+  if (!noLocation) {
+    if (!location.building && !has("building") && !has("block")) missing.push(module === "academic" ? "block" : "building");
+    if (!location.floor && needFloor(location.building) && !has("floor")) missing.push("floor");
+    if (!location.spot && spotNeeded(location.building) && !has("spot") && !has("room")) {
+      missing.push(module === "academic" ? "room number" : "exact spot");
+    }
+  }
   if (category === "Laundry" && !location.machine_id && !has("machine")) missing.push("machine ID");
-  // Drop location gaps the form/answers have already filled.
+  // Drop location gaps the form/answers have already filled (or that don't apply).
   const filtered = missing.filter((m) => {
     const l = m.toLowerCase();
-    if (l.includes("building")) return !location.building;
-    if (l.includes("floor")) return !location.floor && floorNeeded(location.building);
-    if (l.includes("spot")) return !location.spot && spotNeeded(location.building);
+    const isLocation = /building|block|floor|spot|room|location|where/.test(l);
+    if (noLocation) return !isLocation;
+    if (l.includes("building") || l.includes("block")) return !location.building;
+    if (l.includes("floor")) return !location.floor && needFloor(location.building);
+    if (l.includes("spot") || l.includes("room")) return !location.spot && spotNeeded(location.building);
     if (l.includes("machine")) return !location.machine_id;
     return true;
   });

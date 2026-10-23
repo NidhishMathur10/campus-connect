@@ -103,10 +103,10 @@ export const HOSTEL_ROUTING: RoutingRule[] = [
 ];
 
 export const ACADEMIC_ROUTING: RoutingRule[] = [
-  { category: "Classroom Facilities", typicalIssues: "projector, smart board, AC, benches, mic in Blocks A–D", departments: ["Electrical Maintenance", "Estate / Maintenance"], departmentNote: "Electrical Maintenance for electrical items; Estate / Maintenance for furniture", defaultPriority: "Medium", slaHours: 24 },
-  { category: "Lab Equipment", typicalIssues: "computers, software missing", departments: ["Lab In-charge"], defaultPriority: "Medium", slaHours: 24 },
-  { category: "Academic Admin", typicalIssues: "timetable clash, attendance error, exam/marks issue", departments: ["Academic Office"], defaultPriority: "Medium", slaHours: 48 },
-  { category: "Library", typicalIssues: "book unavailable, seating, library facilities", departments: ["Library Staff"], defaultPriority: "Low", slaHours: 72 },
+  { category: "Classroom Facilities", typicalIssues: "projector, smart board, AC, benches, mic in Blocks A–D", departments: ["Electrical Maintenance", "Estate / Maintenance"], departmentNote: "Electrical Maintenance for electrical items; Estate / Maintenance for furniture", defaultPriority: "Medium", slaHours: 24, requiredDetails: "which item is faulty (projector, smart board, AC, fan, bench, mic…) and what exactly is wrong" },
+  { category: "Lab Equipment", typicalIssues: "computers, software missing", departments: ["Lab In-charge"], defaultPriority: "Medium", slaHours: 24, requiredDetails: "the lab name/number and which computers or software are affected" },
+  { category: "Academic Admin", typicalIssues: "timetable clash, attendance error, exam/marks issue", departments: ["Academic Office"], defaultPriority: "Medium", slaHours: 48, requiredDetails: "the course/subject, section or semester, and what exactly is wrong (attendance %, marks, timetable slot). NO building, floor or room is needed. Never ask for a teacher's or faculty member's name" },
+  { category: "Library", typicalIssues: "book unavailable, seating, library facilities (Library is in Block A)", departments: ["Library Staff"], defaultPriority: "Low", slaHours: 72, requiredDetails: "the book title, or which library facility (seating, AC, Wi-Fi…)" },
   { category: "Other", typicalIssues: "—", departments: ["Academic Office"], defaultPriority: "Low", slaHours: 72 },
 ];
 
@@ -134,6 +134,9 @@ export function isConfidentialCategory(category: string, choice = false): boolea
   if (!rule) return false;
   return rule.confidential === "always" || (rule.confidential === "choose" && choice);
 }
+
+/** Academic categories about records, not a place: no building/floor/spot needed. */
+export const NON_LOCATION_CATEGORIES: string[] = ["Academic Admin"];
 
 export const SAFETY_HAZARDS =
   "sparking, exposed wires, flooding near electricals, gas smell, fire risk, injury risk";

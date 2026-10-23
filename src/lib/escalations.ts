@@ -1,5 +1,6 @@
 import "server-only";
 import { after } from "next/server";
+import type { Role } from "@/config/roles";
 import type { TicketModule } from "@/config/routing";
 import { ESCALATION_RULES, OPEN_STATUSES } from "@/config/statuses";
 import { escalationBrief, type EscalationContext } from "@/lib/ai/escalation";
@@ -194,12 +195,12 @@ async function markEscalated(admin: Admin, tickets: Pick<TicketRow, "id" | "esca
 }
 
 // ---------------------------------------------------------------------------
-// Manual escalation (warden → Dean for hostel, HOD for academic)
+// Manual escalation (warden → Dean for hostel; Academic Office / HOD → HOD for academic)
 // ---------------------------------------------------------------------------
 export async function createManualEscalation(input: {
   ticket: Ticket;
   reason: string;
-  actor: { id: string; name: string; role: "warden" | "hod" };
+  actor: { id: string; name: string; role: Role };
 }): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
   const admin = createAdminClient();
   const { ticket } = input;

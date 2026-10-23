@@ -9,6 +9,7 @@ export default async function StudentLayout({ children }: { children: React.Reac
 
   return (
     <StudentShell
+      userId={profile.id}
       user={{
         fullName: profile.full_name,
         roleLabel: profile.roll_no ? `Roll ${profile.roll_no}` : "Student",

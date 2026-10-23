@@ -44,6 +44,15 @@ export function canViewStaffTicket(v: Viewer, t: TicketScopeFields): boolean {
   return false;
 }
 
+/** Manual "Escalate": warden → Dean (hostel); Academic Office (own tickets) or HOD → HOD (academic). */
+export function canEscalateManually(v: Viewer, t: TicketScopeFields): boolean {
+  if (t.is_confidential) return false;
+  if (v.role === "warden") return t.module === "hostel";
+  if (v.role === "hod") return t.module === "academic";
+  if (v.role === "academic_office") return t.module === "academic" && canManageTicket(v, t);
+  return false;
+}
+
 /** "Hide my name" safety reports: only the Anti-Ragging Committee and the Dean see the reporter. */
 export function canSeeReporter(v: Viewer, t: Pick<Ticket, "hide_identity">): boolean {
   return !t.hide_identity || v.role === "arc" || v.role === "dean";

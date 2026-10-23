@@ -21,6 +21,9 @@ async function main() {
     ["ticket_events.is_internal (phase 3)", admin.from("ticket_events").select("is_internal").limit(1)],
     ["escalations brief columns (phase 4)", admin.from("escalations").select("headline, urgency_reason, brief_model, brief_count, resolved_at").limit(1)],
     ["hotspot_insights table (phase 4)", admin.from("hotspot_insights").select("hotspot_key").limit(1)],
+    ["Q&A moderation columns (phase 5B)", admin.from("questions").select("pending_review, hidden, hidden_reason, answered_at").limit(1)],
+    ["answer_votes table (phase 5B)", admin.from("answer_votes").select("answer_id").limit(1)],
+    ["notifications table (phase 5B)", admin.from("notifications").select("id").limit(1)],
   ];
   let missing = false;
   for (const [label, q] of checks) {

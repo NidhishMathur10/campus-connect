@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { CheckCircle2, Clock, Inbox, Lock, Star, Ticket } from "lucide-react";
+import { CheckCircle2, Clock, Inbox, Lock, MessagesSquare, Star, Ticket } from "lucide-react";
 import { PageHeader } from "@/components/common/page-header";
 import { DailyLine, RankedBars, StatusBars } from "@/components/insights/charts";
 import { Hotspots } from "@/components/insights/hotspots";
@@ -9,6 +9,7 @@ import { MODULE_LABELS, type TicketModule } from "@/config/routing";
 import { requireProfile } from "@/lib/auth";
 import { checkEscalations } from "@/lib/escalations";
 import { getInsights, getSecurityCounts, INSIGHT_WINDOWS, insightsModule, type InsightWindow } from "@/lib/insights";
+import { getQaStats } from "@/lib/qa/queries";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Insights" };
@@ -66,9 +67,11 @@ export default async function InsightsPage({ searchParams }: { searchParams: Pro
   const days: InsightWindow = sp.days === "7" ? 7 : 30;
 
   await checkEscalations();
-  const [data, security] = await Promise.all([
+  const [data, security, qa] = await Promise.all([
     getInsights(scopeModule, days),
     profile.role === "dean" ? getSecurityCounts(days) : Promise.resolve(null),
+    // Q&A belongs to the Education module: HOD always, Dean on "All" / "Academic".
+    scopeModule !== "hostel" && profile.role !== "warden" ? getQaStats(days) : Promise.resolve(null),
   ]);
   const { stats } = data;
 
@@ -169,6 +172,34 @@ export default async function InsightsPage({ searchParams }: { searchParams: Pro
               ))}
             </div>
             <RankedBars data={security.byCategory} />
+          </div>
+        </Panel>
+      )}
+
+      {qa && (
+        <Panel title={`Open Q&A · ${days} days`} subtitle="Student questions on the Education Q&A board." className="mt-5">
+          <div className="grid gap-5 md:grid-cols-[1fr_1fr]">
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { label: "Questions this week", value: String(qa.questionsThisWeek), icon: MessagesSquare, tone: "text-navy" },
+                { label: "Answered", value: qa.answeredPct == null ? "—" : `${qa.answeredPct}%`, icon: CheckCircle2, tone: "text-emerald-600" },
+                { label: "First teacher answer", value: hoursLabel(qa.avgFirstTeacherAnswerHours), icon: Clock, tone: "text-violet-600", hint: "average wait" },
+                { label: "Still unanswered", value: String(qa.unanswered), icon: Inbox, tone: "text-orange-600" },
+              ].map(({ label, value, icon: Icon, tone, hint }) => (
+                <div key={label} className="rounded-2xl bg-sky-tint p-4">
+                  <div className="flex items-center justify-between">
+                    <p className="eyebrow">{label}</p>
+                    <Icon className={cn("size-4", tone)} />
+                  </div>
+                  <p className={cn("mt-1 text-2xl font-extrabold", tone)}>{value}</p>
+                  {hint && <p className="text-xs text-slate-500">{hint}</p>}
+                </div>
+              ))}
+            </div>
+            <div>
+              <p className="eyebrow mb-2">Top subjects</p>
+              <RankedBars data={qa.topSubjects} />
+            </div>
           </div>
         </Panel>
       )}

@@ -45,6 +45,7 @@ export const SPOT_SUGGESTIONS = [
   "Laundry area",
   "Classroom",
   "Lab",
+  "Library",
   "Court",
   "Dining hall",
   "Kitchen",
@@ -71,6 +72,17 @@ export function getMachines(building?: string | null, floor?: string | null): st
   return (
     WASHING_MACHINES.find((m) => m.building === building && m.floor === floor)?.ids ?? []
   );
+}
+
+/** The Library is inside Block A. */
+export const LIBRARY_BUILDING: Building = "Block A";
+
+/** Academic room codes: "B-204" / "B204" → Block B, 2nd floor (first digit = floor, 0 = Ground). */
+export function parseRoomCode(spot: string | null | undefined): { building: Building; floor: Floor } | null {
+  const m = spot?.toUpperCase().match(/\b([A-D])\s*-?\s*([0-5])\d{2}\b/);
+  if (!m) return null;
+  const floor: Floor = m[2] === "0" ? "Ground" : (["1st", "2nd", "3rd", "4th", "5th"] as const)[Number(m[2]) - 1];
+  return { building: `Block ${m[1]}` as Building, floor };
 }
 
 /** Plain-text location list for AI prompts. */

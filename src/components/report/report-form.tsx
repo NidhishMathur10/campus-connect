@@ -37,6 +37,9 @@ export function ReportForm({
   busy,
   textPlaceholder,
   showMachines = true,
+  noBuildingLabel,
+  buildingLabel = "Building",
+  spotPlaceholder = "Room 214, washroom near stairs, corridor, court 2…",
 }: {
   draft: ReportDraft;
   onChange: (draft: ReportDraft) => void;
@@ -45,6 +48,10 @@ export function ReportForm({
   busy: boolean;
   textPlaceholder?: string;
   showMachines?: boolean;
+  /** When set, the building is optional and this is the "no building" option (e.g. attendance issues). */
+  noBuildingLabel?: string;
+  buildingLabel?: string;
+  spotPlaceholder?: string;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [compressing, setCompressing] = useState(false);
@@ -72,7 +79,7 @@ export function ReportForm({
     e.preventDefault();
     const next: typeof errors = {};
     if (draft.text.trim().length < 3) next.text = "Tell us what the problem is.";
-    if (!draft.building) next.building = "Choose a building.";
+    if (!draft.building && !noBuildingLabel) next.building = "Choose a building.";
     setErrors(next);
     if (Object.keys(next).length === 0) onSubmit();
   }
@@ -101,13 +108,14 @@ export function ReportForm({
         <p className="eyebrow flex items-center gap-1.5"><MapPin className="size-3.5" /> Where is it?</p>
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="space-y-1.5">
-            <Label htmlFor="building">Building</Label>
+            <Label htmlFor="building">{buildingLabel}</Label>
             <SimpleSelect
               id="building"
               value={draft.building}
               onChange={(building) => set({ building, machineId: null })}
               options={buildings}
-              placeholder="Choose building"
+              placeholder={`Choose ${buildingLabel.toLowerCase()}`}
+              noneLabel={noBuildingLabel}
               invalid={!!errors.building}
               disabled={busy}
             />
@@ -132,7 +140,7 @@ export function ReportForm({
             id="spot"
             value={draft.spot}
             onChange={(e) => set({ spot: e.target.value })}
-            placeholder="Room 214, washroom near stairs, corridor, court 2…"
+            placeholder={spotPlaceholder}
             list="spot-suggestions"
             maxLength={120}
             disabled={busy}

@@ -16,7 +16,7 @@ import { getCurrentProfile } from "@/lib/auth";
 import { checkEscalations, createManualEscalation } from "@/lib/escalations";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Profile, Ticket } from "@/lib/types";
-import { ASSIGNABLE_ROLES, canManageTicket } from "./access";
+import { ASSIGNABLE_ROLES, canEscalateManually, canManageTicket } from "./access";
 import type { ActionResult } from "./actions";
 
 type Admin = ReturnType<typeof createAdminClient>;
@@ -343,7 +343,7 @@ export async function dismissDuplicate(ticketId: string): Promise<ActionResult> 
 }
 
 // ---------------------------------------------------------------------------
-// Manual escalation: warden → Dean (hostel), HOD → HOD inbox (academic)
+// Manual escalation: warden → Dean (hostel); Academic Office / HOD → HOD inbox (academic)
 // ---------------------------------------------------------------------------
 export async function escalateTicket(ticketId: string, reason: string): Promise<ActionResult> {
   const why = reason.trim();
@@ -356,14 +356,14 @@ export async function escalateTicket(ticketId: string, reason: string): Promise<
   const { data } = await admin.from("tickets").select("*").eq("id", ticketId).maybeSingle();
   const ticket = data as Ticket | null;
   if (!ticket) return { ok: false, error: "That ticket no longer exists." };
-  const allowed =
-    (profile.role === "warden" && ticket.module === "hostel") || (profile.role === "hod" && ticket.module === "academic");
-  if (!allowed) return { ok: false, error: "Only the warden (hostel) or HOD (academic) can escalate this ticket." };
+  if (!canEscalateManually(profile, ticket)) {
+    return { ok: false, error: "Only the warden (hostel), the Academic Office or the HOD (academic) can escalate this ticket." };
+  }
 
   const res = await createManualEscalation({
     ticket,
     reason: why,
-    actor: { id: profile.id, name: profile.full_name, role: profile.role as "warden" | "hod" },
+    actor: { id: profile.id, name: profile.full_name, role: profile.role },
   });
   if (!res.ok) return res;
   revalidatePath("/escalations");

@@ -123,6 +123,7 @@ async function wipe() {
   must(await db.from("hotspot_insights").delete().not("hotspot_key", "is", null), "wipe hotspot insights");
   must(await db.from("tickets").delete().not("id", "is", null), "wipe tickets");
   must(await db.from("questions").delete().not("id", "is", null), "wipe questions");
+  must(await db.from("notifications").delete().not("id", "is", null), "wipe notifications");
   const { error } = await db.rpc("reset_ticket_seq");
   if (error) console.warn(`! Could not reset ticket numbers (${error.message}). Did you run schema.sql?`);
   console.log("✔ Cleared old tickets, escalations and Q&A");
@@ -145,7 +146,8 @@ interface SeedTicket {
   department?: string;
   priority?: Priority;
   hazard?: boolean;
-  building: string;
+  /** Omitted for records issues (attendance, timetable, marks). */
+  building?: string;
   floor?: string;
   spot?: string;
   machine?: string;
@@ -331,12 +333,27 @@ const TICKETS: SeedTicket[] = [
     status: "Submitted", detailsIncomplete: true,
   },
   // --- Academic tickets
+  // Hotspot: 3 projector tickets on Block B 2nd floor in 30 days (→ recurring escalation to HOD)
+  {
+    key: "proj1", module: "academic", reporter: "2616400102", ago: 21 * D,
+    text: "Projector in B-201 keeps switching off every 10 minutes during lectures",
+    title: "Projector in B-201 keeps switching off", summary: "The projector in classroom B-201 (Block B, 2nd floor) turns itself off roughly every 10 minutes, interrupting lectures. Likely overheating or a lamp fault.",
+    issue: "Projector shutting down repeatedly", category: "Classroom Facilities", department: "Electrical Maintenance",
+    building: "Block B", floor: "2nd", spot: "Classroom B-201", status: "Closed", assignee: "suresh", rating: 3, feedback: "Worked for a week, then the same problem.", escalated: true,
+  },
+  {
+    key: "proj2", module: "academic", reporter: "2616400103", ago: 11 * D,
+    text: "B-205 projector image is very dim and yellow, nobody at the back can read the slides",
+    title: "Dim, yellow projector image in B-205", summary: "The projector in classroom B-205 (Block B, 2nd floor) shows a very dim, yellowish image that can't be read from the back rows. The lamp probably needs replacing.",
+    issue: "Dim projector (lamp failing)", category: "Classroom Facilities", department: "Electrical Maintenance",
+    building: "Block B", floor: "2nd", spot: "Classroom B-205", status: "Resolved", assignee: "dinesh", escalated: true,
+  },
   {
     key: "projector", module: "academic", reporter: "2616400101", ago: 2 * D,
     text: "Projector in B-204 shows 'no signal' from the HDMI cable, teacher couldn't show slides",
     title: "Projector shows no signal in B-204", summary: "The projector in classroom B-204 shows 'No signal' over HDMI, so lectures can't use slides.",
     issue: "Projector HDMI no signal", category: "Classroom Facilities", department: "Electrical Maintenance",
-    building: "Block B", floor: "2nd", spot: "Classroom B-204", status: "Assigned", assignee: "dinesh",
+    building: "Block B", floor: "2nd", spot: "Classroom B-204", status: "Assigned", assignee: "dinesh", escalated: true,
   },
   {
     key: "benches", module: "academic", reporter: "2616400103", ago: 4 * D,
@@ -354,17 +371,17 @@ const TICKETS: SeedTicket[] = [
   },
   {
     key: "attendance", module: "academic", reporter: "2616400101", ago: 3 * D,
-    text: "My attendance for Basic Electrical shows 40% on the portal but I attended all classes",
-    title: "Wrong attendance in Basic Electrical", summary: "The attendance portal shows 40% for Basic Electrical although the student says they attended all classes. Records need checking.",
+    text: "My attendance for Basic Electrical (Section B, Sem 1) shows 40% on the portal but I attended all classes",
+    title: "Wrong attendance in Basic Electrical", summary: "The attendance portal shows 40% for Basic Electrical (Section B, Semester 1) although the student says they attended all classes. Records need checking.",
     issue: "Attendance record error", category: "Academic Admin",
-    building: "Block A", spot: "Attendance portal", status: "In Progress", assignee: "kapoor",
+    status: "Submitted",
   },
   {
     key: "clash", module: "academic", reporter: "2616400103", ago: 1 * D,
     text: "Mathematics tutorial and Programming lab are clashing on Thursday 2pm for section B",
     title: "Timetable clash on Thursday 2pm", summary: "For section B, the Mathematics tutorial and the Programming lab are both scheduled on Thursday at 2 pm.",
     issue: "Timetable clash", category: "Academic Admin",
-    building: "Block A", spot: "Section B timetable", status: "Submitted",
+    status: "In Progress", assignee: "kapoor",
   },
   {
     key: "books", module: "academic", reporter: "2616400102", ago: 5 * D,
@@ -477,7 +494,7 @@ async function seedTickets() {
       photo_analysis: t.photo
         ? { observed: t.photo.observed, matches_complaint: t.photo.matches, notes: t.photo.notes }
         : null,
-      building: t.building,
+      building: t.building ?? null,
       floor: t.floor ?? null,
       spot: t.spot ?? null,
       machine_id: t.machine ?? null,
@@ -547,7 +564,9 @@ async function seedTickets() {
         null,
         t.module === "security"
           ? "Escalated to the Dean of Student Affairs immediately because this is a safety report."
-          : "Escalated to Dean of Student Affairs for priority attention.",
+          : t.module === "academic"
+            ? "Escalated to Head of Department for priority attention."
+            : "Escalated to Dean of Student Affairs for priority attention.",
       );
     }
     if (assignee && reached(t.status, "Resolved")) {
@@ -580,6 +599,9 @@ async function seedTickets() {
     }),
     "me too event",
   );
+
+  // The ticket_events trigger just "notified" students about seeded history — start with an empty bell.
+  must(await db.from("notifications").delete().not("id", "is", null), "clear seed notifications");
 
   console.log(`✔ ${TICKETS.length} tickets with ${events.length + 1} history events`);
   return ids;
@@ -625,6 +647,23 @@ async function seedEscalations(ids: Map<string, string>) {
         created_at: new Date(Date.now() - 3 * H).toISOString(),
       },
       {
+        module: "academic",
+        hotspot_key: "academic|Classroom Facilities|Block B|2nd",
+        reason: "recurring",
+        target_role: "hod",
+        // Priya, Rahul and Aarav each reported one projector
+        affected_count: 3,
+        brief_count: 3,
+        brief_model: "seed",
+        headline: "Block B 2nd floor projectors keep failing",
+        brief:
+          "Three projector complaints in 21 days from Block B 2nd floor classrooms: B-201 switching off every 10 minutes, a dim yellow image in B-205, and 'no signal' over HDMI in B-204.\nElectrical Maintenance fixed B-201, but the student says the fault came back after a week; B-205 is resolved and B-204 is still assigned.\nThree students reported them, and lectures on this floor regularly lose slides.",
+        recommended_action:
+          "Ask Electrical Maintenance to audit all Block B 2nd floor projectors (lamps, ventilation, HDMI cables) this week and budget replacement lamps instead of one-off repairs.",
+        urgency_reason: "Repeated projector failures disrupt lectures for every section that uses these rooms.",
+        created_at: new Date(Date.now() - 2 * D).toISOString(),
+      },
+      {
         module: "security",
         ticket_id: ids.get("ragging"),
         reason: "safety",
@@ -643,7 +682,7 @@ async function seedEscalations(ids: Map<string, string>) {
     ]),
     "escalations",
   );
-  console.log("✔ 3 escalations (recurring hotspot + SLA breach + safety report)");
+  console.log("✔ 4 escalations (hostel + academic recurring hotspots, SLA breach, safety report)");
 }
 
 // ---------------------------------------------------------------------------
@@ -656,7 +695,13 @@ interface SeedQuestion {
   body: string;
   ago: number;
   voters: string[];
-  answers: { author: string; body: string; best?: boolean; comments?: { author: string; body: string }[] }[];
+  answers: {
+    author: string;
+    body: string;
+    best?: boolean;
+    voters?: string[];
+    comments?: { author: string; body: string }[];
+  }[];
 }
 
 const QUESTIONS: SeedQuestion[] = [
@@ -681,7 +726,7 @@ const QUESTIONS: SeedQuestion[] = [
         body: "`==` compares values; `is` checks whether both names point to the *same object*. Use `is` only for singletons like `None` (`if x is None`). Small ints and short strings are cached, which is why `is` sometimes looks like it works — don't rely on it.",
         comments: [{ author: "2616400102", body: "That caching detail explains it, thank you!" }],
       },
-      { author: "2616400103", body: "I think of it as: `==` → same content, `is` → same memory address (id)." },
+      { author: "2616400103", body: "I think of it as: `==` → same content, `is` → same memory address (id).", voters: ["2616400101"] },
     ],
   },
   {
@@ -690,7 +735,7 @@ const QUESTIONS: SeedQuestion[] = [
     body: "If the magnetic force acts on it, why doesn't the speed change?",
     answers: [
       {
-        author: "das",
+        author: "das", best: true, voters: ["2616400101", "2616400102"],
         body: "The magnetic force qv×B is always perpendicular to velocity, so it does no work — speed stays constant and only direction changes. A constant-magnitude force perpendicular to motion is exactly a centripetal force, giving r = mv/(qB).",
       },
     ],
@@ -732,12 +777,24 @@ const QUESTIONS: SeedQuestion[] = [
     body: "Mid-sems are close — any books or websites you'd recommend?",
     answers: [],
   },
+  // Hindi question, still waiting for a teacher
+  {
+    author: "2616400103", subject: "Physics", ago: 20 * H, voters: ["2616400101", "2616400102"],
+    title: "न्यूटन का तीसरा नियम: अगर हर क्रिया की बराबर प्रतिक्रिया होती है तो चीज़ें हिलती कैसे हैं?",
+    body: "अगर घोड़ा गाड़ी को खींचता है और गाड़ी भी घोड़े को उतने ही बल से पीछे खींचती है, तो दोनों बल कैंसल क्यों नहीं हो जाते? कृपया आसान भाषा में समझाइए।",
+    answers: [
+      { author: "2616400101", body: "मुझे लगता है दोनों बल अलग-अलग चीज़ों पर लगते हैं, इसलिए कैंसल नहीं होते — पर पक्का नहीं पता।", voters: ["2616400102"] },
+    ],
+  },
 ];
 
 async function seedQuestions() {
   let answerCount = 0;
   for (const q of QUESTIONS) {
     const created = Date.now() - q.ago;
+    const answerAt = (i: number) => new Date(created + (i + 1) * 3 * H).toISOString();
+    // "answered" = a teacher has answered or a best answer is marked (same rule as the app).
+    const firstTeacher = q.answers.findIndex((a) => u(a.author).role === "teacher");
     const question = must(
       await db
         .from("questions")
@@ -746,7 +803,8 @@ async function seedQuestions() {
           subject: q.subject,
           title: q.title,
           body: q.body,
-          status: q.answers.length ? "answered" : "open",
+          status: firstTeacher >= 0 || q.answers.some((a) => a.best) ? "answered" : "open",
+          answered_at: firstTeacher >= 0 ? answerAt(firstTeacher) : null,
           created_at: new Date(created).toISOString(),
         })
         .select("id")
@@ -762,13 +820,19 @@ async function seedQuestions() {
             question_id: question.id,
             author_id: u(a.author).id,
             body: a.body,
-            created_at: new Date(created + (i + 1) * 3 * H).toISOString(),
+            created_at: answerAt(i),
           })
           .select("id")
           .single(),
         "answer",
       ) as { id: string };
       answerCount++;
+      if (a.voters?.length) {
+        must(
+          await db.from("answer_votes").insert(a.voters.map((v) => ({ answer_id: answer.id, user_id: u(v).id }))),
+          "answer votes",
+        );
+      }
       if (a.best) {
         must(await db.from("questions").update({ best_answer_id: answer.id }).eq("id", question.id), "best answer");
       }
