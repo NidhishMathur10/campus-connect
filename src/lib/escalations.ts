@@ -78,11 +78,15 @@ async function runCheck(admin: Admin) {
       .neq("status", "Merged")
       .neq("duplicate_status", "merged")
       .not("building", "is", null),
+    // Urgent/High tickets nobody auto-assigned (manual / unassigned) escalate on their first missed deadline.
+    // Auto-assigned ones are re-assigned first; the SLA watcher escalates them on the second miss.
     admin
       .from("tickets")
       .select(TICKET_COLS)
       .in("priority", ESCALATION_RULES.slaPriorities)
       .in("status", OPEN_STATUSES)
+      .eq("assigned_auto", false)
+      .is("sla_paused_at", null)
       .lt("sla_due_at", new Date(now).toISOString()),
     admin
       .from("tickets")
@@ -263,6 +267,36 @@ export async function createManualEscalation(input: {
   });
   scheduleBriefs([data.id]);
   return { ok: true, id: data.id };
+}
+
+// ---------------------------------------------------------------------------
+// SLA breach: the SLA watcher calls this when a ticket misses its deadline a second time
+// ---------------------------------------------------------------------------
+export async function createSlaBreachEscalation(
+  ticket: Pick<Ticket, "id" | "module" | "escalated">,
+): Promise<{ created: boolean }> {
+  const admin = createAdminClient();
+  const target = ESCALATION_TARGET[ticket.module];
+  const { count } = await admin.from("ticket_followers").select("user_id", { count: "exact", head: true }).eq("ticket_id", ticket.id);
+  const { data, error } = await admin
+    .from("escalations")
+    .insert({
+      module: ticket.module,
+      ticket_id: ticket.id,
+      reason: "sla_breach",
+      target_role: target,
+      affected_count: 1 + (count ?? 0),
+    })
+    .select("id")
+    .single();
+  if (error || !data) {
+    // 23505: it already has an open SLA escalation — fine.
+    if (error?.code !== "23505") console.error("[createSlaBreachEscalation]", error?.message);
+    return { created: false };
+  }
+  await markEscalated(admin, [ticket], target);
+  scheduleBriefs([data.id]);
+  return { created: true };
 }
 
 // ---------------------------------------------------------------------------

@@ -1,7 +1,7 @@
 "use client";
 
 import { ArrowRight, Copy, Hourglass, MapPin, MoreHorizontal, RotateCcw, Users } from "lucide-react";
-import { CategoryBadge, ConfidentialBadge, EscalatedBadge, FacultyBadge, NotModeratedBadge, PriorityBadge, ScopeBadge } from "@/components/common/badges";
+import { AutoAssignedBadge, CategoryBadge, ConfidentialBadge, EscalatedBadge, FacultyBadge, NotModeratedBadge, PriorityBadge, ReassignedBadge, ScopeBadge, WaitingBadge } from "@/components/common/badges";
 import { initials } from "@/components/shell/user-menu";
 import { Stars } from "@/components/tickets/ticket-card";
 import { Button } from "@/components/ui/button";
@@ -68,6 +68,9 @@ export function TicketFlags({ ticket, showFaculty = true }: { ticket: BoardTicke
         </span>
       )}
       <ScopeBadge scope={ticket.scope} className="px-2 text-[11px]" />
+      {ticket.assigned_auto && ticket.assigned_to && <AutoAssignedBadge className="px-2 text-[11px]" />}
+      <ReassignedBadge count={ticket.reassign_count} className="px-2 text-[11px]" />
+      {ticket.sla_paused_at && <WaitingBadge reason={ticket.waiting_reason} className="px-2 text-[11px]" />}
       {ticket.escalated && <EscalatedBadge className="px-2 text-[11px]" />}
       {ticket.is_confidential && <ConfidentialBadge className="px-2 text-[11px]" />}
       {ticket.ai_meta?.moderation === "unchecked" && <NotModeratedBadge className="px-2 text-[11px]" />}
@@ -173,7 +176,7 @@ export function BoardCard({
       <div className="flex items-center justify-between gap-2 text-xs text-text-muted">
         <div className="flex min-w-0 items-center gap-2">
           <Age iso={ticket.created_at} now={now} className="whitespace-nowrap" />
-          <SlaCountdown dueAt={ticket.sla_due_at} status={ticket.status} now={now} />
+          <SlaCountdown dueAt={ticket.sla_due_at} startAt={ticket.sla_started_at ?? ticket.created_at} pausedAt={ticket.sla_paused_at} status={ticket.status} now={now} />
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
           {ticket.follower_count > 0 && (

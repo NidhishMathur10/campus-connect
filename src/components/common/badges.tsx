@@ -1,4 +1,4 @@
-import { Building, GraduationCap, Layers, Lock, ShieldAlert, ShieldQuestion } from "lucide-react";
+import { Bot, Building, GraduationCap, Layers, Lock, PauseCircle, Repeat2, ShieldAlert, ShieldQuestion } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getCategoryStyle, PRIORITY_STYLES, STATUS_STYLES } from "@/config/styles";
 import type { TicketScope } from "@/config/locations";
@@ -53,6 +53,37 @@ export function EscalatedBadge({ className }: { className?: string }) {
     <span className={cn(base, "border-danger-solid bg-danger-solid text-danger-solid-fg", className)}>
       <ShieldAlert className="size-3" />
       Escalated
+    </span>
+  );
+}
+
+/** The system picked the assignee (auto-assignment). */
+export function AutoAssignedBadge({ className }: { className?: string }) {
+  return (
+    <span className={cn(base, "border-violet-fg/30 bg-violet-bg text-violet-fg", className)} title="Assigned automatically">
+      <Bot className="size-3" />
+      Auto-assigned
+    </span>
+  );
+}
+
+/** The SLA watcher moved this ticket to another staff member after a missed deadline. */
+export function ReassignedBadge({ count, className }: { count: number; className?: string }) {
+  if (count < 1) return null;
+  return (
+    <span className={cn(base, "border-warning-fg/30 bg-warning-bg text-warning-fg", className)} title="Reassigned after a missed deadline">
+      <Repeat2 className="size-3" />
+      Reassigned{count > 1 ? ` ×${count}` : ""}
+    </span>
+  );
+}
+
+/** "Waiting for parts / external dependency": the SLA timer is paused. */
+export function WaitingBadge({ reason, className }: { reason?: string | null; className?: string }) {
+  return (
+    <span className={cn(base, "border-neutral-fg/30 bg-neutral-bg text-neutral-fg", className)} title={reason ? `Waiting: ${reason}` : "Waiting for parts / external dependency"}>
+      <PauseCircle className="size-3" />
+      Waiting on parts
     </span>
   );
 }

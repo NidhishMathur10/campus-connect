@@ -14,6 +14,11 @@ export interface Profile {
   /** WhatsApp number in E.164 (+919876543210), null until set. */
   phone: string | null;
   whatsapp_optin: boolean;
+  /** Staff availability: on-leave staff are skipped by auto-assignment. */
+  on_leave: boolean;
+  /** Buildings this staff member covers; auto-assignment tries them first. */
+  preferred_buildings: string[];
+  last_assigned_at: string | null;
   role: Role;
   department: string | null;
   hostel: string | null;
@@ -45,6 +50,16 @@ export interface PhotoAnalysis {
   observed: string;
   matches_complaint: boolean;
   notes: string;
+}
+
+/** One entry of tickets.assignment_history (an auto re-assignment). */
+export interface AssignmentHistoryEntry {
+  from_id: string | null;
+  from_name: string | null;
+  to_id: string;
+  to_name: string;
+  reason: string;
+  at: string;
 }
 
 export interface Ticket {
@@ -87,6 +102,18 @@ export interface Ticket {
   rating: number | null;
   feedback: string | null;
   sla_due_at: string | null;
+  /** The assignee was picked by the system (false = by a person). */
+  assigned_auto: boolean;
+  reassign_count: number;
+  assignment_history: AssignmentHistoryEntry[];
+  /** Start of the current SLA window (null = created_at). */
+  sla_started_at: string | null;
+  sla_reminded_at: string | null;
+  sla_breach_count: number;
+  /** Set while "Waiting for parts / external dependency" pauses the SLA timer. */
+  sla_paused_at: string | null;
+  sla_paused_seconds: number;
+  waiting_reason: string | null;
   resolved_at: string | null;
   created_at: string;
   updated_at: string;

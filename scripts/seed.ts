@@ -103,6 +103,9 @@ async function seedAccounts() {
         hostel: a.hostel ?? null,
         wing: a.wing ?? null,
         room: a.room ?? null,
+        on_leave: a.onLeave ?? false,
+        preferred_buildings: a.preferredBuildings ?? [],
+        last_assigned_at: null,
       }),
       `profile ${email}`,
     );
@@ -132,6 +135,7 @@ async function wipe() {
   must(await db.from("notifications").delete().not("id", "is", null), "wipe notifications");
   must(await db.from("email_log").delete().not("id", "is", null), "wipe email log");
   must(await db.from("moderation_log").delete().not("id", "is", null), "wipe moderation log");
+  must(await db.from("app_settings").delete().not("key", "is", null), "wipe settings");
   const { error } = await db.rpc("reset_ticket_seq");
   if (error) console.warn(`! Could not reset ticket numbers (${error.message}). Did you run schema.sql?`);
   console.log("✔ Cleared old tickets, escalations and Q&A");
@@ -505,6 +509,15 @@ async function seedTickets() {
     const at = (fraction: number) => new Date(created.getTime() + t.ago * fraction).toISOString();
     const isResolved = t.status === "Resolved" || t.status === "Closed";
 
+    // SLA: open tickets that would already be overdue get a fresh, healthy window (≈40% used), so the SLA
+    // watcher doesn't fire a burst of alerts on first load. Only the sparking socket stays overdue; it is
+    // seeded as already flagged (and escalated), so the watcher leaves it alone.
+    const naturalDue = computeSlaDueAt(t.module, t.category, priority, created);
+    const isOpen = ["Submitted", "Assigned", "In Progress", "Reopened"].includes(t.status);
+    const windowMs = naturalDue.getTime() - created.getTime();
+    const refreshed = isOpen && t.key !== "spark" && naturalDue.getTime() < now;
+    const slaDue = refreshed ? new Date(now + windowMs * 0.6) : naturalDue;
+
     const row = {
       module: t.module,
       reporter_id: reporter.id,
@@ -553,7 +566,9 @@ async function seedTickets() {
       reopen_count: t.reopenCount ?? 0,
       rating: t.rating ?? null,
       feedback: t.feedback ?? null,
-      sla_due_at: computeSlaDueAt(t.module, t.category, priority, created).toISOString(),
+      sla_due_at: slaDue.toISOString(),
+      sla_started_at: refreshed ? new Date(slaDue.getTime() - windowMs).toISOString() : null,
+      ...(t.key === "spark" ? { sla_reminded_at: new Date(now).toISOString(), sla_breach_count: 1 } : {}),
       resolved_at: isResolved ? at(0.7) : null,
       created_at: created.toISOString(),
       updated_at: at(isResolved ? 0.85 : 0.3),

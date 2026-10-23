@@ -9,6 +9,7 @@ import { LiveRefresh } from "@/components/tickets/live-refresh";
 import { requireProfile } from "@/lib/auth";
 import { briefMissing, getHomeStats, listEscalations, type EscalationTab } from "@/lib/escalation-queries";
 import { checkEscalations, TARGET_LABELS } from "@/lib/escalations";
+import { runSlaWatcher } from "@/lib/sla-watcher";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Escalations" };
@@ -27,6 +28,7 @@ export default async function EscalationsPage({ searchParams }: { searchParams: 
   const tab = TABS.find((t) => t.value === raw)?.value ?? "active";
   const viewer = { id: profile.id, role: profile.role, department: profile.department };
 
+  await runSlaWatcher();
   await checkEscalations();
   const [items, stats] = await Promise.all([listEscalations(viewer, tab), getHomeStats(viewer)]);
 

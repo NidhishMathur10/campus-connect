@@ -27,6 +27,7 @@ export interface StaffMember {
   full_name: string;
   department: string | null;
   role: Profile["role"];
+  on_leave: boolean;
 }
 
 export interface BoardStats {
@@ -108,7 +109,7 @@ export async function listAssignableStaff(): Promise<StaffMember[]> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("profiles")
-    .select("id, full_name, department, role")
+    .select("id, full_name, department, role, on_leave")
     .in("role", ASSIGNABLE_ROLES)
     .order("full_name");
   return (data ?? []) as StaffMember[];
