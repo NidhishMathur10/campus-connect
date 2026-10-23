@@ -24,7 +24,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
-import { CategoryBadge, EscalatedBadge, PriorityBadge, StatusBadge } from "@/components/common/badges";
+import { CategoryBadge, ConfidentialBadge, EscalatedBadge, PriorityBadge, StatusBadge } from "@/components/common/badges";
 import { SimpleSelect } from "@/components/common/simple-select";
 import { SafetyBadge } from "@/components/tickets/ai-bits";
 import { TicketTimeline } from "@/components/tickets/ticket-timeline";
@@ -35,7 +35,8 @@ import { Label } from "@/components/ui/label";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
-import { categoriesFor, DEPARTMENTS, MODULE_LABELS, PRIORITIES } from "@/config/routing";
+import { categoriesFor, DEPARTMENTS, MODULE_LABELS, PRIORITIES, SECURITY_DEPARTMENTS } from "@/config/routing";
+import { CONFIDENTIAL_REPORTER } from "@/config/safety";
 import { ESCALATION_REASON_LABELS, STAFF_TRANSITIONS } from "@/config/statuses";
 import { formatDateTime, formatLocation, languageName, timeAgo } from "@/lib/format";
 import type { Viewer } from "@/lib/tickets/access";
@@ -233,7 +234,14 @@ function ActionsPanel({
   const [reopenReason, setReopenReason] = useState("");
 
   const valueOptions: readonly string[] =
-    field === "category" ? categoriesFor(ticket.module) : field === "department" ? DEPARTMENTS : PRIORITIES;
+    field === "category"
+      ? categoriesFor(ticket.module)
+      : field === "department"
+        ? // Safety reports stay with the security departments; nothing else goes there.
+          ticket.module === "security"
+          ? SECURITY_DEPARTMENTS
+          : DEPARTMENTS.filter((d) => !SECURITY_DEPARTMENTS.includes(d))
+        : PRIORITIES;
 
   return (
     <Section title="Actions" icon={Wrench}>
@@ -571,7 +579,7 @@ function DrawerBody({
   onRequestMove: (req: MoveRequest) => void;
 }) {
   const now = useNow();
-  const { ticket, events, reporter, followerCount, original } = detail;
+  const { ticket, events, reporter, reporterHidden, followerCount, original } = detail;
   const ai = ticket.ai_meta;
   const translated = ticket.language !== "en" && ticket.english_text && ticket.english_text !== ticket.original_text;
   const affected = 1 + followerCount;
@@ -601,6 +609,7 @@ function DrawerBody({
                   <EscalatedBadge />
                 ))}
               {ai?.is_safety_hazard && <SafetyBadge />}
+              {ticket.is_confidential && <ConfidentialBadge />}
             </div>
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500">
               <span>Reported {formatDateTime(ticket.created_at)} ({timeAgo(ticket.created_at, now)})</span>
@@ -677,12 +686,17 @@ function DrawerBody({
       <Section title="Reporter" icon={User}>
         <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
           <div>
-            <p className="font-bold text-navy">{reporter?.full_name ?? "Student"}</p>
+            <p className="font-bold text-navy">{reporterHidden ? CONFIDENTIAL_REPORTER : (reporter?.full_name ?? "Student")}</p>
             <p className="text-slate-500">
-              {[reporter?.roll_no && `Roll ${reporter.roll_no}`, reporter?.hostel, reporter?.wing, reporter?.room && `Room ${reporter.room}`]
-                .filter(Boolean)
-                .join(" · ") || "No profile details"}
+              {reporterHidden
+                ? "The student asked to hide their name. Only the Anti-Ragging Committee and the Dean can see who reported this."
+                : [reporter?.roll_no && `Roll ${reporter.roll_no}`, reporter?.hostel, reporter?.wing, reporter?.room && `Room ${reporter.room}`]
+                    .filter(Boolean)
+                    .join(" · ") || "No profile details"}
             </p>
+            {!reporterHidden && ticket.hide_identity && (
+              <p className="mt-1 text-xs font-semibold text-rose-700">Name hidden from investigating staff — you can see it as {ticket.department === "Anti-Ragging Committee" ? "the committee" : "Dean"}.</p>
+            )}
           </div>
           <span className="inline-flex items-center gap-1.5 rounded-full bg-sky-tint px-3 py-1 text-xs font-bold text-blue-700">
             <Users className="size-3.5" /> {affected} student{affected === 1 ? "" : "s"} affected

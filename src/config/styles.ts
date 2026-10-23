@@ -1,5 +1,11 @@
 import {
   CircleHelp,
+  Eye,
+  HandMetal,
+  PackageSearch,
+  ShieldAlert,
+  ShieldQuestion,
+  UserX,
   ClipboardList,
   Droplet,
   Droplets,
@@ -43,6 +49,12 @@ export const CATEGORY_STYLES: Record<Category, CategoryStyle> = {
   "Lab Equipment": { icon: FlaskConical, className: "bg-violet-50 text-violet-700 border-violet-200" },
   "Academic Admin": { icon: ClipboardList, className: "bg-fuchsia-50 text-fuchsia-700 border-fuchsia-200" },
   Library: { icon: Library, className: "bg-purple-50 text-purple-700 border-purple-200" },
+  Ragging: { icon: UserX, className: "bg-rose-50 text-rose-700 border-rose-200" },
+  "Harassment / Bullying": { icon: ShieldAlert, className: "bg-pink-50 text-pink-700 border-pink-200" },
+  "Threat / Fight / Violence": { icon: HandMetal, className: "bg-red-50 text-red-700 border-red-200" },
+  "Theft / Lost item": { icon: PackageSearch, className: "bg-stone-50 text-stone-700 border-stone-200" },
+  "Unauthorized entry / Suspicious person": { icon: Eye, className: "bg-orange-50 text-orange-700 border-orange-200" },
+  "Other safety concern": { icon: ShieldQuestion, className: "bg-slate-50 text-slate-700 border-slate-200" },
   Other: { icon: CircleHelp, className: "bg-slate-50 text-slate-700 border-slate-200" },
 };
 

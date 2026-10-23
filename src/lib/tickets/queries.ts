@@ -93,6 +93,7 @@ export async function trackTicket(
     .from("tickets")
     .select("id, ticket_no, module, title, category, department, priority, status, building, floor, escalated, created_at, updated_at")
     .eq("ticket_no", ticketNo)
+    .neq("module", "security") // safety reports are never trackable by others
     .maybeSingle();
   if (!data) return null;
   const ticket = data as TrackedTicket;

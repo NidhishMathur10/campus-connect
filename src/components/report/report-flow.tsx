@@ -57,6 +57,9 @@ function locationOf(d: ReportDraft): ComplaintLocation {
 
 function draftFromAnalysis(a: ComplaintAnalysis): TicketDraft {
   return {
+    is_emergency: a.is_emergency,
+    confidential_choice: true,
+    hide_identity: false,
     title: a.title,
     summary: a.summary,
     extracted_issue: a.extracted_issue,
@@ -74,10 +77,13 @@ function draftFromAnalysis(a: ComplaintAnalysis): TicketDraft {
 }
 
 /** Used when the AI is unavailable: the student picks the category by hand. */
-function manualDraft(d: ReportDraft): TicketDraft {
+function manualDraft(d: ReportDraft, module: TicketModule): TicketDraft {
   const text = d.text.trim();
-  const hazard = HAZARD_WORDS.test(text);
+  const hazard = module !== "security" && HAZARD_WORDS.test(text);
   return {
+    is_emergency: false,
+    confidential_choice: true,
+    hide_identity: false,
     title: text.split(/\s+/).slice(0, 8).join(" "),
     summary: text,
     extracted_issue: "",
@@ -102,6 +108,11 @@ const QUESTIONS_INTRO: Record<string, string> = {
   hi: "शुक्रिया! सही टीम तक जल्दी पहुँचाने के लिए कुछ जानकारी और चाहिए:",
   en: "Thanks! A couple of quick questions so the right team can fix this fast:",
 };
+/** Safety & Security: gentler wording (CLAUDE.md §12). */
+const SAFETY_INTRO: Record<string, string> = {
+  hi: "हमें बताने के लिए धन्यवाद — आपने सही किया। यह रिपोर्ट गोपनीय है। बस एक-दो बातें, ताकि सही लोग मदद कर सकें:",
+  en: "Thank you for telling us — you did the right thing. This report is confidential. Just one or two things so the right people can help:",
+};
 
 /**
  * Module-agnostic report flow: form → AI chat (one follow-up round) → preview →
@@ -111,11 +122,17 @@ export function ReportFlow({
   module,
   userId,
   buildings,
+  onEmergencyChange,
+  textPlaceholder,
 }: {
   module: TicketModule;
   userId: string;
   buildings: readonly string[];
+  /** Safety & Security: called when the AI thinks the student may be in immediate danger. */
+  onEmergencyChange?: (emergency: boolean) => void;
+  textPlaceholder?: string;
 }) {
+  const isSecurity = module === "security";
   const [phase, setPhase] = useState<Phase>("form");
   const [draft, setDraft] = useState<ReportDraft>(EMPTY_DRAFT);
   const [uploaded, setUploaded] = useState<{ blob: Blob; path: string } | null>(null);
@@ -128,7 +145,7 @@ export function ReportFlow({
   const [checkingDup, setCheckingDup] = useState(false);
   const [match, setMatch] = useState<DuplicateMatch | null>(null);
   const [choiceBusy, setChoiceBusy] = useState<"metoo" | "new" | null>(null);
-  const [result, setResult] = useState<{ ticketNo: string; followed: boolean } | null>(null);
+  const [result, setResult] = useState<{ ticketNo: string; pin: string | null; followed: boolean } | null>(null);
   const busy = useRef(false); // hard guard against double submits
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -167,6 +184,10 @@ export function ReportFlow({
     setPhase("preview");
   }
 
+  function noteEmergency(a: ComplaintAnalysis) {
+    if (isSecurity && a.is_emergency) onEmergencyChange?.(true);
+  }
+
   async function submitComplaint() {
     if (busy.current) return;
     busy.current = true;
@@ -187,10 +208,11 @@ export function ReportFlow({
       });
       if (!res?.ok) {
         setAiFailed(true);
-        goPreview(manualDraft(draft));
+        goPreview(manualDraft(draft, module));
         return;
       }
       const a = res.analysis;
+      noteEmergency(a);
       setRound1(a);
       if (a.missing_fields.length > 0 && a.follow_up_questions.length > 0) return; // wait for reply
       setFinalAnalysis(a);
@@ -216,6 +238,7 @@ export function ReportFlow({
         previousPhotoAnalysis: round1.photo_analysis,
       });
       if (res?.ok) {
+        noteEmergency(res.analysis);
         setFinalAnalysis(res.analysis);
         goPreview(draftFromAnalysis(res.analysis));
       } else {
@@ -244,11 +267,12 @@ export function ReportFlow({
       return;
     }
     const rule = getRoutingRule(module, category);
+    const urgent = isSecurity ? ticket.is_emergency : ticket.is_safety_hazard;
     setTicket({
       ...ticket,
       category,
       department: rule.departments[0],
-      priority: ticket.is_safety_hazard ? "Urgent" : rule.defaultPriority,
+      priority: urgent ? "Urgent" : rule.defaultPriority,
     });
   }
 
@@ -275,6 +299,11 @@ export function ReportFlow({
     busy.current = true;
     setCheckingDup(true);
     try {
+      // Safety reports skip duplicate detection entirely.
+      if (isSecurity) {
+        await create(null);
+        return;
+      }
       const body: DuplicateRequest = {
         module,
         category: ticket.category,
@@ -314,6 +343,9 @@ export function ReportFlow({
       photo_path: photoPath,
       photo_analysis: ticket.photo_analysis,
       details_incomplete: ticket.missing_fields.length > 0,
+      confidential_choice: ticket.confidential_choice,
+      hide_identity: ticket.hide_identity,
+      is_emergency: ticket.is_emergency,
       ai: finalAnalysis
         ? {
             model: finalAnalysis.model,
@@ -332,7 +364,7 @@ export function ReportFlow({
       return;
     }
     setMatch(null);
-    setResult({ ticketNo: res.ticket_no, followed: false });
+    setResult({ ticketNo: res.ticket_no, pin: res.tracking_pin, followed: false });
     setPhase("success");
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -360,7 +392,7 @@ export function ReportFlow({
         return;
       }
       setMatch(null);
-      setResult({ ticketNo: res.ticket_no, followed: true });
+      setResult({ ticketNo: res.ticket_no, pin: null, followed: true });
       setPhase("success");
       window.scrollTo({ top: 0, behavior: "smooth" });
     } finally {
@@ -370,12 +402,28 @@ export function ReportFlow({
   }
 
   if (phase === "success" && result) {
-    return <SuccessCard ticketNo={result.ticketNo} followed={result.followed} onReportAnother={reset} />;
+    return (
+      <SuccessCard
+        ticketNo={result.ticketNo}
+        pin={result.pin}
+        followed={result.followed}
+        confidential={isSecurity}
+        onReportAnother={reset}
+      />
+    );
   }
 
   if (phase === "form") {
     return (
-      <ReportForm draft={draft} onChange={setDraft} buildings={buildings} onSubmit={submitComplaint} busy={false} />
+      <ReportForm
+        draft={draft}
+        onChange={setDraft}
+        buildings={buildings}
+        onSubmit={submitComplaint}
+        busy={false}
+        textPlaceholder={textPlaceholder}
+        showMachines={!isSecurity}
+      />
     );
   }
 
@@ -397,16 +445,22 @@ export function ReportFlow({
 
       {thinking === 1 && <AiThinking round={1} hasPhoto={!!draft.photo} />}
 
-      {aiFailed && (
-        <Bubble from="ai" tone="warning">
-          Our AI assistant is busy right now, so I couldn&apos;t read this automatically. Please pick a category
-          below and submit — staff will review it.
-        </Bubble>
-      )}
+      {aiFailed &&
+        (isSecurity ? (
+          <Bubble from="ai">
+            Thank you for telling us. I couldn&apos;t sort this automatically, and that&apos;s okay — please pick the
+            closest category below. Your report will still reach the right people, confidentially.
+          </Bubble>
+        ) : (
+          <Bubble from="ai" tone="warning">
+            Our AI assistant is busy right now, so I couldn&apos;t read this automatically. Please pick a category
+            below and submit — staff will review it.
+          </Bubble>
+        ))}
 
       {questions.length > 0 && (
         <>
-          <Bubble from="ai">{QUESTIONS_INTRO[lang]}</Bubble>
+          <Bubble from="ai">{(isSecurity ? SAFETY_INTRO : QUESTIONS_INTRO)[lang]}</Bubble>
           {questions.map((q, i) => (
             <Bubble key={i} from="ai" className="[animation-delay:120ms]">
               {q}
@@ -426,9 +480,11 @@ export function ReportFlow({
         <>
           {!aiFailed && (
             <Bubble from="ai">
-              {ticket.missing_fields.length > 0
-                ? "Thanks! A few details are still missing, but that's okay — here's your ticket. Check it and confirm."
-                : "Got it! Here's your ticket — check the details and confirm."}
+              {isSecurity
+                ? "Thank you. Here's your report — check it, choose your privacy options and submit when you're ready."
+                : ticket.missing_fields.length > 0
+                  ? "Thanks! A few details are still missing, but that's okay — here's your ticket. Check it and confirm."
+                  : "Got it! Here's your ticket — check the details and confirm."}
             </Bubble>
           )}
           <PreviewCard
@@ -438,6 +494,7 @@ export function ReportFlow({
             photoUrl={draft.photo?.previewUrl ?? null}
             onCategoryChange={changeCategory}
             onTitleChange={(title) => setTicket({ ...ticket, title })}
+            onPrivacyChange={(patch) => setTicket({ ...ticket, ...patch })}
             onConfirm={confirm}
             onEdit={editComplaint}
             busy={checkingDup || !!choiceBusy}

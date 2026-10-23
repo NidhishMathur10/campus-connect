@@ -5,6 +5,8 @@ import { ROLE_LABELS, type Role } from "@/config/roles";
 const NON_STUDENT_ROLES: Exclude<Role, "student">[] = [
   "staff",
   "academic_office",
+  "security_officer",
+  "arc",
   "warden",
   "dean",
   "hod",

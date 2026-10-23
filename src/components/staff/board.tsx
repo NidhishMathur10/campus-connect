@@ -43,6 +43,8 @@ import {
   ACADEMIC_CATEGORIES,
   DEPARTMENTS,
   HOSTEL_CATEGORIES,
+  SECURITY_CATEGORIES,
+  SECURITY_DEPARTMENTS,
   MODULE_LABELS,
   MODULES,
   PRIORITIES,
@@ -71,7 +73,7 @@ import { useMoveFlow } from "./move-dialog";
 import { Age, SlaCountdown, useNow } from "./time-bits";
 import { TicketDrawer } from "./ticket-drawer";
 
-const ALL_CATEGORIES = [...new Set<string>([...HOSTEL_CATEGORIES, ...ACADEMIC_CATEGORIES])];
+const ALL_CATEGORIES = [...new Set<string>([...HOSTEL_CATEGORIES, ...ACADEMIC_CATEGORIES, ...SECURITY_CATEGORIES])];
 const PRIORITY_RANK: Record<string, number> = { Urgent: 0, High: 1, Medium: 2, Low: 3 };
 
 interface Filters {
@@ -135,7 +137,14 @@ function FilterControls({
   showDepartment: boolean;
   stacked?: boolean;
 }) {
-  const categories = filters.module === "hostel" ? HOSTEL_CATEGORIES : filters.module === "academic" ? ACADEMIC_CATEGORIES : ALL_CATEGORIES;
+  const categories =
+    filters.module === "hostel"
+      ? HOSTEL_CATEGORIES
+      : filters.module === "academic"
+        ? ACADEMIC_CATEGORIES
+        : filters.module === "security"
+          ? SECURITY_CATEGORIES
+          : ALL_CATEGORIES;
   const cls = stacked ? "w-full" : "w-40";
   const toggle = (key: "duplicatesOnly" | "escalatedOnly", label: string, Icon: typeof Copy) => (
     <button
@@ -324,7 +333,8 @@ function TriageLane({
   const [choice, setChoice] = useState<Record<string, string | null>>({});
   const [busy, setBusy] = useState<string | null>(null);
   const [, startTransition] = useTransition();
-  const targets = DEPARTMENTS.filter((d) => d !== TRIAGE_DEPARTMENT);
+  // Hostel triage never routes into the confidential safety departments.
+  const targets = DEPARTMENTS.filter((d) => d !== TRIAGE_DEPARTMENT && !SECURITY_DEPARTMENTS.includes(d));
 
   function route(t: BoardTicket) {
     const dept = choice[t.id];

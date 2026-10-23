@@ -51,6 +51,13 @@ do $$ begin
   create type public.question_status as enum ('open','answered');
 exception when duplicate_object then null; end $$;
 
+-- Phase 5A: Safety & Security module. New enum values are only compared as text
+-- below (::text), so this file still runs in one go.
+alter type public.user_role add value if not exists 'security_officer';
+alter type public.user_role add value if not exists 'arc';
+alter type public.ticket_module add value if not exists 'security';
+alter type public.escalation_reason add value if not exists 'safety';
+
 -- ---------------------------------------------------------------------
 -- Tables
 -- ---------------------------------------------------------------------
@@ -117,6 +124,21 @@ create table if not exists public.ticket_events (
   note        text,
   created_at  timestamptz not null default now()
 );
+
+-- Phase 5A: confidential safety reports + PIN for public tracking.
+alter table public.tickets add column if not exists is_confidential boolean not null default false;
+alter table public.tickets add column if not exists hide_identity   boolean not null default false;
+
+-- 4 characters without look-alikes (no O/0/I/1).
+create or replace function public.gen_tracking_pin()
+returns text language sql volatile as $$
+  select string_agg(substr('ABCDEFGHJKLMNPQRSTUVWXYZ23456789', 1 + floor(random() * 32)::int, 1), '')
+  from generate_series(1, 4)
+$$;
+alter table public.tickets add column if not exists tracking_pin text;
+update public.tickets set tracking_pin = public.gen_tracking_pin() where tracking_pin is null;
+alter table public.tickets alter column tracking_pin set default public.gen_tracking_pin();
+alter table public.tickets alter column tracking_pin set not null;
 
 -- Phase 3: staff-only notes (hidden from students).
 alter table public.ticket_events add column if not exists is_internal boolean not null default false;
@@ -238,25 +260,34 @@ returns text language sql stable security definer set search_path = public as $$
   select department from public.profiles where id = auth.uid()
 $$;
 
--- Can the current user see this ticket? (used by events/followers policies)
+-- Can the current user see this ticket? (used by tickets/events policies)
+-- Confidential safety reports: only the reporter, the Anti-Ragging Committee (arc) for
+-- its own tickets, the ASSIGNED security officer, and the Dean. Nobody else, ever.
 create or replace function public.can_view_ticket(
   p_id uuid, p_reporter uuid, p_department text, p_assigned uuid, p_module public.ticket_module)
 returns boolean language sql stable security definer set search_path = public as $$
-  select
-    p_reporter = auth.uid()
-    or exists (select 1 from public.ticket_followers f where f.ticket_id = p_id and f.user_id = auth.uid())
-    or (public.app_role() in ('staff','academic_office') and (p_department = public.app_department() or p_assigned = auth.uid()))
-    or (public.app_role() = 'warden' and p_module = 'hostel')
-    or (public.app_role() = 'dean')
-    or (public.app_role() = 'hod' and p_module = 'academic')
+  select case
+    when p_reporter = auth.uid() then true
+    when public.app_role()::text = 'dean' then true
+    when exists (select 1 from public.tickets t where t.id = p_id and t.is_confidential) then
+      (public.app_role()::text = 'arc' and p_department = public.app_department())
+      or (public.app_role()::text = 'security_officer' and p_assigned = auth.uid())
+    else
+      exists (select 1 from public.ticket_followers f where f.ticket_id = p_id and f.user_id = auth.uid())
+      or (public.app_role()::text in ('staff','academic_office','security_officer','arc')
+          and (p_department = public.app_department() or p_assigned = auth.uid()))
+      or (public.app_role()::text = 'warden' and p_module::text = 'hostel')
+      or (public.app_role()::text = 'hod' and p_module::text = 'academic')
+  end
 $$;
 
 create or replace function public.can_manage_ticket(
   p_department text, p_assigned uuid, p_module public.ticket_module)
 returns boolean language sql stable security definer set search_path = public as $$
   select
-    (public.app_role() in ('staff','academic_office') and (p_department = public.app_department() or p_assigned = auth.uid()))
-    or (public.app_role() = 'warden' and p_module = 'hostel')
+    (public.app_role()::text in ('staff','academic_office','security_officer','arc')
+     and (p_department = public.app_department() or p_assigned = auth.uid()))
+    or (public.app_role()::text = 'warden' and p_module::text = 'hostel')
 $$;
 
 -- New auth user -> profile row. Role/department come from app_metadata,
@@ -321,8 +352,10 @@ revoke all on function public.reset_ticket_seq() from public, anon, authenticate
 grant execute on function public.reset_ticket_seq() to service_role;
 
 -- Public-safe author info for Q&A (name + role only, never roll number).
+-- Security officers get no student rows (so "Hide my name" reports can't be traced).
 create or replace view public.public_profiles as
-  select id, full_name, role from public.profiles;
+  select id, full_name, role from public.profiles
+  where public.app_role()::text is distinct from 'security_officer' or role::text <> 'student';
 revoke all on public.public_profiles from anon;
 grant select on public.public_profiles to authenticated;
 
@@ -346,7 +379,9 @@ drop policy if exists "profiles_select_own"   on public.profiles;
 drop policy if exists "profiles_select_staff" on public.profiles;
 drop policy if exists "profiles_update_own"   on public.profiles;
 create policy "profiles_select_own"   on public.profiles for select to authenticated using (id = auth.uid());
-create policy "profiles_select_staff" on public.profiles for select to authenticated using (public.app_role() <> 'student');
+-- Security officers can't read student profiles (identity of confidential reporters).
+create policy "profiles_select_staff" on public.profiles for select to authenticated
+  using (public.app_role() <> 'student' and (public.app_role()::text <> 'security_officer' or role::text <> 'student'));
 -- Students may edit their room details only via the server (role/department are protected).
 
 -- tickets

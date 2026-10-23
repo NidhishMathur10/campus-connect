@@ -10,9 +10,11 @@ import { DEMO_ACCOUNTS, DEMO_PASSWORD } from "../src/config/demo-accounts";
 import {
   computeSlaDueAt,
   getRoutingRule,
+  MODULE_LABELS,
   type Priority,
   type TicketModule,
 } from "../src/config/routing";
+import { CONFIDENTIAL_REPORTER } from "../src/config/safety";
 import type { TicketEventType, TicketStatus } from "../src/config/statuses";
 import type { Role } from "../src/config/roles";
 
@@ -159,6 +161,9 @@ interface SeedTicket {
   duplicateScore?: number;
   duplicateReason?: string;
   photo?: { observed: string; matches: boolean; notes: string };
+  /** Safety & Security: confidential report / "hide my name". */
+  confidential?: boolean;
+  hideIdentity?: boolean;
 }
 
 const TICKETS: SeedTicket[] = [
@@ -383,6 +388,28 @@ const TICKETS: SeedTicket[] = [
     issue: "Faulty classroom microphone", category: "Classroom Facilities", department: "Electrical Maintenance",
     building: "Block A", floor: "3rd", spot: "Lecture hall A-301", status: "Resolved", assignee: "suresh",
   },
+  // --- Safety & Security (CLAUDE.md §12)
+  {
+    key: "ragging", module: "security", reporter: "2616400103", ago: 20 * H, confidential: true, hideIdentity: true, escalated: true,
+    text: "Some seniors from 3rd floor called us first years to their room at night and made us do push-ups and insulted us for an hour. It happened two nights in a row. I am scared to say no.",
+    title: "First-years made to do push-ups at night", summary: "A first-year student reports that seniors called juniors to a room on the Old Hostel Boys Wing 3rd floor at night on two consecutive nights, forced them to do push-ups and insulted them for about an hour. The student feels afraid to refuse.",
+    issue: "Ragging of first-years by seniors at night", category: "Ragging",
+    building: "Old Hostel", floor: "3rd", spot: "Boys Wing, seniors' room (corridor end)", status: "Assigned", assignee: "mehra",
+  },
+  {
+    key: "theft", module: "security", reporter: "2616400102", ago: 2 * D,
+    text: "My phone was stolen from the girls wing common room while it was charging, around 9 pm yesterday. It's a blue Redmi with a cracked back cover.",
+    title: "Phone stolen from common room", summary: "A blue Redmi phone (cracked back cover) was taken while charging in the Old Hostel Girls Wing common room around 9 pm.",
+    issue: "Phone stolen while charging", category: "Theft / Lost item",
+    building: "Old Hostel", floor: "Ground", spot: "Girls Wing common room", status: "In Progress", assignee: "yadav",
+  },
+  {
+    key: "suspicious", module: "security", reporter: "2616400101", ago: 3 * H,
+    text: "A man who is not a student was walking around the New Hostel ground floor corridor and trying door handles around 11 pm.",
+    title: "Outsider trying door handles at night", summary: "An unknown adult, not a student, was seen walking the New Hostel ground floor corridor around 11 pm and trying room door handles.",
+    issue: "Suspicious person trying doors", category: "Unauthorized entry / Suspicious person",
+    building: "New Hostel", floor: "Ground", spot: "Corridor near rooms G-01 to G-20", status: "Submitted",
+  },
 ];
 
 const STATUS_ORDER: TicketStatus[] = ["Submitted", "Assigned", "In Progress", "Resolved", "Closed"];
@@ -435,7 +462,7 @@ async function seedTickets() {
       ai_meta: {
         model: "seed",
         extracted_issue: t.issue,
-        is_safety_hazard: !!t.hazard,
+        is_safety_hazard: !!t.hazard || !!rule.escalateToDean,
         category: { confidence: 0.92, reason: `Matches "${t.category}" in the routing guide (${rule.typicalIssues}).` },
         department: { confidence: 0.9, reason: `Routing guide sends ${t.category} to ${department}.` },
         priority: {
@@ -455,6 +482,8 @@ async function seedTickets() {
       spot: t.spot ?? null,
       machine_id: t.machine ?? null,
       status: t.status,
+      is_confidential: !!t.confidential,
+      hide_identity: !!t.hideIdentity,
       details_incomplete: !!t.detailsIncomplete,
       assigned_to: assignee?.id ?? null,
       duplicate_of: t.duplicateOf ? ids.get(t.duplicateOf) ?? null : null,
@@ -489,7 +518,7 @@ async function seedTickets() {
       events.push({
         ticket_id: inserted.id,
         actor_id: actor?.id ?? null,
-        actor_name: actor?.name ?? "CampusConnect AI",
+        actor_name: actor === reporter && t.hideIdentity ? CONFIDENTIAL_REPORTER : (actor?.name ?? "CampusConnect AI"),
         actor_role: actor?.role ?? null,
         type,
         from_status: from,
@@ -498,7 +527,7 @@ async function seedTickets() {
         created_at: when,
       });
 
-    ev("created", reporter, created.toISOString(), null, "Submitted", `Reported via ${t.module === "hostel" ? "Hostel & Campus" : "Education"}`);
+    ev("created", reporter, created.toISOString(), null, "Submitted", `Reported via ${MODULE_LABELS[t.module]}${t.confidential ? " (confidential)" : ""}`);
     if (t.duplicateOf) {
       ev("duplicate_flagged", null, at(0.01), null, null, `Possible duplicate (${Math.round((t.duplicateScore ?? 0) * 100)}% similar). ${t.duplicateReason ?? ""}`);
     }
@@ -513,10 +542,12 @@ async function seedTickets() {
       ev(
         "escalated",
         null,
-        t.key === "spark" ? at(0.6) : new Date(now - 2 * D).toISOString(),
+        t.key === "spark" ? at(0.6) : t.module === "security" ? at(0.001) : new Date(now - 2 * D).toISOString(),
         null,
         null,
-        "Escalated to Dean of Student Affairs for priority attention.",
+        t.module === "security"
+          ? "Escalated to the Dean of Student Affairs immediately because this is a safety report."
+          : "Escalated to Dean of Student Affairs for priority attention.",
       );
     }
     if (assignee && reached(t.status, "Resolved")) {
@@ -593,10 +624,26 @@ async function seedEscalations(ids: Map<string, string>) {
           "Have Electrical Maintenance isolate the room's socket circuit immediately and replace the socket today; move the student's charging to a safe point meanwhile.",
         created_at: new Date(Date.now() - 3 * H).toISOString(),
       },
+      {
+        module: "security",
+        ticket_id: ids.get("ragging"),
+        reason: "safety",
+        target_role: "dean",
+        affected_count: 1,
+        brief_count: 1,
+        brief_model: "seed",
+        headline: "Night-time ragging of first-years in Old Hostel",
+        brief:
+          "A first-year filed a confidential ragging report: seniors on the Old Hostel Boys Wing 3rd floor called juniors to their room on two nights in a row, made them do push-ups and insulted them for about an hour.\nThe student asked to keep their name hidden from investigating staff and says they are afraid to refuse.\nThe Anti-Ragging Committee (Dr. Mehra) has the case.",
+        urgency_reason: "Ragging is a safety and legal matter, and it has already happened twice — it is likely to happen again tonight.",
+        recommended_action:
+          "Ask the Anti-Ragging Committee to meet the first-years today, have the warden do surprise night rounds on the 3rd floor, and act under the college anti-ragging policy.",
+        created_at: new Date(Date.now() - 20 * H).toISOString(),
+      },
     ]),
     "escalations",
   );
-  console.log("✔ 2 escalations (recurring hotspot + SLA breach)");
+  console.log("✔ 3 escalations (recurring hotspot + SLA breach + safety report)");
 }
 
 // ---------------------------------------------------------------------------

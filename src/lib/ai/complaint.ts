@@ -30,7 +30,7 @@ export interface FollowUpAnswer {
 
 /** Request body for POST /api/ai/analyze. */
 export const AnalyzeRequestSchema = z.object({
-  module: z.enum(["hostel", "academic"]),
+  module: z.enum(["hostel", "academic", "security"]),
   text: z.string().trim().min(3, "Please describe the problem").max(2000),
   location: z.object({
     building: z.string().nullable(),
@@ -79,6 +79,9 @@ export function buildAnalysisSchema(module: TicketModule) {
     department: z.enum(DEPARTMENTS),
     priority: z.enum(PRIORITIES),
     is_safety_hazard: z.boolean(),
+    is_emergency: z
+      .boolean()
+      .describe("true ONLY if the student seems to be in immediate danger right now (being attacked, followed, trapped, threatened at this moment)"),
     confidence: fieldScore,
     reasons: fieldReason,
     photo_analysis: z.object({
@@ -112,6 +115,8 @@ export interface ComplaintAnalysis {
   department: Department;
   priority: Priority;
   is_safety_hazard: boolean;
+  /** Safety & Security module: the student may be in immediate danger. */
+  is_emergency: boolean;
   confidence: { category: number; department: number; priority: number };
   reasons: { category: string; department: string; priority: string };
   photo_analysis: PhotoAnalysis | null;

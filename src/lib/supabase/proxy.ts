@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
-import { canAccess, isRole, OPEN_ROUTES, PUBLIC_ROUTES, ROLE_HOME, type Role } from "@/config/roles";
+import { canAccess, isRole, OPEN_EXACT_ROUTES, OPEN_ROUTES, PUBLIC_ROUTES, ROLE_HOME, type Role } from "@/config/roles";
 
 /**
  * Runs on every page request (see src/proxy.ts):
@@ -38,7 +38,7 @@ export async function updateSession(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
   const matches = (routes: string[]) =>
     routes.some((p) => pathname === p || pathname.startsWith(`${p}/`));
-  if (matches(OPEN_ROUTES)) return response;
+  if (matches(OPEN_ROUTES) || OPEN_EXACT_ROUTES.includes(pathname)) return response;
   const isPublic = matches(PUBLIC_ROUTES);
 
   const redirectTo = (path: string) => {

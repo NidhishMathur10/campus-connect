@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ChevronRight, Clock, Copy, GitMerge, Hourglass, MapPin, Star, Users } from "lucide-react";
-import { CategoryBadge, EscalatedBadge, PriorityBadge, StatusBadge } from "@/components/common/badges";
+import { CategoryBadge, ConfidentialBadge, EscalatedBadge, PriorityBadge, StatusBadge } from "@/components/common/badges";
 import { formatLocation, timeAgo } from "@/lib/format";
 import type { MyTicket } from "@/lib/tickets/queries";
 
@@ -33,6 +33,7 @@ export function TicketCard({ ticket }: { ticket: MyTicket }) {
         <CategoryBadge category={ticket.category} />
         <PriorityBadge priority={ticket.priority} />
         {ticket.escalated && <EscalatedBadge />}
+        {ticket.is_confidential && <ConfidentialBadge />}
         {ticket.duplicate_status === "flagged" && (
           <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-700">
             <Copy className="size-3" /> Possible duplicate

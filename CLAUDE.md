@@ -65,7 +65,8 @@ General Studies, Mathematics, Programming, Physics, Basic Electrical, Introducti
 ## 4. Roles & access
 - student — self sign-up (full name, roll number, module-independent: hostel, wing, room, password). Roll number is the username; internally email = `<rollno>@campusconnect.app`. Sees only own tickets (plus tickets they joined via "Me too").
 - staff — belongs to one department; sees and manages tickets of that department.
-- warden — admin of Hostel module; sees all hostel tickets; can escalate to Dean.
+- warden — admin of Hostel module; sees all hostel tickets (never security tickets); can escalate to Dean.
+- security_officer / arc — Safety & Security module staff (see §12).
 - dean — Dean of Student Affairs; sees Hostel escalations + everything read-only.
 - hod — Head of Department; sees Academic escalations + academic tickets read-only.
 - teacher — answers Q&A; sees author roll numbers.
@@ -80,10 +81,10 @@ Seeded demo accounts (password `demo1234` for all), shown as one-click quick-log
 
 ## 5. Data model (Supabase)
 - profiles: id (= auth.users.id), full_name, roll_no (unique, nullable for non-students), role, department (nullable), hostel, wing, room, created_at
-- tickets: id, ticket_no (text, `CC-1001`, from a sequence), module ('hostel' | 'academic'), reporter_id, original_text, language ('en'|'hi'|other), english_text, title, summary, category, department, priority, ai_meta jsonb (confidence + reason per field, extracted issue, model), photo_url, photo_analysis jsonb (observed, matches_complaint, notes), building, floor, spot, machine_id, status, details_incomplete bool, assigned_to (profile id), duplicate_of (ticket id), duplicate_score, duplicate_reason, duplicate_status ('none'|'flagged'|'merged'|'dismissed'), escalated bool, reopen_count int, rating int, feedback text, sla_due_at, resolved_at, created_at, updated_at
+- tickets: id, ticket_no (text, `CC-1001`, from a sequence), tracking_pin, module ('hostel' | 'academic' | 'security'), is_confidential, hide_identity, reporter_id, original_text, language ('en'|'hi'|other), english_text, title, summary, category, department, priority, ai_meta jsonb (confidence + reason per field, extracted issue, model), photo_url, photo_analysis jsonb (observed, matches_complaint, notes), building, floor, spot, machine_id, status, details_incomplete bool, assigned_to (profile id), duplicate_of (ticket id), duplicate_score, duplicate_reason, duplicate_status ('none'|'flagged'|'merged'|'dismissed'), escalated bool, reopen_count int, rating int, feedback text, sla_due_at, resolved_at, created_at, updated_at
 - ticket_events: id, ticket_id, actor_id, actor_name, actor_role, type ('created'|'status_change'|'assigned'|'note'|'duplicate_flagged'|'merged'|'duplicate_dismissed'|'override'|'escalated'|'reopened'|'rating'|'me_too'), from_status, to_status, note, created_at — this is the student-visible progress history (internal-only types may be hidden from students).
 - ticket_followers: ticket_id, user_id (for "Me too")
-- escalations: id, module, ticket_id (nullable), hotspot_key (nullable, e.g. `hostel|Plumbing|New Hostel|2nd`), reason ('recurring'|'reopened'|'sla_breach'|'manual'), target_role ('dean'|'hod'), brief, recommended_action, affected_count, status ('open'|'acknowledged'|'resolved'), directive, created_at
+- escalations: id, module, ticket_id (nullable), hotspot_key (nullable, e.g. `hostel|Plumbing|New Hostel|2nd`), reason ('recurring'|'reopened'|'sla_breach'|'manual'|'safety'), target_role ('dean'|'hod'), brief, recommended_action, affected_count, status ('open'|'acknowledged'|'resolved'), directive, created_at
 - questions: id, author_id, subject, title, body, status ('open'|'answered'), best_answer_id, upvotes int, created_at
 - answers: id, question_id, author_id, body, created_at
 - question_votes: question_id, user_id (unique pair)
@@ -144,3 +145,37 @@ Seed must be re-runnable (clears demo data first).
 - Prefer server actions/route handlers; type everything; no secrets client-side.
 - Don't over-engineer; if something is ambiguous, pick the simplest option that satisfies this spec and note it.
 - Before finishing a phase, run `npm run build` and fix all errors.
+
+## 12. Safety & Security module (module = 'security') — Phase 5A
+Third card on the student home: "Safety & Security" — "Your report is confidential".
+
+### Routing guide — Safety & Security
+| Category | Department | Priority | Confidential |
+|---|---|---|---|
+| Ragging | Anti-Ragging Committee | Urgent | always |
+| Harassment / Bullying | Anti-Ragging Committee | Urgent | always |
+| Threat / Fight / Violence | Security Office | Urgent | always |
+| Theft / Lost item | Security Office | Medium | no |
+| Unauthorized entry / Suspicious person | Security Office | High | no |
+| Other safety concern | Security Office | Medium | student chooses |
+
+Roles (seeded, password demo1234, on quick-login): `security_officer` "Mr. Yadav – Security Officer" (department Security Office); `arc` "Dr. Mehra – Anti-Ragging Committee Nodal Officer" (department Anti-Ragging Committee). Both use the normal staff board (Confidential lock badge on cards).
+
+Confidentiality rules (enforced by RLS, not just UI):
+- `tickets.is_confidential` tickets are visible ONLY to: the reporter, `arc` (all Anti-Ragging Committee tickets), the ASSIGNED security officer (confidential Security Office tickets are auto-assigned to a security officer on create), and `dean`. Warden, HOD, other staff and other students never see them.
+- Excluded from: duplicate detection (whole security module skips it), "Me too", public tracking (whole security module), hotspots/recurring escalations (Insights shows only aggregated security counts), Q&A, and every list visible to other students/departments.
+- Optional `tickets.hide_identity` ("Hide my name from the investigating staff"): only `arc` and `dean` see the reporter; everyone else sees "Confidential reporter". Security officers cannot read student profiles via RLS.
+- Ragging / Harassment / Threat → Urgent + immediate escalation to dean with reason `safety`.
+- Department overrides cannot move a security ticket out of the security departments (or a normal ticket into them).
+
+AI for this module (`src/lib/ai/analyze.ts`, separate system prompt): calm, supportive, non-judgmental; never asks the student to justify themselves or name people; follow-ups only for WHEN and WHERE (max 2, one round). Returns `is_emergency` for immediate danger. Gemini safety settings relaxed to BLOCK_NONE for this call; if blocked/failed, the student picks the category manually and the ticket is still created — never a scary error.
+
+Emergency panel (always on the Safety report page; red when `is_emergency`): Campus Security number from `src/config/safety.ts` (placeholder) or 112; National Anti-Ragging Helpline 1800-180-5522 (24x7, toll free), helpline@antiragging.in, www.antiragging.in; tel:/mailto: links.
+
+## 13. Public ticket tracking (no login) — Phase 5A
+- `tickets.tracking_pin`: 4 chars from `ABCDEFGHJKLMNPQRSTUVWXYZ23456789` (no O/0/I/1), DB default on insert; backfilled. Shown on the success screen and the student's ticket page ("Ticket CC-1043 · PIN K7Q2" + copy).
+- "Track a ticket" card on /login (ticket number + PIN) and a public `/track` page; data from `POST /api/track`.
+- Response contains ONLY: ticket no, module, category, building (no floor/spot), status, priority, created date, and public timeline events (status + time + generic actor role like "Estate staff"). No names, complaint text, photos or notes.
+- Security tickets, wrong numbers and wrong PINs all return the same "Ticket not found".
+- Rate limit: 10 lookups per IP per 10 minutes (in-memory, per server instance).
+- The logged-in "Track by ticket number" keeps working (it also never shows security tickets).

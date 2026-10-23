@@ -1,9 +1,10 @@
-export const MODULES = ["hostel", "academic"] as const;
+export const MODULES = ["hostel", "academic", "security"] as const;
 export type TicketModule = (typeof MODULES)[number];
 
 export const MODULE_LABELS: Record<TicketModule, string> = {
   hostel: "Hostel & Campus",
   academic: "Education",
+  security: "Safety & Security",
 };
 
 export const PRIORITIES = ["Low", "Medium", "High", "Urgent"] as const;
@@ -27,6 +28,8 @@ export const DEPARTMENTS = [
   "Lab In-charge",
   "Library Staff",
   "Academic Office",
+  "Anti-Ragging Committee",
+  "Security Office",
 ] as const;
 export type Department = (typeof DEPARTMENTS)[number];
 
@@ -57,7 +60,17 @@ export const ACADEMIC_CATEGORIES = [
 ] as const;
 export type AcademicCategory = (typeof ACADEMIC_CATEGORIES)[number];
 
-export type Category = HostelCategory | AcademicCategory;
+export const SECURITY_CATEGORIES = [
+  "Ragging",
+  "Harassment / Bullying",
+  "Threat / Fight / Violence",
+  "Theft / Lost item",
+  "Unauthorized entry / Suspicious person",
+  "Other safety concern",
+] as const;
+export type SecurityCategory = (typeof SECURITY_CATEGORIES)[number];
+
+export type Category = HostelCategory | AcademicCategory | SecurityCategory;
 
 export interface RoutingRule {
   category: Category;
@@ -69,6 +82,10 @@ export interface RoutingRule {
   slaHours: number;
   /** Details the AI must collect for this category (besides building/floor/spot). */
   requiredDetails?: string;
+  /** Safety & Security only: is the report confidential (always / never / student decides)? */
+  confidential?: "always" | "never" | "choose";
+  /** Safety & Security only: escalate to the Dean as soon as it is created. */
+  escalateToDean?: boolean;
 }
 
 export const HOSTEL_ROUTING: RoutingRule[] = [
@@ -93,16 +110,36 @@ export const ACADEMIC_ROUTING: RoutingRule[] = [
   { category: "Other", typicalIssues: "—", departments: ["Academic Office"], defaultPriority: "Low", slaHours: 72 },
 ];
 
+export const SECURITY_ROUTING: RoutingRule[] = [
+  { category: "Ragging", typicalIssues: "seniors forcing, humiliating or intimidating juniors", departments: ["Anti-Ragging Committee"], defaultPriority: "Urgent", slaHours: 2, confidential: "always", escalateToDean: true },
+  { category: "Harassment / Bullying", typicalIssues: "repeated teasing, threats, sexual or online harassment, bullying", departments: ["Anti-Ragging Committee"], defaultPriority: "Urgent", slaHours: 2, confidential: "always", escalateToDean: true },
+  { category: "Threat / Fight / Violence", typicalIssues: "physical fights, assault, threats of violence", departments: ["Security Office"], defaultPriority: "Urgent", slaHours: 2, confidential: "always", escalateToDean: true },
+  { category: "Theft / Lost item", typicalIssues: "stolen or lost phone, laptop, bicycle, wallet", departments: ["Security Office"], defaultPriority: "Medium", slaHours: 24, confidential: "never" },
+  { category: "Unauthorized entry / Suspicious person", typicalIssues: "outsiders in the hostel, someone loitering, forced doors", departments: ["Security Office"], defaultPriority: "High", slaHours: 4, confidential: "never" },
+  { category: "Other safety concern", typicalIssues: "any other safety worry", departments: ["Security Office"], defaultPriority: "Medium", slaHours: 24, confidential: "choose" },
+];
+
 export const ROUTING: Record<TicketModule, RoutingRule[]> = {
   hostel: HOSTEL_ROUTING,
   academic: ACADEMIC_ROUTING,
+  security: SECURITY_ROUTING,
 };
+
+/** Departments that handle Safety & Security tickets (confidential work stays inside them). */
+export const SECURITY_DEPARTMENTS: Department[] = ["Anti-Ragging Committee", "Security Office"];
+
+/** Is a security ticket of this category confidential? (`choice` = the student's toggle for "choose"). */
+export function isConfidentialCategory(category: string, choice = false): boolean {
+  const rule = SECURITY_ROUTING.find((r) => r.category === category);
+  if (!rule) return false;
+  return rule.confidential === "always" || (rule.confidential === "choose" && choice);
+}
 
 export const SAFETY_HAZARDS =
   "sparking, exposed wires, flooding near electricals, gas smell, fire risk, injury risk";
 
 export function categoriesFor(module: TicketModule): readonly Category[] {
-  return module === "hostel" ? HOSTEL_CATEGORIES : ACADEMIC_CATEGORIES;
+  return module === "hostel" ? HOSTEL_CATEGORIES : module === "academic" ? ACADEMIC_CATEGORIES : SECURITY_CATEGORIES;
 }
 
 export function getRoutingRule(module: TicketModule, category: string): RoutingRule {
@@ -132,5 +169,7 @@ export function routingGuidePromptText(module: TicketModule): string {
         `| ${r.category} | ${r.typicalIssues} | ${r.departmentNote ?? r.departments.join(" / ")} | ${r.defaultPriority} | ${r.slaHours}h |`,
     )
     .join("\n");
-  return `| Category | Typical issues | Department | Default priority | SLA |\n|---|---|---|---|---|\n${rows}\n\nPriority rule: Urgent (SLA 2h) overrides any category for safety hazards — ${SAFETY_HAZARDS}.`;
+  const table = `| Category | Typical issues | Department | Default priority | SLA |\n|---|---|---|---|---|\n${rows}`;
+  if (module === "security") return table;
+  return `${table}\n\nPriority rule: Urgent (SLA 2h) overrides any category for safety hazards — ${SAFETY_HAZARDS}.`;
 }

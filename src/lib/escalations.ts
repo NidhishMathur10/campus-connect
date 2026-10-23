@@ -17,7 +17,7 @@ import { formatLocation } from "@/lib/format";
 
 type Admin = ReturnType<typeof createAdminClient>;
 
-export const ESCALATION_TARGET: Record<TicketModule, "dean" | "hod"> = { hostel: "dean", academic: "hod" };
+export const ESCALATION_TARGET: Record<TicketModule, "dean" | "hod"> = { hostel: "dean", academic: "hod", security: "dean" };
 export const TARGET_LABELS: Record<"dean" | "hod", string> = {
   dean: "Dean of Student Affairs",
   hod: "Head of Department",
@@ -244,6 +244,40 @@ export async function createManualEscalation(input: {
   });
   scheduleBriefs([data.id]);
   return { ok: true, id: data.id };
+}
+
+// ---------------------------------------------------------------------------
+// Safety reports (ragging / harassment / threats) go straight to the Dean
+// ---------------------------------------------------------------------------
+export async function createSafetyEscalation(ticket: Pick<Ticket, "id" | "category" | "title">): Promise<void> {
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from("escalations")
+    .insert({
+      module: "security",
+      ticket_id: ticket.id,
+      reason: "safety",
+      target_role: "dean",
+      affected_count: 1,
+      // Placeholder until Gemini writes the brief.
+      brief: `A student filed a confidential ${ticket.category.toLowerCase()} report: ${ticket.title}.`,
+    })
+    .select("id")
+    .single();
+  if (error || !data) {
+    if (error?.code !== "23505") console.error("[createSafetyEscalation]", error?.message);
+    return;
+  }
+  await admin.from("tickets").update({ escalated: true }).eq("id", ticket.id);
+  await admin.from("ticket_events").insert({
+    ticket_id: ticket.id,
+    actor_id: null,
+    actor_name: "CampusConnect",
+    actor_role: null,
+    type: "escalated",
+    note: `Escalated to the ${TARGET_LABELS.dean} immediately because this is a safety report.`,
+  });
+  scheduleBriefs([data.id]);
 }
 
 // ---------------------------------------------------------------------------

@@ -59,7 +59,42 @@ function requiredDetailsText(module: TicketModule): string {
     .join("\n");
 }
 
+/** Safety & Security: separate, supportive prompt (CLAUDE.md §12). */
+function securitySystemPrompt(): string {
+  return `You are the confidential safety-report assistant of CampusConnect at ${COLLEGE_NAME}, an Indian college.
+A student is reporting something that made them feel unsafe: ragging, harassment, bullying, a threat or fight, theft, or a suspicious person. They may write in English, Hindi or Hinglish.
+Your job is to understand the report calmly and route it to the right people. The student may be scared or upset.
+
+ROUTING GUIDE (Safety & Security module):
+${routingGuidePromptText("security")}
+
+CAMPUS LOCATIONS:
+${locationsPromptText()}
+
+TONE (very important):
+- Calm, warm, supportive and non-judgmental. Thank them for speaking up.
+- NEVER ask the student to justify themselves, prove anything, or explain why they did not report earlier.
+- NEVER ask for names of the people involved or of witnesses. If names were given, keep them only in english_text.
+- Do not give legal or medical advice.
+
+RULES:
+1. language: "en" for English, "hi" for Hindi (Devanagari or romanised Hinglish), otherwise the ISO 639-1 code.
+2. english_text: a faithful English translation (if already English, a lightly cleaned copy).
+3. title (max 8 words, neutral, no names), summary (2-3 factual sentences for the investigating staff — no names) and extracted_issue are ALWAYS in English.
+4. Pick category and department ONLY from the routing guide. Use the guide's priority.
+5. is_emergency = true ONLY if the student may be in immediate danger right now (being attacked, followed, locked in, threatened at this moment, injured). Then priority = "Urgent".
+6. is_safety_hazard: true for ragging, harassment, threats or violence.
+7. confidence (0-1) and a one-sentence reason for category, department and priority.
+8. Photo: if attached, describe it neutrally; otherwise observed = "", matches_complaint = true, notes = "".
+9. extracted_location: building / floor / spot from the text or answers, using the exact names from the list. Empty string when not mentioned.
+10. The ONLY details you may ask about are WHEN it happened and WHERE it happened. missing_fields may contain only "when" and/or "where". "where" is known if a building is in the form or the text.
+11. follow_up_questions: at most 2 short, gentle questions (only about when / where), in the SAME language and script the student used. Empty list when nothing is missing.
+   - Devanagari Hindi example: "हमें बताने के लिए धन्यवाद। यह लगभग कब हुआ था — कौन सा दिन और कितने बजे?"
+   - English example: "Thank you for telling us. Roughly when did this happen?"`;
+}
+
 function systemPrompt(module: TicketModule): string {
+  if (module === "security") return securitySystemPrompt();
   return `You are the complaint intake assistant of CampusConnect at ${COLLEGE_NAME}, an Indian college.
 Students describe problems informally in English, Hindi or Hinglish. Turn each complaint into a clear, structured ticket.
 
@@ -136,7 +171,16 @@ function normalise(
   const department: Department = rule.departments.includes(raw.department)
     ? raw.department
     : rule.departments[0];
-  const priority = raw.is_safety_hazard ? "Urgent" : raw.priority;
+  const isSecurity = module === "security";
+  const isEmergency = isSecurity && raw.is_emergency;
+  // Safety reports use the guide's priority (Urgent for ragging/harassment/threats).
+  const priority = isEmergency
+    ? "Urgent"
+    : isSecurity
+      ? rule.defaultPriority
+      : raw.is_safety_hazard
+        ? "Urgent"
+        : raw.priority;
 
   const ex = raw.extracted_location;
   const location: ComplaintLocation = {
@@ -145,6 +189,32 @@ function normalise(
     spot: input.location.spot?.trim() || ex.spot.trim() || null,
     machine_id: input.location.machine_id || ex.machine_id.trim().toUpperCase() || null,
   };
+
+  // Safety reports only ever ask "when" and "where".
+  if (isSecurity) {
+    const gaps = raw.missing_fields.map((m) => m.toLowerCase());
+    const missingWhen = gaps.some((m) => /when|time|date|day/.test(m));
+    const missingWhere = !location.building && !location.spot;
+    return {
+      language: (raw.language || "en").toLowerCase().slice(0, 5),
+      english_text: raw.english_text || input.text,
+      title: raw.title.split(/\s+/).slice(0, 8).join(" "),
+      summary: raw.summary,
+      extracted_issue: raw.extracted_issue,
+      category,
+      department,
+      priority,
+      is_safety_hazard: !!rule.escalateToDean || raw.is_safety_hazard,
+      is_emergency: isEmergency,
+      confidence: raw.confidence,
+      reasons: raw.reasons,
+      photo_analysis: input.photo ? raw.photo_analysis : (input.previousPhotoAnalysis ?? null),
+      location,
+      missing_fields: [missingWhen && "when", missingWhere && "where"].filter((m): m is string => !!m),
+      follow_up_questions: input.followUp || (!missingWhen && !missingWhere) ? [] : raw.follow_up_questions.slice(0, 2),
+      model,
+    };
+  }
 
   // Deterministic safety net for location gaps the model may have missed.
   const missing = [...raw.missing_fields];
@@ -177,6 +247,7 @@ function normalise(
     department,
     priority,
     is_safety_hazard: raw.is_safety_hazard,
+    is_emergency: false,
     confidence: raw.confidence,
     reasons: raw.reasons,
     photo_analysis: photo,
@@ -199,6 +270,7 @@ export async function analyzeComplaint(
     system: systemPrompt(input.module),
     prompt,
     timeoutMs: input.photo ? 35_000 : 25_000,
+    relaxedSafety: input.module === "security",
   });
 
   if (!result.ok) return { ok: false, error: result.error, model: result.model, ms: result.ms };

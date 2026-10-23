@@ -7,6 +7,8 @@ import {
   computeSlaDueAt,
   DEPARTMENTS,
   PRIORITIES,
+  SECURITY_DEPARTMENTS,
+  type Department,
   type Priority,
 } from "@/config/routing";
 import { canTransition, NOTE_REQUIRED_STATUSES, TICKET_STATUSES, type TicketStatus } from "@/config/statuses";
@@ -209,6 +211,17 @@ export async function overrideTicketField(
     update.sla_due_at = computeSlaDueAt(ticket.module, ticket.category, value as Priority, new Date(ticket.created_at)).toISOString();
   }
   if (field === "department") {
+    // Confidential safety work must stay inside the security departments (and vice versa).
+    const isSecurityDept = SECURITY_DEPARTMENTS.includes(value as Department);
+    if (isSecurityDept !== (ticket.module === "security")) {
+      return {
+        ok: false,
+        error:
+          ticket.module === "security"
+            ? "Safety reports can only go to the Anti-Ragging Committee or the Security Office."
+            : "Only Safety & Security reports can go to that department.",
+      };
+    }
     // Reroute: the old assignee belongs to the old department, so release the ticket.
     if (ticket.assigned_to) {
       const { data: assignee } = await admin.from("profiles").select("department").eq("id", ticket.assigned_to).maybeSingle();

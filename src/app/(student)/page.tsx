@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, Building2, GraduationCap, Search, Ticket } from "lucide-react";
+import { ArrowRight, Building2, GraduationCap, Lock, Search, ShieldCheck, Ticket } from "lucide-react";
 import { TrackBox } from "@/components/tickets/track-box";
 import { requireProfile } from "@/lib/auth";
 import { COLLEGE_NAME } from "@/config/college";
@@ -23,7 +23,7 @@ export default async function StudentHome() {
         </p>
       </div>
 
-      <div className="grid gap-5 md:grid-cols-2">
+      <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
         {/* Hostel & Campus — navy hero card */}
         <Link
           href="/hostel"
@@ -78,6 +78,28 @@ export default async function StudentHome() {
             })}
           </div>
           <span className="absolute right-6 bottom-6 grid size-11 place-items-center rounded-full bg-navy text-white transition-transform group-hover:translate-x-1">
+            <ArrowRight className="size-5" />
+          </span>
+        </Link>
+
+        {/* Safety & Security — calm white card with a rose accent */}
+        <Link
+          href="/safety"
+          className="group relative flex min-h-72 animate-slide-up flex-col overflow-hidden rounded-3xl border border-rose-200 bg-white p-7 shadow-xl shadow-rose-900/5 transition-transform [animation-delay:160ms] hover:-translate-y-1 md:col-span-2 xl:col-span-1"
+        >
+          <div className="absolute -top-16 -right-16 size-56 rounded-full border-[28px] border-rose-200/50" />
+          <div className="relative grid size-14 place-items-center rounded-2xl bg-rose-600 text-white">
+            <ShieldCheck className="size-7" />
+          </div>
+          <p className="eyebrow relative mt-6 text-rose-600">Module 3</p>
+          <h2 className="relative mt-1 text-2xl font-extrabold tracking-tight text-navy sm:text-3xl">Safety &amp; Security</h2>
+          <p className="relative mt-2 max-w-sm text-sm text-slate-600">
+            Ragging, harassment, threats, theft or a suspicious person — tell us safely.
+          </p>
+          <p className="relative mt-auto inline-flex w-fit items-center gap-1.5 rounded-full bg-rose-50 px-3 py-1.5 text-xs font-bold text-rose-700">
+            <Lock className="size-3.5" /> Your report is confidential
+          </p>
+          <span className="absolute right-6 bottom-6 grid size-11 place-items-center rounded-full bg-rose-600 text-white transition-transform group-hover:translate-x-1">
             <ArrowRight className="size-5" />
           </span>
         </Link>

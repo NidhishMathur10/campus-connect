@@ -4,6 +4,7 @@ import {
   House,
   LayoutDashboard,
   MessagesSquare,
+  ShieldCheck,
   Siren,
   Ticket,
   Building2,
@@ -22,6 +23,7 @@ export const STUDENT_NAV: NavItem[] = [
   { href: "/", label: "Home", icon: House },
   { href: "/hostel", label: "Hostel", icon: Building2 },
   { href: "/education", label: "Education", icon: GraduationCap },
+  { href: "/safety", label: "Safety", icon: ShieldCheck },
   { href: "/tickets", label: "My Tickets", icon: Ticket },
 ];
 
@@ -35,6 +37,8 @@ const QA: NavItem = { href: "/qa", label: "Q&A Board", icon: MessagesSquare };
 export const STAFF_NAV: Record<Exclude<Role, "student">, NavItem[]> = {
   staff: [BOARD, HISTORY],
   academic_office: [BOARD, HISTORY, QA],
+  security_officer: [BOARD, HISTORY],
+  arc: [BOARD, HISTORY],
   warden: [BOARD, HISTORY, INSIGHTS, ESCALATIONS],
   dean: [ESCALATIONS, INSIGHTS, BOARD, HISTORY, QA],
   hod: [ESCALATIONS, INSIGHTS, BOARD, HISTORY, QA],

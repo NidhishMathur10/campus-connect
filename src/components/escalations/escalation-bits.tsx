@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Clock, MapPin, Repeat, RotateCcw, ShieldAlert, Siren, Timer, Users, type LucideIcon } from "lucide-react";
+import { Clock, Lock, MapPin, Repeat, RotateCcw, ShieldAlert, Siren, Timer, Users, type LucideIcon } from "lucide-react";
 import { ESCALATION_REASON_LABELS } from "@/config/statuses";
 import type { EscalationListItem } from "@/lib/escalation-queries";
 import { timeAgo } from "@/lib/format";
@@ -11,6 +11,7 @@ const REASON_STYLES: Record<EscalationReason, { icon: LucideIcon; className: str
   reopened: { icon: RotateCcw, className: "bg-rose-100 text-rose-800 border-rose-200" },
   sla_breach: { icon: Timer, className: "bg-red-600 text-white border-red-600" },
   manual: { icon: ShieldAlert, className: "bg-slate-800 text-white border-slate-800" },
+  safety: { icon: Lock, className: "bg-rose-600 text-white border-rose-600" },
 };
 
 const STATUS_STYLES: Record<EscalationStatus, string> = {

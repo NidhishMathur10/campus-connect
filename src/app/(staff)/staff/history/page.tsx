@@ -4,7 +4,7 @@ import { Search } from "lucide-react";
 import { PageHeader } from "@/components/common/page-header";
 import { HistoryView } from "@/components/staff/history-view";
 import { Button } from "@/components/ui/button";
-import { ACADEMIC_CATEGORIES, HOSTEL_CATEGORIES } from "@/config/routing";
+import { ACADEMIC_CATEGORIES, HOSTEL_CATEGORIES, SECURITY_CATEGORIES } from "@/config/routing";
 import { TICKET_STATUSES } from "@/config/statuses";
 import { requireProfile } from "@/lib/auth";
 import { normaliseTicketNo } from "@/lib/format";
@@ -30,7 +30,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 }
 
 export default async function HistoryPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
-  const profile = await requireProfile(["staff", "academic_office", "warden", "dean", "hod"]);
+  const profile = await requireProfile(["staff", "academic_office", "security_officer", "arc", "warden", "dean", "hod"]);
   const sp = await searchParams;
   const filters = parseHistoryFilters(sp);
   const selected = sp.t ? normaliseTicketNo(sp.t) : null;
@@ -47,9 +47,11 @@ export default async function HistoryPage({ searchParams }: { searchParams: Prom
       ? HOSTEL_CATEGORIES
       : profile.role === "hod"
         ? ACADEMIC_CATEGORIES
-        : [...new Set<string>([...HOSTEL_CATEGORIES, ...ACADEMIC_CATEGORIES])];
+        : profile.role === "security_officer" || profile.role === "arc"
+          ? SECURITY_CATEGORIES
+          : [...new Set<string>([...HOSTEL_CATEGORIES, ...ACADEMIC_CATEGORIES, ...(profile.role === "dean" ? SECURITY_CATEGORIES : [])])];
   const assignees =
-    profile.role === "staff" || profile.role === "academic_office"
+    ["staff", "academic_office", "security_officer", "arc"].includes(profile.role)
       ? staff.filter((s) => s.department === profile.department)
       : staff;
 

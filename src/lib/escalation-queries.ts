@@ -7,11 +7,12 @@ import { createClient } from "@/lib/supabase/server";
 import type { Viewer } from "@/lib/tickets/access";
 import type { Escalation, EscalationStatus, Ticket, TicketEvent } from "@/lib/types";
 
-/** Whose inbox: Dean → hostel escalations, HOD → academic, warden → hostel (view only). */
-export function escalationModule(viewer: Viewer): TicketModule | null {
-  if (viewer.role === "dean" || viewer.role === "warden") return "hostel";
-  if (viewer.role === "hod") return "academic";
-  return null;
+/** Whose inbox: Dean → hostel + safety escalations, HOD → academic, warden → hostel (view only). */
+export function escalationModules(viewer: Viewer): TicketModule[] {
+  if (viewer.role === "dean") return ["hostel", "security"];
+  if (viewer.role === "warden") return ["hostel"];
+  if (viewer.role === "hod") return ["academic"];
+  return [];
 }
 
 /** Only the target (Dean / HOD) acknowledges, adds directives and resolves. */
@@ -28,10 +29,10 @@ export interface EscalationListItem extends Escalation {
 }
 
 export async function listEscalations(viewer: Viewer, tab: EscalationTab): Promise<EscalationListItem[]> {
-  const scopeModule = escalationModule(viewer);
-  if (!scopeModule) return [];
+  const modules = escalationModules(viewer);
+  if (modules.length === 0) return [];
   const supabase = await createClient(); // RLS: dean/hod/warden only see their part
-  let q = supabase.from("escalations").select("*").eq("module", scopeModule).order("created_at", { ascending: false }).limit(100);
+  let q = supabase.from("escalations").select("*").in("module", modules).order("created_at", { ascending: false }).limit(100);
   if (tab === "active") q = q.in("status", ["open", "acknowledged"]);
   else if (tab !== "all") q = q.eq("status", tab);
   const { data, error } = await q;
@@ -61,11 +62,11 @@ export interface EscalationDetail {
 
 export async function getEscalationDetail(id: string, viewer: Viewer): Promise<EscalationDetail | null> {
   if (!/^[0-9a-f-]{36}$/i.test(id)) return null;
-  const scopeModule = escalationModule(viewer);
+  const modules = escalationModules(viewer);
   const supabase = await createClient();
   const { data } = await supabase.from("escalations").select("*").eq("id", id).maybeSingle();
   const escalation = data as Escalation | null;
-  if (!escalation || escalation.module !== scopeModule) return null;
+  if (!escalation || !modules.includes(escalation.module)) return null;
 
   const admin = createAdminClient();
   const tickets = await linkedTickets(admin, escalation);
@@ -107,14 +108,14 @@ export interface HomeStats {
 
 /** Key numbers for the Dean/HOD home (top of the Escalations page). */
 export async function getHomeStats(viewer: Viewer): Promise<HomeStats | null> {
-  const scopeModule = escalationModule(viewer);
-  if (!scopeModule) return null;
+  const modules = escalationModules(viewer);
+  if (modules.length === 0) return null;
   const supabase = await createClient();
   const since = new Date(Date.now() - 30 * 86_400_000).toISOString();
   const [escRes, ticketsRes, closedRes] = await Promise.all([
-    supabase.from("escalations").select("status").eq("module", scopeModule).in("status", ["open", "acknowledged"]),
-    supabase.from("tickets").select("status, sla_due_at").eq("module", scopeModule).in("status", OPEN_STATUSES),
-    supabase.from("tickets").select("rating").eq("module", scopeModule).eq("status", "Closed").gte("updated_at", since),
+    supabase.from("escalations").select("status").in("module", modules).in("status", ["open", "acknowledged"]),
+    supabase.from("tickets").select("status, sla_due_at").in("module", modules).in("status", OPEN_STATUSES),
+    supabase.from("tickets").select("rating").in("module", modules).eq("status", "Closed").gte("updated_at", since),
   ]);
   const esc = escRes.data ?? [];
   const open = ticketsRes.data ?? [];

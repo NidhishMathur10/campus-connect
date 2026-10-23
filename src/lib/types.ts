@@ -40,7 +40,13 @@ export interface PhotoAnalysis {
 export interface Ticket {
   id: string;
   ticket_no: string;
+  /** 4-character PIN for public tracking without login. */
+  tracking_pin: string;
   module: TicketModule;
+  /** Safety & Security: visible only to reporter, arc, assigned security officer and dean (RLS). */
+  is_confidential: boolean;
+  /** Safety & Security: only arc and dean may see who reported it. */
+  hide_identity: boolean;
   reporter_id: string;
   original_text: string;
   language: string;
@@ -89,7 +95,7 @@ export interface TicketEvent {
   created_at: string;
 }
 
-export type EscalationReason = "recurring" | "reopened" | "sla_breach" | "manual";
+export type EscalationReason = "recurring" | "reopened" | "sla_breach" | "manual" | "safety";
 export type EscalationStatus = "open" | "acknowledged" | "resolved";
 
 export interface Escalation {

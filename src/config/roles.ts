@@ -6,6 +6,8 @@ export const ROLES = [
   "hod",
   "teacher",
   "academic_office",
+  "security_officer",
+  "arc",
 ] as const;
 export type Role = (typeof ROLES)[number];
 
@@ -17,6 +19,8 @@ export const ROLE_LABELS: Record<Role, string> = {
   hod: "Head of Department",
   teacher: "Teacher",
   academic_office: "Academic Office",
+  security_officer: "Security Officer",
+  arc: "Anti-Ragging Committee",
 };
 
 export function isRole(value: unknown): value is Role {
@@ -28,6 +32,8 @@ export const ROLE_HOME: Record<Role, string> = {
   student: "/",
   staff: "/staff",
   academic_office: "/staff",
+  security_officer: "/staff",
+  arc: "/staff",
   warden: "/staff",
   dean: "/escalations",
   hod: "/escalations",
@@ -39,12 +45,13 @@ export const ROLE_HOME: Record<Role, string> = {
  * Routes not listed here are open to every signed-in user.
  */
 export const ROUTE_ACCESS: { prefix: string; roles: Role[] }[] = [
-  { prefix: "/staff", roles: ["staff", "academic_office", "warden", "dean", "hod"] },
+  { prefix: "/staff", roles: ["staff", "academic_office", "security_officer", "arc", "warden", "dean", "hod"] },
   { prefix: "/insights", roles: ["warden", "dean", "hod"] },
   { prefix: "/escalations", roles: ["warden", "dean", "hod"] },
   { prefix: "/qa", roles: ["teacher", "academic_office", "hod", "dean"] },
   { prefix: "/hostel", roles: ["student"] },
   { prefix: "/education", roles: ["student"] },
+  { prefix: "/safety", roles: ["student"] },
   { prefix: "/tickets", roles: ["student"] },
 ];
 
@@ -59,5 +66,8 @@ export function canAccess(role: Role, pathname: string): boolean {
 /** Routes for signed-out users (signed-in users get sent to their home). */
 export const PUBLIC_ROUTES = ["/login", "/signup"];
 
-/** Routes anyone can open, signed in or not. */
+/** Routes anyone can open, signed in or not (prefix match). */
 export const OPEN_ROUTES = ["/account-issue"];
+
+/** Exact paths anyone can open, signed in or not ("/track" is public; "/track/CC-1001" needs login). */
+export const OPEN_EXACT_ROUTES = ["/track"];

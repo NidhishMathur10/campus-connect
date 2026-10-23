@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { AlertCircle, Building2, Clock, Copy, GitMerge, Languages, MapPin, Sparkles, Star, Timer, Users } from "lucide-react";
-import { CategoryBadge, EscalatedBadge, PriorityBadge, StatusBadge } from "@/components/common/badges";
+import { AlertCircle, Building2, Clock, Copy, GitMerge, Languages, Lock, MapPin, Sparkles, Star, Timer, Users } from "lucide-react";
+import { CategoryBadge, ConfidentialBadge, EscalatedBadge, PriorityBadge, StatusBadge } from "@/components/common/badges";
 import { MODULE_LABELS } from "@/config/routing";
 import { OPEN_STATUSES } from "@/config/statuses";
 import { formatDateTime, formatLocation, languageName, timeAgo } from "@/lib/format";
@@ -8,6 +8,7 @@ import type { TrackedTicket } from "@/lib/tickets/queries";
 import type { Ticket, TicketEvent } from "@/lib/types";
 import { Confidence, PhotoAnalysisBox, SafetyBadge } from "./ai-bits";
 import { LiveRefresh } from "./live-refresh";
+import { PinChip } from "./pin-chip";
 import { ResolutionPanel } from "./resolution-panel";
 import { TicketTimeline } from "./ticket-timeline";
 
@@ -84,6 +85,7 @@ export function TicketDetail({
         extra={
           <>
             {ai?.is_safety_hazard && <SafetyBadge />}
+            {ticket.is_confidential && <ConfidentialBadge />}
             {ticket.duplicate_status === "flagged" && (
               <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-700">
                 <Copy className="size-3" /> Possible duplicate — staff reviewing
@@ -97,6 +99,15 @@ export function TicketDetail({
           </>
         }
       />
+
+      {isReporter &&
+        (ticket.module === "security" ? (
+          <p className="-mt-3 mb-6 flex items-center gap-1.5 text-sm font-semibold text-slate-500">
+            <Lock className="size-4" /> Safety reports can&apos;t be tracked publicly — only here, while logged in.
+          </p>
+        ) : (
+          <PinChip ticketNo={ticket.ticket_no} pin={ticket.tracking_pin} className="-mt-3 mb-6" />
+        ))}
 
       <div className="grid gap-5 lg:grid-cols-[1fr_380px]">
         <div className="space-y-5">

@@ -54,7 +54,7 @@ export default async function EscalationsPage({ searchParams }: { searchParams: 
   return (
     <>
       <PageHeader
-        eyebrow={isTarget ? `${inbox} · ${profile.role === "hod" ? "Academic" : "Hostel & Campus"}` : "Hostel escalations · view only"}
+        eyebrow={isTarget ? `${inbox} · ${profile.role === "hod" ? "Academic" : "Hostel & Campus + Safety"}` : "Hostel escalations · view only"}
         title={isTarget ? `Good to see you, ${profile.full_name}` : "Escalations"}
         description="Recurring problems, repeated reopens, missed deadlines and manual escalations — each with an AI-written brief."
         actions={<LiveRefresh className="self-center" />}

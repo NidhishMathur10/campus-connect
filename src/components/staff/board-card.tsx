@@ -1,7 +1,7 @@
 "use client";
 
 import { ArrowRight, Copy, Hourglass, MapPin, MoreHorizontal, RotateCcw, Users } from "lucide-react";
-import { CategoryBadge, EscalatedBadge, PriorityBadge } from "@/components/common/badges";
+import { CategoryBadge, ConfidentialBadge, EscalatedBadge, PriorityBadge } from "@/components/common/badges";
 import { initials } from "@/components/shell/user-menu";
 import { Stars } from "@/components/tickets/ticket-card";
 import { Button } from "@/components/ui/button";
@@ -67,6 +67,7 @@ export function TicketFlags({ ticket }: { ticket: BoardTicket }) {
         </span>
       )}
       {ticket.escalated && <EscalatedBadge className="px-2 text-[11px]" />}
+      {ticket.is_confidential && <ConfidentialBadge className="px-2 text-[11px]" />}
     </>
   );
 }

@@ -1,5 +1,5 @@
 import "server-only";
-import { GoogleGenAI, ThinkingLevel, type Part } from "@google/genai";
+import { GoogleGenAI, HarmBlockThreshold, HarmCategory, ThinkingLevel, type Part, type SafetySetting } from "@google/genai";
 import { z } from "zod";
 
 /** Model from env, defaulting to Google's alias for the newest Flash model. */
@@ -34,7 +34,19 @@ export interface StructuredOptions<S extends z.ZodType> {
   temperature?: number;
   /** Returned (with ok: false) when the call fails, so the UI can carry on. */
   fallback?: z.infer<S>;
+  /**
+   * Least restrictive safety filters. Only for classifying student reports of ragging,
+   * harassment or violence, which the default filters may block.
+   */
+  relaxedSafety?: boolean;
 }
+
+const RELAXED_SAFETY: SafetySetting[] = [
+  HarmCategory.HARM_CATEGORY_HARASSMENT,
+  HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+  HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
+  HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+].map((category) => ({ category, threshold: HarmBlockThreshold.BLOCK_NONE }));
 
 /**
  * When the main model is rate-limited (free tier: ~20 requests/day), overloaded or timing
@@ -67,6 +79,7 @@ async function attempt<S extends z.ZodType>(
         responseJsonSchema: toGeminiSchema(opts.schema),
         // Low thinking keeps latency at a few seconds; these tasks don't need deep reasoning.
         thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
+        ...(opts.relaxedSafety ? { safetySettings: RELAXED_SAFETY } : {}),
         abortSignal: controller.signal,
       },
     });
@@ -82,7 +95,10 @@ async function attempt<S extends z.ZodType>(
     ]);
 
     const text = response.text;
-    if (!text) return { ok: false, error: "empty response" };
+    if (!text) {
+      const blocked = response.promptFeedback?.blockReason ?? response.candidates?.[0]?.finishReason;
+      return { ok: false, error: blocked ? `blocked (${blocked})` : "empty response" };
+    }
     let json: unknown;
     try {
       json = JSON.parse(text);

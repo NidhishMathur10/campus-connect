@@ -61,11 +61,12 @@ export const ESCALATION_RULES = {
   slaPriorities: ["Urgent", "High"],
 } as const;
 
-export const ESCALATION_REASON_LABELS: Record<"recurring" | "reopened" | "sla_breach" | "manual", string> = {
+export const ESCALATION_REASON_LABELS: Record<"recurring" | "reopened" | "sla_breach" | "manual" | "safety", string> = {
   recurring: "Recurring",
   reopened: "Reopened twice",
   sla_breach: "SLA breached",
   manual: "Manual",
+  safety: "Safety report",
 };
 
 /**

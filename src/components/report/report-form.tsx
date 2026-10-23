@@ -35,17 +35,21 @@ export function ReportForm({
   buildings,
   onSubmit,
   busy,
+  textPlaceholder,
+  showMachines = true,
 }: {
   draft: ReportDraft;
   onChange: (draft: ReportDraft) => void;
   buildings: readonly string[];
   onSubmit: () => void;
   busy: boolean;
+  textPlaceholder?: string;
+  showMachines?: boolean;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [compressing, setCompressing] = useState(false);
   const [errors, setErrors] = useState<{ text?: string; building?: string }>({});
-  const machines = getMachines(draft.building, draft.floor);
+  const machines = showMachines ? getMachines(draft.building, draft.floor) : [];
 
   const set = (patch: Partial<ReportDraft>) => onChange({ ...draft, ...patch });
 
@@ -81,7 +85,10 @@ export function ReportForm({
           id="complaint"
           value={draft.text}
           onChange={(e) => set({ text: e.target.value })}
-          placeholder="Describe the problem in English or Hindi — e.g. “Fan in my room makes a loud noise and stops” or “वॉशरूम में नल से पानी लीक हो रहा है”"
+          placeholder={
+            textPlaceholder ??
+            "Describe the problem in English or Hindi — e.g. “Fan in my room makes a loud noise and stops” or “वॉशरूम में नल से पानी लीक हो रहा है”"
+          }
           className="min-h-36 text-base"
           maxLength={2000}
           aria-invalid={!!errors.text || undefined}

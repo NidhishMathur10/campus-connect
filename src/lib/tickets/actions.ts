@@ -6,13 +6,15 @@ import {
   categoriesFor,
   computeSlaDueAt,
   getRoutingRule,
+  isConfidentialCategory,
   MODULE_LABELS,
   PRIORITIES,
   type Department,
 } from "@/config/routing";
+import { CONFIDENTIAL_REPORTER } from "@/config/safety";
 import { DUPLICATE_FLAG_THRESHOLD } from "@/config/statuses";
 import { getCurrentProfile } from "@/lib/auth";
-import { checkEscalations } from "@/lib/escalations";
+import { checkEscalations, createSafetyEscalation } from "@/lib/escalations";
 import { photoPublicUrl } from "@/lib/photos";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Profile, Ticket } from "@/lib/types";
@@ -26,15 +28,15 @@ async function requireStudent(): Promise<Profile | null> {
   return profile?.role === "student" ? profile : null;
 }
 
-function actor(p: Profile) {
-  return { actor_id: p.id, actor_name: p.full_name, actor_role: p.role };
+function actor(p: Profile, hideName = false) {
+  return { actor_id: p.id, actor_name: hideName ? CONFIDENTIAL_REPORTER : p.full_name, actor_role: p.role };
 }
 
 // ---------------------------------------------------------------------------
 // Create
 // ---------------------------------------------------------------------------
 const CreateTicketSchema = z.object({
-  module: z.enum(["hostel", "academic"]),
+  module: z.enum(["hostel", "academic", "security"]),
   original_text: z.string().trim().min(3).max(2000),
   language: z.string().max(10).default("en"),
   english_text: z.string().max(4000).nullable(),
@@ -55,6 +57,11 @@ const CreateTicketSchema = z.object({
     .object({ observed: z.string(), matches_complaint: z.boolean(), notes: z.string() })
     .nullable(),
   details_incomplete: z.boolean(),
+  /** Safety & Security: student's choice for "Other safety concern" (other categories are fixed). */
+  confidential_choice: z.boolean().default(false),
+  /** Safety & Security: "Hide my name from the investigating staff" (confidential tickets only). */
+  hide_identity: z.boolean().default(false),
+  is_emergency: z.boolean().default(false),
   /** Null when the AI was unavailable and the student filled the ticket by hand. */
   ai: z
     .object({
@@ -75,7 +82,7 @@ export type CreateTicketInput = z.input<typeof CreateTicketSchema>;
 
 export async function createTicket(
   input: CreateTicketInput,
-): Promise<ActionResult<{ id: string; ticket_no: string }>> {
+): Promise<ActionResult<{ id: string; ticket_no: string; tracking_pin: string }>> {
   const profile = await requireStudent();
   if (!profile) return { ok: false, error: "Only students can report issues. Please log in again." };
 
@@ -90,7 +97,17 @@ export async function createTicket(
   const department: Department = rule.departments.includes(t.department as Department)
     ? (t.department as Department)
     : rule.departments[0];
-  const priority = t.is_safety_hazard ? "Urgent" : t.priority;
+  const isSecurity = t.module === "security";
+  // Safety reports always use the guide's priority (the student can't lower it).
+  const priority = isSecurity
+    ? t.is_emergency
+      ? "Urgent"
+      : rule.defaultPriority
+    : t.is_safety_hazard
+      ? "Urgent"
+      : t.priority;
+  const isConfidential = isSecurity && isConfidentialCategory(t.category, t.confidential_choice);
+  const hideIdentity = isConfidential && t.hide_identity;
 
   let photoUrl: string | null = null;
   if (t.photo_path) {
@@ -101,7 +118,8 @@ export async function createTicket(
   const admin = createAdminClient();
 
   let dup: { id: string; score: number; reason: string } | null = null;
-  if (t.duplicate && t.duplicate.similarity >= DUPLICATE_FLAG_THRESHOLD) {
+  // Safety reports never take part in duplicate detection.
+  if (!isSecurity && t.duplicate && t.duplicate.similarity >= DUPLICATE_FLAG_THRESHOLD) {
     const { data } = await admin.from("tickets").select("id").eq("id", t.duplicate.ticket_id).maybeSingle();
     if (data) dup = { id: data.id, score: t.duplicate.similarity, reason: t.duplicate.reason };
   }
@@ -121,6 +139,22 @@ export async function createTicket(
           : {}),
       }
     : { model: "manual", is_safety_hazard: t.is_safety_hazard, manual_entry: true };
+  if (isSecurity) Object.assign(aiMeta, { is_emergency: t.is_emergency });
+
+  // Confidential Security Office reports are only visible to the ASSIGNED security
+  // officer (RLS), so give them to one straight away.
+  let autoAssignee: { id: string; full_name: string } | null = null;
+  if (isConfidential && department === "Security Office") {
+    const { data } = await admin
+      .from("profiles")
+      .select("id, full_name")
+      .eq("role", "security_officer")
+      .eq("department", department)
+      .order("created_at")
+      .limit(1)
+      .maybeSingle();
+    autoAssignee = data;
+  }
 
   const { data: ticket, error } = await admin
     .from("tickets")
@@ -142,7 +176,10 @@ export async function createTicket(
       floor: t.location.floor,
       spot: t.location.spot,
       machine_id: t.location.machine_id,
-      status: "Submitted",
+      status: autoAssignee ? "Assigned" : "Submitted",
+      assigned_to: autoAssignee?.id ?? null,
+      is_confidential: isConfidential,
+      hide_identity: hideIdentity,
       details_incomplete: t.details_incomplete,
       duplicate_of: dup?.id ?? null,
       duplicate_score: dup?.score ?? null,
@@ -150,7 +187,7 @@ export async function createTicket(
       duplicate_status: dup ? "flagged" : "none",
       sla_due_at: computeSlaDueAt(t.module, t.category, priority).toISOString(),
     })
-    .select("id, ticket_no")
+    .select("id, ticket_no, tracking_pin")
     .single();
   if (error || !ticket) {
     console.error("[createTicket]", error?.message);
@@ -160,14 +197,22 @@ export async function createTicket(
   const events: Record<string, unknown>[] = [
     {
       ticket_id: ticket.id,
-      ...actor(profile),
+      ...actor(profile, hideIdentity),
       type: "created",
       to_status: "Submitted",
       note:
         `Reported via ${MODULE_LABELS[t.module]}` +
+        (isConfidential ? " (confidential)" : "") +
         (t.details_incomplete ? " — some details were missing, staff may contact you." : "."),
     },
   ];
+  if (autoAssignee) {
+    const system = { actor_id: null, actor_name: "CampusConnect", actor_role: null };
+    events.push(
+      { ticket_id: ticket.id, ...system, type: "assigned", note: `Assigned to ${autoAssignee.full_name} (confidential report).` },
+      { ticket_id: ticket.id, ...system, type: "status_change", from_status: "Submitted", to_status: "Assigned" },
+    );
+  }
   if (dup) {
     events.push({
       ticket_id: ticket.id,
@@ -179,9 +224,10 @@ export async function createTicket(
   const { error: evError } = await admin.from("ticket_events").insert(events);
   if (evError) console.error("[createTicket] events", evError.message);
 
+  if (isSecurity && rule.escalateToDean) await createSafetyEscalation({ id: ticket.id, category: t.category, title: t.title });
   await checkEscalations({ ticketId: ticket.id });
   revalidatePath("/tickets");
-  return { ok: true, id: ticket.id, ticket_no: ticket.ticket_no };
+  return { ok: true, id: ticket.id, ticket_no: ticket.ticket_no, tracking_pin: ticket.tracking_pin };
 }
 
 // ---------------------------------------------------------------------------
@@ -198,10 +244,11 @@ export async function followTicket(
   const admin = createAdminClient();
   const { data: ticket } = await admin
     .from("tickets")
-    .select("id, ticket_no, reporter_id")
+    .select("id, ticket_no, reporter_id, module")
     .eq("id", ticketId)
     .maybeSingle();
-  if (!ticket) return { ok: false, error: "That ticket no longer exists." };
+  // Safety reports can't be joined (and must not reveal that they exist).
+  if (!ticket || ticket.module === "security") return { ok: false, error: "That ticket no longer exists." };
   if (ticket.reporter_id === profile.id) return { ok: true, ticket_no: ticket.ticket_no };
 
   const { data: existing } = await admin
@@ -271,8 +318,8 @@ export async function confirmFixed(
   if (error) return { ok: false, error: "Could not close the ticket. Please try again." };
 
   await admin.from("ticket_events").insert([
-    { ticket_id: ticket.id, ...actor(profile), type: "status_change", from_status: "Resolved", to_status: "Closed", note: "Student confirmed the fix." },
-    { ticket_id: ticket.id, ...actor(profile), type: "rating", note: `Rated ${rating}/5${feedback ? ` — "${feedback}"` : ""}` },
+    { ticket_id: ticket.id, ...actor(profile, ticket.hide_identity), type: "status_change", from_status: "Resolved", to_status: "Closed", note: "Student confirmed the fix." },
+    { ticket_id: ticket.id, ...actor(profile, ticket.hide_identity), type: "rating", note: `Rated ${rating}/5${feedback ? ` — "${feedback}"` : ""}` },
   ]);
 
   await checkEscalations({ ticketId: ticket.id });
@@ -302,7 +349,7 @@ export async function reopenTicket(ticketId: string, reason: string): Promise<Ac
 
   await admin.from("ticket_events").insert({
     ticket_id: ticket.id,
-    ...actor(profile),
+    ...actor(profile, ticket.hide_identity),
     type: "reopened",
     from_status: "Resolved",
     to_status: "Reopened",

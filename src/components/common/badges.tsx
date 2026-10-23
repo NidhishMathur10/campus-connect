@@ -1,4 +1,4 @@
-import { ShieldAlert } from "lucide-react";
+import { Lock, ShieldAlert } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getCategoryStyle, PRIORITY_STYLES, STATUS_STYLES } from "@/config/styles";
 import type { Priority } from "@/config/routing";
@@ -33,6 +33,15 @@ export function StatusBadge({ status, className }: { status: TicketStatus; class
     <span className={cn(base, style.className, className)}>
       <span className={cn("size-1.5 rounded-full", style.dot)} />
       {status}
+    </span>
+  );
+}
+
+export function ConfidentialBadge({ className }: { className?: string }) {
+  return (
+    <span className={cn(base, "border-slate-800 bg-slate-900 text-white", className)} title="Confidential safety report">
+      <Lock className="size-3" />
+      Confidential
     </span>
   );
 }

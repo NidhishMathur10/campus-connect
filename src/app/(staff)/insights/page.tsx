@@ -1,14 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { CheckCircle2, Clock, Inbox, Star, Ticket } from "lucide-react";
+import { CheckCircle2, Clock, Inbox, Lock, Star, Ticket } from "lucide-react";
 import { PageHeader } from "@/components/common/page-header";
 import { DailyLine, RankedBars, StatusBars } from "@/components/insights/charts";
 import { Hotspots } from "@/components/insights/hotspots";
 import { MODULE_LABELS, type TicketModule } from "@/config/routing";
 import { requireProfile } from "@/lib/auth";
 import { checkEscalations } from "@/lib/escalations";
-import { getInsights, INSIGHT_WINDOWS, insightsModule, type InsightWindow } from "@/lib/insights";
+import { getInsights, getSecurityCounts, INSIGHT_WINDOWS, insightsModule, type InsightWindow } from "@/lib/insights";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Insights" };
@@ -66,7 +66,10 @@ export default async function InsightsPage({ searchParams }: { searchParams: Pro
   const days: InsightWindow = sp.days === "7" ? 7 : 30;
 
   await checkEscalations();
-  const data = await getInsights(scopeModule, days);
+  const [data, security] = await Promise.all([
+    getInsights(scopeModule, days),
+    profile.role === "dean" ? getSecurityCounts(days) : Promise.resolve(null),
+  ]);
   const { stats } = data;
 
   const qs = (m: TicketModule | "all" | null, d: number) => {
@@ -145,6 +148,30 @@ export default async function InsightsPage({ searchParams }: { searchParams: Pro
           <RankedBars data={data.byBuilding} />
         </Panel>
       </div>
+
+      {security && (
+        <Panel
+          title={`Safety & Security · ${days} days`}
+          subtitle="Aggregated counts only — individual safety reports are confidential and never shown as hotspots."
+          className="mt-5"
+        >
+          <div className="grid gap-5 md:grid-cols-[220px_1fr]">
+            <div className="grid grid-cols-3 gap-3 md:grid-cols-1">
+              {[
+                { label: "Reports", value: security.total },
+                { label: "Open", value: security.open },
+                { label: "Confidential", value: security.confidential },
+              ].map((c) => (
+                <div key={c.label} className="rounded-2xl bg-slate-50 p-3">
+                  <p className="eyebrow flex items-center gap-1">{c.label === "Confidential" && <Lock className="size-3" />}{c.label}</p>
+                  <p className="text-2xl font-extrabold text-navy">{c.value}</p>
+                </div>
+              ))}
+            </div>
+            <RankedBars data={security.byCategory} />
+          </div>
+        </Panel>
+      )}
 
       <Panel title="Department performance" subtitle={`Open = right now; other columns = tickets reported in the last ${days} days.`} className="mt-5">
         <div className="overflow-x-auto">

@@ -107,6 +107,10 @@ export async function getInsights(module: TicketModule | null, days: InsightWind
   if (module) {
     recentQ = recentQ.eq("module", module);
     openQ = openQ.eq("module", module);
+  } else {
+    // Safety reports only appear as aggregated counts (getSecurityCounts), never in charts/hotspots.
+    recentQ = recentQ.neq("module", "security");
+    openQ = openQ.neq("module", "security");
   }
   const [recentRes, openRes] = await Promise.all([recentQ, openQ]);
   if (recentRes.error) console.error("[getInsights]", recentRes.error.message);
@@ -203,5 +207,32 @@ export async function getInsights(module: TicketModule | null, days: InsightWind
     ),
     hotspots,
     departments,
+  };
+}
+
+export interface SecurityCounts {
+  total: number;
+  open: number;
+  confidential: number;
+  byCategory: { name: string; count: number }[];
+}
+
+/** Safety & Security for the Dean: aggregated counts only (no tickets, places or hotspots). */
+export async function getSecurityCounts(days: InsightWindow): Promise<SecurityCounts> {
+  const supabase = await createClient();
+  const since = new Date(Date.now() - days * DAY).toISOString();
+  const { data, error } = await supabase
+    .from("tickets")
+    .select("category, status, is_confidential, created_at")
+    .eq("module", "security")
+    .gte("created_at", since)
+    .limit(3000);
+  if (error) console.error("[getSecurityCounts]", error.message);
+  const rows = (data ?? []) as Pick<Ticket, "category" | "status" | "is_confidential">[];
+  return {
+    total: rows.length,
+    open: rows.filter((t) => OPEN_STATUSES.includes(t.status)).length,
+    confidential: rows.filter((t) => t.is_confidential).length,
+    byCategory: countBy(rows, (t) => t.category),
   };
 }

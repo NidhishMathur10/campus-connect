@@ -45,6 +45,7 @@ const REASON_TEXT: Record<EscalationReason, string> = {
   reopened: "the student has reopened the ticket at least twice — the fix is not holding",
   sla_breach: "an Urgent/High priority ticket has missed its resolution deadline",
   manual: "a senior staff member escalated it by hand",
+  safety: "a student filed a confidential safety report (ragging, harassment or a threat) that needs the Dean's attention immediately",
 };
 
 function daysAgo(iso: string): string {
@@ -64,7 +65,9 @@ export function templateBrief(ctx: EscalationContext): EscalationBrief {
         ? `${ctx.tickets[0]?.priority ?? "Urgent"} ticket past its deadline`
         : ctx.reason === "reopened"
           ? "Fix not holding — ticket reopened repeatedly"
-          : `Escalated: ${ctx.tickets[0]?.title ?? ctx.category}`;
+          : ctx.reason === "safety"
+            ? `Safety report: ${ctx.category}`
+            : `Escalated: ${ctx.tickets[0]?.title ?? ctx.category}`;
   return {
     headline,
     brief: [
@@ -106,5 +109,6 @@ Write a brief for a busy senior administrator. Be specific (use numbers, places,
     temperature: 0.3,
     timeoutMs: 25_000,
     fallback: templateBrief(ctx),
+    relaxedSafety: ctx.module === "security",
   });
 }

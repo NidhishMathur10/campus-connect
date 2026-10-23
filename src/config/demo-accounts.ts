@@ -35,6 +35,9 @@ export const DEMO_ACCOUNTS: DemoAccount[] = [
   { loginId: "gupta", fullName: "Mr. Gupta", role: "staff", department: "Lab In-charge", caption: "Lab In-charge" },
   { loginId: "nair", fullName: "Ms. Nair", role: "staff", department: "Library Staff", caption: "Library Staff" },
   { loginId: "kapoor", fullName: "Mrs. Kapoor", role: "academic_office", department: "Academic Office", caption: "Academic Office" },
+  // Safety & Security
+  { loginId: "yadav", fullName: "Mr. Yadav – Security Officer", role: "security_officer", department: "Security Office", caption: "Security Office" },
+  { loginId: "mehra", fullName: "Dr. Mehra – Anti-Ragging Committee Nodal Officer", role: "arc", department: "Anti-Ragging Committee", caption: "Anti-Ragging Committee" },
   // Admins
   { loginId: "rao", fullName: "Mr. Rao", role: "warden", department: "Warden (manual triage)", caption: "Warden" },
   { loginId: "iyer", fullName: "Dr. Iyer", role: "dean", caption: "Dean of Student Affairs" },
@@ -47,6 +50,7 @@ export const DEMO_ACCOUNTS: DemoAccount[] = [
 export const DEMO_GROUPS: { label: string; roles: Role[] }[] = [
   { label: "Students", roles: ["student"] },
   { label: "Staff", roles: ["staff", "academic_office"] },
+  { label: "Safety & Security", roles: ["security_officer", "arc"] },
   { label: "Admins", roles: ["warden", "dean", "hod"] },
   { label: "Teachers", roles: ["teacher"] },
 ];

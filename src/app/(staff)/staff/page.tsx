@@ -8,7 +8,7 @@ import { getBoardData, getStaffTicketDetail } from "@/lib/tickets/staff-queries"
 export const metadata: Metadata = { title: "Ticket Board" };
 
 export default async function StaffBoardPage({ searchParams }: { searchParams: Promise<{ t?: string }> }) {
-  const profile = await requireProfile(["staff", "academic_office", "warden", "dean", "hod"]);
+  const profile = await requireProfile(["staff", "academic_office", "security_officer", "arc", "warden", "dean", "hod"]);
   const { t } = await searchParams;
   const selected = t ? normaliseTicketNo(t) : null;
   const viewer = { id: profile.id, role: profile.role, department: profile.department };

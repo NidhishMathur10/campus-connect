@@ -1,13 +1,13 @@
 "use client";
 
-import { AlertCircle, Building2, CheckCircle2, Languages, Loader2, MapPin, Pencil, Sparkles } from "lucide-react";
+import { AlertCircle, Building2, CheckCircle2, EyeOff, Languages, Loader2, Lock, MapPin, Pencil, Sparkles, Unlock } from "lucide-react";
 import { CategoryBadge, PriorityBadge } from "@/components/common/badges";
 import { SimpleSelect } from "@/components/common/simple-select";
 import { Confidence, PhotoAnalysisBox, SafetyBadge } from "@/components/tickets/ai-bits";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { categoriesFor, type Priority, type TicketModule } from "@/config/routing";
+import { categoriesFor, getRoutingRule, isConfidentialCategory, type Priority, type TicketModule } from "@/config/routing";
 import type { ComplaintLocation } from "@/lib/ai/complaint";
 import { formatLocation, languageName } from "@/lib/format";
 import type { PhotoAnalysis } from "@/lib/types";
@@ -23,6 +23,12 @@ export interface TicketDraft {
   department: string;
   priority: Priority;
   is_safety_hazard: boolean;
+  /** Safety & Security only. */
+  is_emergency: boolean;
+  /** Safety & Security: the student's choice for categories where confidentiality is optional. */
+  confidential_choice: boolean;
+  /** Safety & Security: "Hide my name from the investigating staff". */
+  hide_identity: boolean;
   photo_analysis: PhotoAnalysis | null;
   location: ComplaintLocation;
   missing_fields: string[];
@@ -41,6 +47,7 @@ export function PreviewCard({
   photoUrl,
   onCategoryChange,
   onTitleChange,
+  onPrivacyChange,
   onConfirm,
   onEdit,
   busy,
@@ -51,6 +58,7 @@ export function PreviewCard({
   photoUrl: string | null;
   onCategoryChange: (category: string) => void;
   onTitleChange: (title: string) => void;
+  onPrivacyChange?: (patch: Pick<Partial<TicketDraft>, "confidential_choice" | "hide_identity">) => void;
   onConfirm: () => void;
   onEdit: () => void;
   busy: boolean;
@@ -172,6 +180,10 @@ export function PreviewCard({
           )}
         </section>
 
+        {module === "security" && draft.category && (
+          <PrivacyOptions draft={draft} onChange={onPrivacyChange} disabled={busy} />
+        )}
+
         {draft.missing_fields.length > 0 && (
           <p className="flex items-start gap-2 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
             <AlertCircle className="mt-0.5 size-4 shrink-0" />
@@ -191,5 +203,63 @@ export function PreviewCard({
         </div>
       </div>
     </div>
+  );
+}
+
+/** Safety & Security: who will see this report, and the "hide my name" option. */
+function PrivacyOptions({
+  draft,
+  onChange,
+  disabled,
+}: {
+  draft: TicketDraft;
+  onChange?: (patch: Pick<Partial<TicketDraft>, "confidential_choice" | "hide_identity">) => void;
+  disabled: boolean;
+}) {
+  const mode = getRoutingRule("security", draft.category!).confidential ?? "never";
+  const confidential = isConfidentialCategory(draft.category!, draft.confidential_choice);
+  const toggle = "mt-0.5 size-4 shrink-0 accent-navy";
+
+  return (
+    <section className={`space-y-3 rounded-2xl border p-4 ${confidential ? "border-slate-800 bg-slate-900 text-white" : "border-slate-200 bg-slate-50"}`}>
+      <p className={`eyebrow flex items-center gap-1.5 ${confidential ? "text-sky-300" : ""}`}>
+        {confidential ? <Lock className="size-3.5" /> : <Unlock className="size-3.5" />}
+        {confidential ? "Confidential report" : "Not confidential"}
+      </p>
+      <p className={`text-sm ${confidential ? "text-slate-200" : "text-slate-600"}`}>
+        {confidential
+          ? `Only you, the ${draft.department === "Anti-Ragging Committee" ? "Anti-Ragging Committee" : "assigned Security Officer"} and the Dean of Student Affairs can see this report. It never appears in public tracking or to other students.`
+          : "This goes to the Security Office so they can act quickly. It never appears in public tracking."}
+      </p>
+      {mode === "choose" && (
+        <label className="flex items-start gap-2 text-sm font-semibold">
+          <input
+            type="checkbox"
+            className={toggle}
+            checked={draft.confidential_choice}
+            onChange={(e) => onChange?.({ confidential_choice: e.target.checked, hide_identity: e.target.checked && draft.hide_identity })}
+            disabled={disabled}
+          />
+          Keep this report confidential
+        </label>
+      )}
+      {confidential && (
+        <label className="flex items-start gap-2 text-sm font-semibold">
+          <input
+            type="checkbox"
+            className={toggle}
+            checked={draft.hide_identity}
+            onChange={(e) => onChange?.({ hide_identity: e.target.checked })}
+            disabled={disabled}
+          />
+          <span>
+            <span className="flex items-center gap-1.5"><EyeOff className="size-4" /> Hide my name from the investigating staff</span>
+            <span className="block text-xs font-normal text-slate-300">
+              Only the Anti-Ragging Committee and the Dean will know it was you. Others see &quot;Confidential reporter&quot;.
+            </span>
+          </span>
+        </label>
+      )}
+    </section>
   );
 }

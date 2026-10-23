@@ -2,7 +2,8 @@ import type { TicketModule } from "@/config/routing";
 
 /** Location + category combo used for recurring-issue detection, e.g. `hostel|Plumbing|New Hostel|2nd`. */
 export function hotspotKey(t: { module: TicketModule; category: string; building: string | null; floor: string | null }): string | null {
-  if (!t.building) return null;
+  // Safety & Security reports never form hotspots (Insights shows only aggregated counts).
+  if (!t.building || t.module === "security") return null;
   return [t.module, t.category, t.building, t.floor ?? ""].join("|");
 }
 

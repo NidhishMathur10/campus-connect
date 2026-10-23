@@ -1,10 +1,11 @@
 import "server-only";
+import { CONFIDENTIAL_REPORTER } from "@/config/safety";
 import { CLOSED_ON_BOARD_DAYS, OPEN_STATUSES, TICKET_STATUSES, type TicketStatus } from "@/config/statuses";
 import { hotspotKey } from "@/lib/hotspots";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import type { EscalationReason, EscalationStatus, Profile, Ticket, TicketEvent } from "@/lib/types";
-import { ASSIGNABLE_ROLES, boardScope, canViewStaffTicket, type Viewer } from "./access";
+import { ASSIGNABLE_ROLES, boardScope, canSeeReporter, canViewStaffTicket, type Viewer } from "./access";
 
 export interface BoardTicket extends Ticket {
   /** Students who joined with "Me too" (not counting the reporter). */
@@ -81,7 +82,7 @@ export async function listAssignableStaff(): Promise<StaffMember[]> {
 
 /** "Resolved by me" + average rating of tickets assigned to me. */
 async function myStats(viewer: Viewer): Promise<BoardStats["mine"]> {
-  if (viewer.role !== "staff" && viewer.role !== "academic_office") return null;
+  if (!["staff", "academic_office", "security_officer", "arc"].includes(viewer.role)) return null;
   const supabase = await createClient();
   const [resolvedRes, ratedRes] = await Promise.all([
     supabase.from("ticket_events").select("ticket_id").eq("actor_id", viewer.id).eq("to_status", "Resolved"),
@@ -227,6 +228,8 @@ export interface StaffTicketDetail {
   escalations: LinkedEscalation[];
   events: TicketEvent[];
   reporter: ReporterInfo | null;
+  /** True when the reporter asked to hide their name and this viewer may not see it. */
+  reporterHidden: boolean;
   followerCount: number;
   /** Set when duplicate_of points somewhere (flagged or merged). */
   original: DuplicateOriginal | null;
@@ -240,9 +243,18 @@ export async function getStaffTicketDetail(ticketNo: string, viewer: Viewer): Pr
   if (!ticket || !canViewStaffTicket(viewer, ticket)) return null;
 
   const key = hotspotKey(ticket);
+  const reporterHidden = !canSeeReporter(viewer, ticket);
   const [eventsRes, reporterRes, followersRes, escRes] = await Promise.all([
     supabase.from("ticket_events").select("*").eq("ticket_id", ticket.id).order("created_at", { ascending: true }),
-    supabase.from("profiles").select("full_name, roll_no, hostel, wing, room").eq("id", ticket.reporter_id).maybeSingle(),
+    // Admin client: security officers can't read student profiles under RLS, but may see
+    // the reporter of tickets they handle unless the student hid their name.
+    reporterHidden
+      ? Promise.resolve({ data: null })
+      : createAdminClient()
+          .from("profiles")
+          .select("full_name, roll_no, hostel, wing, room")
+          .eq("id", ticket.reporter_id)
+          .maybeSingle(),
     supabase.from("ticket_followers").select("user_id", { count: "exact", head: true }).eq("ticket_id", ticket.id),
     // RLS returns nothing for department staff, which is what we want.
     supabase
@@ -268,11 +280,19 @@ export async function getStaffTicketDetail(ticketNo: string, viewer: Viewer): Pr
     if (orig) original = { ...(orig as Omit<DuplicateOriginal, "reporter_count">), reporter_count: 1 + (count ?? 0) };
   }
 
+  let events = (eventsRes.data ?? []) as TicketEvent[];
+  if (reporterHidden) {
+    events = events.map((e) =>
+      e.actor_id === ticket.reporter_id ? { ...e, actor_id: null, actor_name: CONFIDENTIAL_REPORTER } : e,
+    );
+  }
+
   return {
-    ticket,
+    ticket: reporterHidden ? { ...ticket, reporter_id: "" } : ticket,
     escalations: (escRes.data ?? []) as LinkedEscalation[],
-    events: (eventsRes.data ?? []) as TicketEvent[],
+    events,
     reporter: (reporterRes.data as ReporterInfo | null) ?? null,
+    reporterHidden,
     followerCount: followersRes.count ?? 0,
     original,
   };
