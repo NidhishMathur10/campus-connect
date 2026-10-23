@@ -11,7 +11,7 @@ import {
 } from "@/config/routing";
 import { canTransition, NOTE_REQUIRED_STATUSES, TICKET_STATUSES, type TicketStatus } from "@/config/statuses";
 import { getCurrentProfile } from "@/lib/auth";
-import { checkEscalations } from "@/lib/escalations";
+import { checkEscalations, createManualEscalation } from "@/lib/escalations";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Profile, Ticket } from "@/lib/types";
 import { ASSIGNABLE_ROLES, canManageTicket } from "./access";
@@ -330,42 +330,61 @@ export async function dismissDuplicate(ticketId: string): Promise<ActionResult> 
 }
 
 // ---------------------------------------------------------------------------
-// Warden: escalate to the Dean
+// Manual escalation: warden → Dean (hostel), HOD → HOD inbox (academic)
 // ---------------------------------------------------------------------------
-export async function escalateToDean(ticketId: string, reason: string): Promise<ActionResult> {
+export async function escalateTicket(ticketId: string, reason: string): Promise<ActionResult> {
   const why = reason.trim();
-  if (why.length < 5) return { ok: false, error: "Tell the Dean briefly why this needs their attention." };
+  if (why.length < 5) return { ok: false, error: "Say briefly why this needs senior attention." };
+  const { profile } = await getCurrentProfile();
+  if (!profile) return { ok: false, error: "Please log in again." };
+  if (!z.uuid().safeParse(ticketId).success) return { ok: false, error: "Unknown ticket." };
+
+  const admin = createAdminClient();
+  const { data } = await admin.from("tickets").select("*").eq("id", ticketId).maybeSingle();
+  const ticket = data as Ticket | null;
+  if (!ticket) return { ok: false, error: "That ticket no longer exists." };
+  const allowed =
+    (profile.role === "warden" && ticket.module === "hostel") || (profile.role === "hod" && ticket.module === "academic");
+  if (!allowed) return { ok: false, error: "Only the warden (hostel) or HOD (academic) can escalate this ticket." };
+
+  const res = await createManualEscalation({
+    ticket,
+    reason: why,
+    actor: { id: profile.id, name: profile.full_name, role: profile.role as "warden" | "hod" },
+  });
+  if (!res.ok) return res;
+  revalidatePath("/escalations");
+  return done(ticket.id, ticket.ticket_no);
+}
+
+// ---------------------------------------------------------------------------
+// Warden: reopen a closed / resolved hostel ticket
+// ---------------------------------------------------------------------------
+export async function wardenReopenTicket(ticketId: string, reason: string): Promise<ActionResult> {
+  const why = reason.trim();
+  if (why.length < 3) return { ok: false, error: "Say briefly why it is being reopened." };
   const loaded = await loadManaged(ticketId);
   if (!loaded.ok) return loaded;
   const { profile, ticket, admin } = loaded;
-  if (profile.role !== "warden" || ticket.module !== "hostel") {
-    return { ok: false, error: "Only the warden can escalate hostel tickets." };
+  if (profile.role !== "warden") return { ok: false, error: "Only the warden can reopen closed tickets." };
+  if (ticket.status !== "Closed" && ticket.status !== "Resolved") {
+    return { ok: false, error: "Only resolved or closed tickets can be reopened." };
   }
 
-  const { count } = await admin
-    .from("ticket_followers")
-    .select("user_id", { count: "exact", head: true })
-    .eq("ticket_id", ticket.id);
+  const { error } = await admin
+    .from("tickets")
+    .update({
+      status: "Reopened",
+      reopen_count: ticket.reopen_count + 1,
+      resolved_at: null,
+      sla_due_at: computeSlaDueAt(ticket.module, ticket.category, ticket.priority).toISOString(),
+    })
+    .eq("id", ticket.id)
+    .eq("status", ticket.status);
+  if (error) return { ok: false, error: "Could not reopen the ticket. Please try again." };
 
-  const { error } = await admin.from("escalations").insert({
-    module: "hostel",
-    ticket_id: ticket.id,
-    reason: "manual",
-    target_role: "dean",
-    brief: `${ticket.ticket_no} · ${ticket.title} (${ticket.category}, ${ticket.priority}). Warden: ${why.slice(0, 600)}`,
-    affected_count: 1 + (count ?? 0),
-  });
-  if (error) {
-    // Unique index: one open manual escalation per ticket.
-    if (error.code === "23505") return { ok: false, error: "This ticket is already escalated to the Dean." };
-    console.error("[escalateToDean]", error.message);
-    return { ok: false, error: "Could not escalate. Please try again." };
-  }
-
-  await admin.from("tickets").update({ escalated: true }).eq("id", ticket.id);
   await addEvents(admin, [
-    { ticket_id: ticket.id, ...actor(profile), type: "escalated", note: `Escalated to the Dean of Student Affairs: ${why.slice(0, 500)}` },
+    { ticket_id: ticket.id, ...actor(profile), type: "reopened", from_status: ticket.status, to_status: "Reopened", note: why.slice(0, 500) },
   ]);
-  revalidatePath("/escalations");
   return done(ticket.id, ticket.ticket_no);
 }

@@ -30,7 +30,16 @@ const EVENT_META: Record<TicketEventType, { icon: LucideIcon; color: string; lab
   note: {
     icon: MessageSquare,
     color: "bg-slate-100 text-slate-700",
-    label: (e) => (e.is_internal ? "Internal note" : e.actor_role === "student" ? "Note" : "Note from staff"),
+    label: (e) =>
+      e.is_internal
+        ? "Internal note"
+        : e.actor_role === "dean"
+          ? "Directive from the Dean"
+          : e.actor_role === "hod"
+            ? "Directive from the HOD"
+            : e.actor_role === "student"
+              ? "Note"
+              : "Note from staff",
   },
   duplicate_flagged: { icon: Copy, color: "bg-amber-100 text-amber-700", label: () => "Flagged as possible duplicate" },
   merged: {

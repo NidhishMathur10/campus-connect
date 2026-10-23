@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import {
   AlertCircle,
   ArrowRight,
@@ -14,6 +15,7 @@ import {
   Lock,
   MapPin,
   MessageSquarePlus,
+  RotateCcw,
   ShieldAlert,
   Sparkles,
   User,
@@ -34,16 +36,17 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { categoriesFor, DEPARTMENTS, MODULE_LABELS, PRIORITIES } from "@/config/routing";
-import { STAFF_TRANSITIONS } from "@/config/statuses";
+import { ESCALATION_REASON_LABELS, STAFF_TRANSITIONS } from "@/config/statuses";
 import { formatDateTime, formatLocation, languageName, timeAgo } from "@/lib/format";
 import type { Viewer } from "@/lib/tickets/access";
 import {
   addTicketNote,
   assignTicket,
   dismissDuplicate,
-  escalateToDean,
+  escalateTicket,
   mergeDuplicate,
   overrideTicketField,
+  wardenReopenTicket,
 } from "@/lib/tickets/staff-actions";
 import type { DuplicateOriginal, StaffMember, StaffTicketDetail } from "@/lib/tickets/staff-queries";
 import type { FieldMeta, Ticket } from "@/lib/types";
@@ -227,8 +230,7 @@ function ActionsPanel({
   const [field, setField] = useState<OverrideField>("priority");
   const [value, setValue] = useState<string | null>(null);
   const [reason, setReason] = useState("");
-  const [escalateOpen, setEscalateOpen] = useState(false);
-  const [escalateReason, setEscalateReason] = useState("");
+  const [reopenReason, setReopenReason] = useState("");
 
   const valueOptions: readonly string[] =
     field === "category" ? categoriesFor(ticket.module) : field === "department" ? DEPARTMENTS : PRIORITIES;
@@ -236,7 +238,40 @@ function ActionsPanel({
   return (
     <Section title="Actions" icon={Wrench}>
       {closed ? (
-        <p className="text-sm text-slate-500">This ticket is {ticket.status.toLowerCase()} — no further actions.</p>
+        <div className="space-y-3">
+          <p className="text-sm text-slate-500">This ticket is {ticket.status.toLowerCase()} — read-only.</p>
+          {viewer.role === "warden" && ticket.status === "Closed" && (
+            <div className="space-y-2 rounded-2xl bg-rose-50 p-3">
+              <Label htmlFor="reopen-reason" className="text-rose-800">Reopen this ticket (warden)</Label>
+              <Input
+                id="reopen-reason"
+                value={reopenReason}
+                onChange={(e) => setReopenReason(e.target.value)}
+                placeholder="Why? e.g. Problem is back according to the floor rep"
+                maxLength={500}
+                className="bg-white"
+              />
+              <Button
+                size="sm"
+                className="bg-rose-600 hover:bg-rose-700"
+                disabled={reopenReason.trim().length < 3 || busy === "reopen"}
+                onClick={() =>
+                  run(
+                    "reopen",
+                    async () => {
+                      const res = await wardenReopenTicket(ticket.id, reopenReason);
+                      if (res.ok) setReopenReason("");
+                      return res;
+                    },
+                    "Ticket reopened",
+                  )
+                }
+              >
+                {busy === "reopen" ? <Loader2 className="animate-spin" /> : <RotateCcw />} Reopen
+              </Button>
+            </div>
+          )}
+        </div>
       ) : (
         <div className="space-y-4">
           <div className="grid gap-3 sm:grid-cols-2">
@@ -346,44 +381,86 @@ function ActionsPanel({
             </div>
           </details>
 
-          {viewer.role === "warden" && ticket.module === "hostel" && (
-            ticket.escalated ? (
-              <p className="flex items-center gap-2 text-sm font-semibold text-red-700"><ShieldAlert className="size-4" /> Escalated to the Dean</p>
-            ) : (
-              <Button variant="destructive" className="w-full" onClick={() => setEscalateOpen(true)}>
-                <ShieldAlert /> Escalate to Dean
-              </Button>
-            )
-          )}
         </div>
       )}
 
-      <Dialog open={escalateOpen} onOpenChange={setEscalateOpen}>
+    </Section>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Escalation (warden → Dean for hostel, HOD for academic) + links
+// ---------------------------------------------------------------------------
+function EscalationPanel({
+  detail,
+  viewer,
+  run,
+  busy,
+}: {
+  detail: StaffTicketDetail;
+  viewer: Viewer;
+  run: (key: string, fn: () => Promise<ActionResult>, success: string) => void;
+  busy: string | null;
+}) {
+  const { ticket, escalations } = detail;
+  const [open, setOpen] = useState(false);
+  const [reason, setReason] = useState("");
+  const canEscalate =
+    (viewer.role === "warden" && ticket.module === "hostel") || (viewer.role === "hod" && ticket.module === "academic");
+  const target = ticket.module === "hostel" ? "Dean" : "HOD";
+  const hasActive = escalations.some((e) => e.status !== "resolved");
+  if (!canEscalate && escalations.length === 0) return null;
+
+  return (
+    <Section title="Escalation" icon={ShieldAlert} className={ticket.escalated ? "border-red-200" : undefined}>
+      {escalations.length > 0 && (
+        <ul className="space-y-1.5">
+          {escalations.map((e) => (
+            <li key={e.id}>
+              <Link
+                href={`/escalations/${e.id}`}
+                className="flex items-center justify-between gap-2 rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-800 hover:border-red-400"
+              >
+                <span className="flex items-center gap-2">
+                  <ShieldAlert className="size-4" /> {ESCALATION_REASON_LABELS[e.reason]} · {e.status}
+                </span>
+                <ExternalLink className="size-4" />
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+      {canEscalate && !hasActive && ticket.status !== "Merged" && (
+        <Button variant="destructive" className="w-full" onClick={() => setOpen(true)}>
+          <ShieldAlert /> Escalate to {target}
+        </Button>
+      )}
+      <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="rounded-3xl sm:max-w-md">
           <DialogHeader className="text-left">
-            <DialogTitle className="text-lg font-extrabold text-navy">Escalate {ticket.ticket_no} to the Dean</DialogTitle>
-            <DialogDescription>The Dean of Student Affairs gets this in their Escalations inbox.</DialogDescription>
+            <DialogTitle className="text-lg font-extrabold text-navy">Escalate {ticket.ticket_no} to the {target}</DialogTitle>
+            <DialogDescription>It appears in their Escalations inbox with an AI-written brief.</DialogDescription>
           </DialogHeader>
           <Textarea
-            value={escalateReason}
-            onChange={(e) => setEscalateReason(e.target.value)}
-            placeholder="Why does this need the Dean? e.g. Third complaint this month, needs budget approval for new pipes."
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder="Why does this need senior attention? e.g. Third complaint this month, needs budget approval for new pipes."
             maxLength={600}
             className="min-h-24"
             autoFocus
           />
           <Button
             variant="destructive"
-            disabled={escalateReason.trim().length < 5 || busy === "escalate"}
+            disabled={reason.trim().length < 5 || busy === "escalate"}
             onClick={() =>
               run(
                 "escalate",
                 async () => {
-                  const res = await escalateToDean(ticket.id, escalateReason);
-                  if (res.ok) setEscalateOpen(false);
+                  const res = await escalateTicket(ticket.id, reason);
+                  if (res.ok) setOpen(false);
                   return res;
                 },
-                "Escalated to the Dean",
+                `Escalated to the ${target}`,
               )
             }
           >
@@ -515,7 +592,14 @@ function DrawerBody({
               <StatusBadge status={ticket.status} />
               <CategoryBadge category={ticket.category} />
               <PriorityBadge priority={ticket.priority} />
-              {ticket.escalated && <EscalatedBadge />}
+              {ticket.escalated &&
+                (detail.escalations[0] ? (
+                  <Link href={`/escalations/${detail.escalations[0].id}`} title="Open the escalation">
+                    <EscalatedBadge className="hover:bg-red-700" />
+                  </Link>
+                ) : (
+                  <EscalatedBadge />
+                ))}
               {ai?.is_safety_hazard && <SafetyBadge />}
             </div>
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500">
@@ -541,6 +625,7 @@ function DrawerBody({
       )}
 
       {canManage && <ActionsPanel detail={detail} viewer={viewer} staff={staff} run={run} busy={busy} onRequestMove={onRequestMove} />}
+      <EscalationPanel detail={detail} viewer={viewer} run={run} busy={busy} />
 
       <Section title="AI analysis" icon={Sparkles}>
         {ticket.details_incomplete && (

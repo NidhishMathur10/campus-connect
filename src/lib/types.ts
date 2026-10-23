@@ -89,19 +89,38 @@ export interface TicketEvent {
   created_at: string;
 }
 
+export type EscalationReason = "recurring" | "reopened" | "sla_breach" | "manual";
+export type EscalationStatus = "open" | "acknowledged" | "resolved";
+
 export interface Escalation {
   id: string;
   module: TicketModule;
   ticket_id: string | null;
   hotspot_key: string | null;
-  reason: "recurring" | "reopened" | "sla_breach" | "manual";
+  reason: EscalationReason;
   target_role: "dean" | "hod";
+  headline: string | null;
   brief: string | null;
   recommended_action: string | null;
+  urgency_reason: string | null;
+  brief_model: string | null;
+  brief_count: number | null;
   affected_count: number;
-  status: "open" | "acknowledged" | "resolved";
+  status: EscalationStatus;
   directive: string | null;
+  acknowledged_at: string | null;
+  resolved_at: string | null;
   created_at: string;
+  updated_at: string;
+}
+
+export interface HotspotInsight {
+  hotspot_key: string;
+  module: TicketModule;
+  recommendation: string;
+  ticket_count: number;
+  model: string | null;
+  generated_at: string;
 }
 
 export interface Question {

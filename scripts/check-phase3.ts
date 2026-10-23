@@ -1,4 +1,4 @@
-// Quick Phase 3 sanity check: schema column + department visibility under RLS.
+// Quick DB sanity check (phases 3–4): schema columns + department visibility under RLS.
 import "./load-env";
 import { createClient } from "@supabase/supabase-js";
 import { loginIdToEmail } from "../src/config/college";
@@ -17,15 +17,29 @@ async function asUser(loginId: string) {
 
 async function main() {
   const admin = createClient(url, service, { auth: { persistSession: false } });
-  const col = await admin.from("ticket_events").select("is_internal").limit(1);
-  console.log(col.error ? `✗ ticket_events.is_internal missing — re-run supabase/schema.sql (${col.error.message})` : "✔ ticket_events.is_internal exists");
+  const checks: [string, PromiseLike<{ error: { message: string } | null }>][] = [
+    ["ticket_events.is_internal (phase 3)", admin.from("ticket_events").select("is_internal").limit(1)],
+    ["escalations brief columns (phase 4)", admin.from("escalations").select("headline, urgency_reason, brief_model, brief_count, resolved_at").limit(1)],
+    ["hotspot_insights table (phase 4)", admin.from("hotspot_insights").select("hotspot_key").limit(1)],
+  ];
+  let missing = false;
+  for (const [label, q] of checks) {
+    const { error } = await q;
+    console.log(error ? `✗ ${label} — re-run supabase/schema.sql (${error.message})` : `✔ ${label}`);
+    missing ||= !!error;
+  }
 
   for (const id of ["suresh", "ramesh", "rao"]) {
     const c = await asUser(id);
-    const { data, error } = await c.from("tickets").select("ticket_no, department, module");
+    const { data, error } = await c.from("tickets").select("ticket_no, department, status");
     if (error) throw error;
     const depts = [...new Set(data!.map((t) => t.department))];
-    console.log(`${id}: ${data!.length} tickets visible via RLS · departments: ${depts.join(", ")}`);
+    const closed = data!.filter((t) => t.status === "Closed").length;
+    console.log(`${id}: ${data!.length} tickets visible via RLS (${closed} closed) · departments: ${depts.join(", ")}`);
+  }
+  if (!missing) {
+    const { data } = await admin.from("escalations").select("reason, status, affected_count, headline");
+    console.log(`escalations: ${JSON.stringify(data)}`);
   }
 }
 main().catch((e) => {

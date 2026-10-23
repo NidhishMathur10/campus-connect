@@ -9,8 +9,15 @@ export const TICKET_STATUSES = [
 ] as const;
 export type TicketStatus = (typeof TICKET_STATUSES)[number];
 
-/** Columns of the staff Kanban board. Reopened tickets show in "Submitted". */
-export const BOARD_COLUMNS: TicketStatus[] = ["Submitted", "Assigned", "In Progress", "Resolved"];
+/**
+ * Columns of the staff Kanban board. Reopened tickets show in "Submitted";
+ * "Closed" only shows tickets closed in the last CLOSED_ON_BOARD_DAYS days.
+ */
+export const BOARD_COLUMNS: TicketStatus[] = ["Submitted", "Assigned", "In Progress", "Resolved", "Closed"];
+export const CLOSED_ON_BOARD_DAYS = 7;
+
+/** Finished tickets (student "Completed" tab). */
+export const DONE_STATUSES: TicketStatus[] = ["Closed", "Merged"];
 
 /** Statuses that count as "open" (still needs work). */
 export const OPEN_STATUSES: TicketStatus[] = ["Submitted", "Assigned", "In Progress", "Reopened"];
@@ -50,7 +57,16 @@ export const ESCALATION_RULES = {
   recurringWindowDays: 30,
   reopenCount: 2,
   duplicateWindowDays: 7,
+  /** Priorities whose missed SLA escalates. */
+  slaPriorities: ["Urgent", "High"],
 } as const;
+
+export const ESCALATION_REASON_LABELS: Record<"recurring" | "reopened" | "sla_breach" | "manual", string> = {
+  recurring: "Recurring",
+  reopened: "Reopened twice",
+  sla_breach: "SLA breached",
+  manual: "Manual",
+};
 
 /**
  * Status changes staff may make (CLAUDE.md §5). Resolved → Closed / Reopened is the

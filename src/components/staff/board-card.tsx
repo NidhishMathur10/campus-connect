@@ -1,8 +1,9 @@
 "use client";
 
-import { ArrowRight, Copy, MapPin, MoreHorizontal, RotateCcw, Users } from "lucide-react";
+import { ArrowRight, Copy, Hourglass, MapPin, MoreHorizontal, RotateCcw, Users } from "lucide-react";
 import { CategoryBadge, EscalatedBadge, PriorityBadge } from "@/components/common/badges";
 import { initials } from "@/components/shell/user-menu";
+import { Stars } from "@/components/tickets/ticket-card";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -144,6 +145,17 @@ export function BoardCard({
         <PriorityBadge priority={ticket.priority} className="px-2 text-[11px]" />
         <TicketFlags ticket={ticket} />
       </div>
+
+      {ticket.status === "Resolved" && (
+        <p className="flex items-center gap-1.5 rounded-xl bg-emerald-50 px-2 py-1 text-[11px] font-bold text-emerald-800">
+          <Hourglass className="size-3" /> Awaiting student confirmation
+        </p>
+      )}
+      {ticket.status === "Closed" && (
+        <p className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-500">
+          {ticket.rating ? <Stars rating={ticket.rating} className="size-3.5" /> : "Closed · not rated"}
+        </p>
+      )}
 
       <p className="flex min-w-0 items-center gap-1 text-xs text-slate-500">
         <MapPin className="size-3.5 shrink-0" />

@@ -1,28 +1,45 @@
 import "server-only";
-import { INTERNAL_EVENT_TYPES, TICKET_STATUSES } from "@/config/statuses";
+import { DONE_STATUSES, INTERNAL_EVENT_TYPES, TICKET_STATUSES } from "@/config/statuses";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import type { Ticket, TicketEvent } from "@/lib/types";
 
-export type TicketFilter = "active" | "resolved";
-const DONE_STATUSES = ["Resolved", "Closed", "Merged"];
+export type TicketFilter = "active" | "completed";
 
 export interface MyTicket extends Ticket {
   /** True when the student joined this ticket with "Me too" (not the reporter). */
   following: boolean;
+  /** Ticket number this one was merged into, if any. */
+  merged_into: string | null;
 }
 
-/** Tickets the student reported or follows. RLS limits students to exactly those. */
+/**
+ * Tickets the student reported or follows. RLS limits students to exactly those.
+ * Active = still being worked on (incl. Resolved awaiting confirmation); Completed = Closed + Merged.
+ */
 export async function listMyTickets(userId: string, filter: TicketFilter): Promise<MyTicket[]> {
   const supabase = await createClient();
-  let query = supabase.from("tickets").select("*").order("created_at", { ascending: false }).limit(100);
+  let query = supabase.from("tickets").select("*").order("updated_at", { ascending: false }).limit(100);
   query =
-    filter === "resolved"
+    filter === "completed"
       ? query.in("status", DONE_STATUSES)
       : query.not("status", "in", `(${DONE_STATUSES.join(",")})`);
   const { data, error } = await query;
   if (error) console.error("[listMyTickets]", error.message);
-  return ((data ?? []) as Ticket[]).map((t) => ({ ...t, following: t.reporter_id !== userId }));
+  const tickets = (data ?? []) as Ticket[];
+
+  // Original ticket numbers for merged duplicates (the student may not follow the original yet).
+  const originalIds = [...new Set(tickets.filter((t) => t.status === "Merged" && t.duplicate_of).map((t) => t.duplicate_of!))];
+  const originals = new Map<string, string>();
+  if (originalIds.length) {
+    const { data: rows } = await createAdminClient().from("tickets").select("id, ticket_no").in("id", originalIds);
+    for (const r of rows ?? []) originals.set(r.id, r.ticket_no);
+  }
+  return tickets.map((t) => ({
+    ...t,
+    following: t.reporter_id !== userId,
+    merged_into: t.duplicate_of ? (originals.get(t.duplicate_of) ?? null) : null,
+  }));
 }
 
 /** Full ticket + timeline, if the current user may see it (RLS decides). */

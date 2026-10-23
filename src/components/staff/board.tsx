@@ -26,6 +26,8 @@ import {
   ShieldAlert,
   SlidersHorizontal,
   Split,
+  Star,
+  Trophy,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -47,16 +49,25 @@ import {
   TRIAGE_DEPARTMENT,
   type TicketModule,
 } from "@/config/routing";
-import { BOARD_COLUMNS, boardColumnOf, canTransition, OPEN_STATUSES, type TicketStatus } from "@/config/statuses";
+import {
+  BOARD_COLUMNS,
+  boardColumnOf,
+  canTransition,
+  CLOSED_ON_BOARD_DAYS,
+  OPEN_STATUSES,
+  TICKET_STATUSES,
+  type TicketStatus,
+} from "@/config/statuses";
 import { STATUS_STYLES } from "@/config/styles";
 import { formatLocation } from "@/lib/format";
 import { canManageTicket, type Viewer } from "@/lib/tickets/access";
-import { changeTicketStatus, overrideTicketField } from "@/lib/tickets/staff-actions";
+import { overrideTicketField } from "@/lib/tickets/staff-actions";
 import type { BoardData, BoardTicket, StaffTicketDetail } from "@/lib/tickets/staff-queries";
 import type { Ticket } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { Stars } from "@/components/tickets/ticket-card";
 import { AssigneeAvatar, BoardCard, TicketFlags } from "./board-card";
-import { MoveDialog, moveNeedsDialog, type MoveRequest } from "./move-dialog";
+import { useMoveFlow } from "./move-dialog";
 import { Age, SlaCountdown, useNow } from "./time-bits";
 import { TicketDrawer } from "./ticket-drawer";
 
@@ -200,6 +211,7 @@ function Column({
       <div className="flex items-center justify-between px-2 pt-1 pb-3">
         <p className="flex items-center gap-2 text-sm font-extrabold text-navy">
           <span className={cn("size-2 rounded-full", STATUS_STYLES[status].dot)} /> {status}
+          {status === "Closed" && <span className="text-xs font-semibold text-slate-400">last {CLOSED_ON_BOARD_DAYS} days</span>}
         </p>
         <span className="rounded-full bg-white px-2 py-0.5 text-xs font-bold text-slate-500 shadow-sm">{count}</span>
       </div>
@@ -225,20 +237,22 @@ const SORT_COLUMNS: { key: SortKey; label: string }[] = [
 function compare(a: BoardTicket, b: BoardTicket, key: SortKey): number {
   if (key === "priority") return PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority];
   if (key === "ticket_no") return Number(a.ticket_no.replace(/\D/g, "")) - Number(b.ticket_no.replace(/\D/g, ""));
-  if (key === "status") return BOARD_COLUMNS.indexOf(boardColumnOf(a.status)!) - BOARD_COLUMNS.indexOf(boardColumnOf(b.status)!);
+  if (key === "status") return TICKET_STATUSES.indexOf(a.status) - TICKET_STATUSES.indexOf(b.status);
   return String(a[key] ?? "~").localeCompare(String(b[key] ?? "~"));
 }
 
-function ListView({
+export function ListView({
   tickets,
   now,
   staffName,
   onOpen,
+  showRating,
 }: {
   tickets: BoardTicket[];
   now: number;
   staffName: (id: string | null) => string | null;
   onOpen: (ticketNo: string) => void;
+  showRating?: boolean;
 }) {
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: "created_at", dir: -1 });
   const rows = useMemo(() => [...tickets].sort((a, b) => compare(a, b, sort.key) * sort.dir), [tickets, sort]);
@@ -261,6 +275,7 @@ function ListView({
             ))}
             <th className="eyebrow px-3 py-2.5">Location</th>
             <th className="eyebrow px-3 py-2.5">Assignee</th>
+            {showRating && <th className="eyebrow px-3 py-2.5">Rating</th>}
           </tr>
         </thead>
         <tbody>
@@ -283,6 +298,9 @@ function ListView({
                   <span className="truncate">{staffName(t.assigned_to) ?? "—"}</span>
                 </div>
               </td>
+              {showRating && (
+                <td className="px-3 py-2.5">{t.rating ? <Stars rating={t.rating} className="size-3.5" /> : <span className="text-xs text-slate-400">—</span>}</td>
+              )}
             </tr>
           ))}
         </tbody>
@@ -375,17 +393,16 @@ export function StaffBoard({
 }) {
   const router = useRouter();
   const now = useNow();
-  const [, startTransition] = useTransition();
   const [filters, setFilters] = useState<Filters>(NO_FILTERS);
   const [view, setView] = useState<"board" | "list">("board");
   const [selected, setSelected] = useState<string | null>(selectedTicketNo);
-  const [moveReq, setMoveReq] = useState<MoveRequest | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
   const justDragged = useRef(false);
 
   const [tickets, applyMove] = useOptimistic(data.tickets, (state, move: { id: string; status: TicketStatus }) =>
     state.map((t) => (t.id === move.id ? { ...t, status: move.status } : t)),
   );
+  const { requestMove, dialog: moveDialog } = useMoveFlow({ viewer, staff: data.staff, onOptimistic: applyMove });
 
   const live = useLiveTickets({
     onTicketInsert: useCallback((t: Ticket) => {
@@ -425,37 +442,6 @@ export function StaffBoard({
     router.replace("/staff", { scroll: false });
   }
 
-  function runMove(req: MoveRequest, input: { note: string; assigneeId: string | null }): Promise<boolean> {
-    return new Promise((resolve) => {
-      startTransition(async () => {
-        applyMove({ id: req.ticket.id, status: req.to });
-        try {
-          const res = await changeTicketStatus(req.ticket.id, { to: req.to, note: input.note, assigneeId: input.assigneeId });
-          if (!res.ok) {
-            toast.error(res.error);
-            resolve(false);
-            return;
-          }
-          toast.success(`${req.ticket.ticket_no} moved to ${req.to}`);
-          setMoveReq(null);
-          resolve(true);
-        } catch {
-          toast.error("Could not move the ticket. Please try again.");
-          resolve(false);
-        }
-      });
-    });
-  }
-
-  function requestMove(req: MoveRequest) {
-    if (!canTransition(req.ticket.status, req.to)) {
-      toast.error(`A ${req.ticket.status} ticket can't go straight to ${req.to}.`);
-      return;
-    }
-    if (moveNeedsDialog(req)) setMoveReq(req);
-    else void runMove(req, { note: "", assigneeId: null });
-  }
-
   function onDragEnd(e: DragEndEvent) {
     setActiveId(null);
     justDragged.current = true;
@@ -472,6 +458,7 @@ export function StaffBoard({
     { label: "Possible duplicates", value: data.stats.duplicates, icon: Copy, tone: "text-amber-600", onClick: () => setFilter({ duplicatesOnly: !filters.duplicatesOnly }) },
     { label: "Resolved today", value: data.stats.resolvedToday, icon: CircleCheck, tone: "text-emerald-600" },
   ];
+  const mine = data.stats.mine;
 
   const cardFor = (t: BoardTicket, dragging = false) => (
     <BoardCard
@@ -505,6 +492,20 @@ export function StaffBoard({
           </button>
         ))}
       </div>
+
+      {mine && (
+        <div className="mb-5 flex flex-wrap items-center gap-x-6 gap-y-2 rounded-3xl bg-navy px-5 py-3.5 text-white shadow-sm">
+          <p className="flex items-center gap-2 text-sm font-semibold">
+            <Trophy className="size-4 text-amber-300" /> Resolved by me
+            <span className="text-xl font-extrabold">{mine.resolved}</span>
+          </p>
+          <p className="flex items-center gap-2 text-sm font-semibold">
+            <Star className="size-4 fill-amber-300 text-amber-300" /> My average rating
+            <span className="text-xl font-extrabold">{mine.avgRating ? mine.avgRating.toFixed(1) : "—"}</span>
+            {mine.ratedCount > 0 && <span className="text-xs text-slate-300">from {mine.ratedCount} rating{mine.ratedCount === 1 ? "" : "s"}</span>}
+          </p>
+        </div>
+      )}
 
       {/* Toolbar */}
       <div className="mb-5 space-y-3">
@@ -592,7 +593,7 @@ export function StaffBoard({
                 onDragEnd={onDragEnd}
                 onDragCancel={() => setActiveId(null)}
               >
-                <div className="grid grid-cols-4 gap-3">
+                <div className="grid auto-cols-[minmax(250px,1fr)] grid-flow-col gap-3 overflow-x-auto pb-2">
                   {BOARD_COLUMNS.map((col) => {
                     const items = boardTickets.filter((t) => boardColumnOf(t.status) === col).sort(byUrgency);
                     const dropState = !activeTicket
@@ -629,7 +630,9 @@ export function StaffBoard({
 
           {/* Mobile: stacked list */}
           <div className="space-y-2.5 lg:hidden">
-            {[...boardTickets].sort(byUrgency).map((t) => (
+            {[...boardTickets]
+              .sort((a, b) => Number(a.status === "Closed") - Number(b.status === "Closed") || byUrgency(a, b))
+              .map((t) => (
               <div key={t.id} className="space-y-1">
                 <StatusBadge status={t.status} className="text-[11px]" />
                 {cardFor(t)}
@@ -651,7 +654,7 @@ export function StaffBoard({
         onRequestMove={requestMove}
       />
 
-      <MoveDialog request={moveReq} viewer={viewer} staff={data.staff} onConfirm={(input) => runMove(moveReq!, input)} onClose={() => setMoveReq(null)} />
+      {moveDialog}
     </>
   );
 }

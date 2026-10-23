@@ -17,7 +17,7 @@ function NavLinks({ items, pathname, onNavigate }: { items: NavItem[]; pathname:
   return (
     <ul className="space-y-1">
       {items.map((item) => {
-        const active = isActive(pathname, item.href);
+        const active = isActive(pathname, item.href, items);
         const Icon = item.icon;
         return (
           <li key={item.href}>

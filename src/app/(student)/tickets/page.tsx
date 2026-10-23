@@ -15,7 +15,7 @@ export const metadata: Metadata = { title: "My Tickets" };
 
 const FILTERS: { value: TicketFilter; label: string }[] = [
   { value: "active", label: "Active" },
-  { value: "resolved", label: "Resolved" },
+  { value: "completed", label: "Completed" },
 ];
 
 export default async function MyTicketsPage({
@@ -25,7 +25,8 @@ export default async function MyTicketsPage({
 }) {
   const profile = await requireProfile(["student"]);
   const { filter: raw } = await searchParams;
-  const filter: TicketFilter = raw === "resolved" ? "resolved" : "active";
+    // "resolved" kept so old links still work.
+  const filter: TicketFilter = raw === "completed" || raw === "resolved" ? "completed" : "active";
   const tickets = await listMyTickets(profile.id, filter);
 
   return (
@@ -66,11 +67,11 @@ export default async function MyTicketsPage({
       {tickets.length === 0 ? (
         <EmptyState
           icon={Ticket}
-          title={filter === "active" ? "No open tickets" : "No resolved tickets yet"}
+          title={filter === "active" ? "No open tickets" : "No completed tickets yet"}
           description={
             filter === "active"
               ? "When you report a problem it shows up here with its live progress."
-              : "Tickets move here once staff resolve them and you confirm the fix."
+              : "Tickets move here once you confirm the fix, or when staff merge a duplicate into an earlier report."
           }
           action={
             <Button asChild>

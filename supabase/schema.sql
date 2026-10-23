@@ -143,6 +143,26 @@ create table if not exists public.escalations (
   created_at         timestamptz not null default now()
 );
 
+-- Phase 4: AI brief fields + lifecycle timestamps on escalations.
+alter table public.escalations add column if not exists headline        text;
+alter table public.escalations add column if not exists urgency_reason  text;
+alter table public.escalations add column if not exists brief_model     text;
+-- affected_count at the time the brief was written (regenerate when it changes).
+alter table public.escalations add column if not exists brief_count     int;
+alter table public.escalations add column if not exists acknowledged_at timestamptz;
+alter table public.escalations add column if not exists resolved_at     timestamptz;
+alter table public.escalations add column if not exists updated_at      timestamptz not null default now();
+
+-- Phase 4: cached Gemini one-liners for Insights hotspots.
+create table if not exists public.hotspot_insights (
+  hotspot_key    text primary key,
+  module         public.ticket_module not null,
+  recommendation text not null,
+  ticket_count   int not null,
+  model          text,
+  generated_at   timestamptz not null default now()
+);
+
 create table if not exists public.questions (
   id             uuid primary key default gen_random_uuid(),
   author_id      uuid not null references public.profiles(id) on delete cascade,
@@ -319,6 +339,7 @@ alter table public.questions        enable row level security;
 alter table public.answers          enable row level security;
 alter table public.answer_comments  enable row level security;
 alter table public.question_votes   enable row level security;
+alter table public.hotspot_insights enable row level security;
 
 -- profiles: everyone reads their own; non-students read all (to see roll numbers / staff lists).
 drop policy if exists "profiles_select_own"   on public.profiles;
@@ -388,6 +409,11 @@ create policy "escalations_update" on public.escalations for update to authentic
     (public.app_role() = 'dean' and target_role = 'dean')
     or (public.app_role() = 'hod' and target_role = 'hod')
   );
+
+-- hotspot_insights: read by admins; written only by the server (service role).
+drop policy if exists "hotspot_insights_select" on public.hotspot_insights;
+create policy "hotspot_insights_select" on public.hotspot_insights for select to authenticated
+  using (public.app_role() in ('warden','dean','hod'));
 
 -- Q&A: every signed-in user can read; authors write their own.
 drop policy if exists "questions_select" on public.questions;

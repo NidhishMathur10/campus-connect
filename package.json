@@ -9,6 +9,7 @@
     "lint": "eslint",
     "seed": "tsx scripts/seed.ts",
     "typecheck": "tsc --noEmit",
+    "check:db": "tsx scripts/check-phase3.ts",
     "check:phase3": "tsx scripts/check-phase3.ts",
     "test:ai": "tsx --conditions=react-server scripts/test-ai.ts"
   },

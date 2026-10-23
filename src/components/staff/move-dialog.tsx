@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
+import { toast } from "sonner";
 import { ArrowRight, Loader2 } from "lucide-react";
 import { StatusBadge } from "@/components/common/badges";
 import { SimpleSelect } from "@/components/common/simple-select";
@@ -8,8 +9,9 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { NOTE_REQUIRED_STATUSES, type TicketStatus } from "@/config/statuses";
+import { canTransition, NOTE_REQUIRED_STATUSES, type TicketStatus } from "@/config/statuses";
 import type { Viewer } from "@/lib/tickets/access";
+import { changeTicketStatus } from "@/lib/tickets/staff-actions";
 import type { StaffMember } from "@/lib/tickets/staff-queries";
 import type { Ticket } from "@/lib/types";
 
@@ -150,4 +152,64 @@ export function mapIds(options: AssigneeOption[], id: string | null, setId: (id:
     value: options.find((o) => o.id === id)?.label ?? null,
     onChange: (label: string | null) => setId(options.find((o) => o.label === label)?.id ?? null),
   };
+}
+
+/**
+ * Status-move flow shared by the board and the history list: validates the
+ * transition, opens the note/assignee dialog when needed, calls the server.
+ */
+export function useMoveFlow({
+  viewer,
+  staff,
+  onOptimistic,
+}: {
+  viewer: Viewer;
+  staff: StaffMember[];
+  /** Called inside the transition so a useOptimistic update sticks until the server answers. */
+  onOptimistic?: (move: { id: string; status: TicketStatus }) => void;
+}) {
+  const [request, setRequest] = useState<MoveRequest | null>(null);
+  const [, startTransition] = useTransition();
+
+  function run(req: MoveRequest, input: { note: string; assigneeId: string | null }): Promise<boolean> {
+    return new Promise((resolve) => {
+      startTransition(async () => {
+        onOptimistic?.({ id: req.ticket.id, status: req.to });
+        try {
+          const res = await changeTicketStatus(req.ticket.id, { to: req.to, note: input.note, assigneeId: input.assigneeId });
+          if (!res.ok) {
+            toast.error(res.error);
+            resolve(false);
+            return;
+          }
+          toast.success(`${req.ticket.ticket_no} moved to ${req.to}`);
+          setRequest(null);
+          resolve(true);
+        } catch {
+          toast.error("Could not move the ticket. Please try again.");
+          resolve(false);
+        }
+      });
+    });
+  }
+
+  function requestMove(req: MoveRequest) {
+    if (!canTransition(req.ticket.status, req.to)) {
+      toast.error(`A ${req.ticket.status} ticket can't go straight to ${req.to}.`);
+      return;
+    }
+    if (moveNeedsDialog(req)) setRequest(req);
+    else void run(req, { note: "", assigneeId: null });
+  }
+
+  const dialog = (
+    <MoveDialog
+      request={request}
+      viewer={viewer}
+      staff={staff}
+      onConfirm={(input) => (request ? run(request, input) : Promise.resolve(false))}
+      onClose={() => setRequest(null)}
+    />
+  );
+  return { requestMove, dialog };
 }

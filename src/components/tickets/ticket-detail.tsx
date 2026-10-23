@@ -120,7 +120,7 @@ export function TicketDetail({
 
           {ticket.status === "Closed" && ticket.rating && (
             <Card className="flex flex-wrap items-center gap-3">
-              <span className="eyebrow">Your rating</span>
+              <span className="eyebrow">{isReporter ? "Your rating" : "Student rating"}</span>
               <span className="flex">
                 {[1, 2, 3, 4, 5].map((n) => (
                   <Star key={n} className={`size-5 ${n <= ticket.rating! ? "fill-amber-400 text-amber-400" : "text-slate-300"}`} />

@@ -118,6 +118,7 @@ function u(loginId: string): SeededUser {
 // ---------------------------------------------------------------------------
 async function wipe() {
   must(await db.from("escalations").delete().not("id", "is", null), "wipe escalations");
+  must(await db.from("hotspot_insights").delete().not("hotspot_key", "is", null), "wipe hotspot insights");
   must(await db.from("tickets").delete().not("id", "is", null), "wipe tickets");
   must(await db.from("questions").delete().not("id", "is", null), "wipe questions");
   const { error } = await db.rpc("reset_ticket_seq");
@@ -167,21 +168,21 @@ const TICKETS: SeedTicket[] = [
     text: "Flush in the 2nd floor washroom of New Hostel (cubicle 3) keeps overflowing, water all over the floor.",
     title: "Overflowing flush in 2nd floor washroom", summary: "The flush in cubicle 3 of the New Hostel 2nd floor washroom overflows and floods the floor. Needs a plumber to fix the cistern valve.",
     issue: "Overflowing toilet flush (cubicle 3)", category: "Plumbing", building: "New Hostel", floor: "2nd", spot: "Washroom, cubicle 3",
-    status: "Closed", assignee: "ramesh", rating: 4, feedback: "Fixed the same day, thanks!",
+    status: "Closed", assignee: "ramesh", rating: 4, feedback: "Fixed the same day, thanks!", escalated: true,
   },
   {
     key: "hot2", module: "hostel", reporter: "2616400101", ago: 18 * D,
     text: "Pipe under the wash basin in 2nd floor washroom NH is leaking, bucket kept below is full every morning",
     title: "Leaking pipe under wash basin", summary: "The pipe under a wash basin in the New Hostel 2nd floor washroom leaks steadily overnight. Pipe joint likely needs replacing.",
     issue: "Leaking pipe joint under wash basin", category: "Plumbing", building: "New Hostel", floor: "2nd", spot: "Washroom, wash basin row",
-    status: "Resolved", assignee: "mahesh",
+    status: "Resolved", assignee: "mahesh", escalated: true,
   },
   {
     key: "hot3", module: "hostel", reporter: "2616400103", ago: 9 * D,
     text: "Drain is blocked in New Hostel 2nd floor washroom, dirty water collecting near the bathing area",
     title: "Blocked drain in 2nd floor washroom", summary: "The floor drain near the bathing area of the New Hostel 2nd floor washroom is blocked and dirty water is collecting.",
     issue: "Blocked floor drain", category: "Plumbing", building: "New Hostel", floor: "2nd", spot: "Washroom, bathing area",
-    status: "In Progress", assignee: "ramesh",
+    status: "In Progress", assignee: "ramesh", escalated: true,
   },
   {
     key: "hot4", module: "hostel", reporter: "2616400101", ago: 2 * D, language: "hi",
@@ -189,7 +190,7 @@ const TICKETS: SeedTicket[] = [
     english: "The tap in the New Hostel 2nd floor washroom keeps dripping continuously; you can hear it all night.",
     title: "Tap dripping all night in washroom", summary: "A tap in the New Hostel 2nd floor washroom drips continuously through the night, wasting water. Needs a washer replacement.",
     issue: "Continuously dripping tap", category: "Plumbing", building: "New Hostel", floor: "2nd", spot: "Washroom",
-    status: "Submitted",
+    status: "Submitted", escalated: true,
   },
   // --- Overdue urgent sparking socket (→ sla_breach escalation)
   {
@@ -222,7 +223,7 @@ const TICKETS: SeedTicket[] = [
     key: "wifi", module: "hostel", reporter: "2616400102", ago: 3 * D,
     text: "Wifi keeps disconnecting every 10 minutes in the whole girls wing 1st floor, can't attend online classes",
     title: "Wi-Fi drops every 10 minutes", summary: "Wi-Fi disconnects roughly every 10 minutes across the entire Old Hostel Girls Wing 1st floor, affecting online classes. Likely an access-point issue.",
-    issue: "Frequent Wi-Fi disconnections (whole floor)", category: "Internet", priority: "High",
+    issue: "Frequent Wi-Fi disconnections (whole floor)", category: "Internet", priority: "Medium",
     building: "Old Hostel", floor: "1st", spot: "Girls Wing, whole floor", status: "Assigned", assignee: "rohit",
   },
   {
@@ -245,7 +246,7 @@ const TICKETS: SeedTicket[] = [
     english: "A hair was found in the vegetable at dinner tonight; hygiene is not being maintained in the Girls Mess.",
     title: "Hair found in dinner sabzi", summary: "A student found a hair in the vegetable dish at dinner in the Girls Mess and reports poor hygiene. Kitchen staff hygiene (hair nets) should be checked.",
     issue: "Hair in food — hygiene lapse at dinner", category: "Mess Food", priority: "High", building: "Girls Mess", spot: "Dinner",
-    status: "In Progress", assignee: "sharma",
+    status: "Resolved", assignee: "sharma",
   },
   {
     key: "garbage", module: "hostel", reporter: "2616400103", ago: 15 * D,
@@ -300,7 +301,7 @@ const TICKETS: SeedTicket[] = [
     key: "cooler", module: "hostel", reporter: "2616400101", ago: 11 * D,
     text: "RO water cooler on ground floor is giving warm water and leaking from the bottom",
     title: "Water cooler warm and leaking", summary: "The RO water cooler on the New Hostel ground floor dispenses warm water and leaks from the bottom. It was reported fixed once but the problem came back.",
-    issue: "Water cooler not cooling, leaking", category: "Water Supply", building: "New Hostel", floor: "Ground", spot: "Water cooler near stairs",
+    issue: "Water cooler not cooling, leaking", category: "Water Supply", priority: "Medium", building: "New Hostel", floor: "Ground", spot: "Water cooler near stairs",
     status: "Reopened", assignee: "ramesh", reopenCount: 1,
   },
   {
@@ -509,7 +510,14 @@ async function seedTickets() {
       ev("status_change", assignee, at(0.3), "Assigned", "In Progress", "Work started on site.");
     }
     if (t.escalated) {
-      ev("escalated", null, at(0.6), null, null, "Urgent ticket past its 2h SLA — escalated to the Dean of Student Affairs.");
+      ev(
+        "escalated",
+        null,
+        t.key === "spark" ? at(0.6) : new Date(now - 2 * D).toISOString(),
+        null,
+        null,
+        "Escalated to Dean of Student Affairs for priority attention.",
+      );
     }
     if (assignee && reached(t.status, "Resolved")) {
       ev("status_change", assignee, at(0.7), "In Progress", "Resolved", "Fixed. Please confirm.");
@@ -557,11 +565,16 @@ async function seedEscalations(ids: Map<string, string>) {
         hotspot_key: "hostel|Plumbing|New Hostel|2nd",
         reason: "recurring",
         target_role: "dean",
-        affected_count: 4,
+        // unique reporters + followers across the 4 tickets (Aarav ×3, Rahul ×1)
+        affected_count: 2,
+        brief_count: 2,
+        brief_model: "seed",
+        headline: "New Hostel 2nd floor washroom keeps flooding",
         brief:
-          "Four plumbing complaints in 26 days from the New Hostel 2nd floor washroom: an overflowing flush, a leaking basin pipe, a blocked drain and a tap dripping all night. Fixes are being done one at a time and the problems keep coming back.",
+          "Four plumbing complaints in 26 days from the New Hostel 2nd floor washroom: an overflowing flush, a leaking basin pipe, a blocked drain and a tap dripping all night.\nTwo students have reported them; one is still open and one is in progress.\nEstate / Maintenance has fixed each fault one at a time, but a new one appears every week.",
         recommended_action:
           "Order a full plumbing audit of the New Hostel 2nd floor washroom (cisterns, basin pipes, floor drains, tap washers) this week instead of one-off repairs.",
+        urgency_reason: "Water on the washroom floor is a slip hazard and the repeat repairs are wasting staff time.",
         created_at: new Date(Date.now() - 2 * D).toISOString(),
       },
       {
@@ -570,8 +583,12 @@ async function seedEscalations(ids: Map<string, string>) {
         reason: "sla_breach",
         target_role: "dean",
         affected_count: 1,
+        brief_count: 1,
+        brief_model: "seed",
+        headline: "Sparking socket in B-305 still not fixed",
         brief:
-          "An Urgent safety ticket — a sparking socket with a burning smell in Old Hostel room B-305 — has passed its 2-hour deadline and is still not resolved.",
+          "An Urgent safety ticket — a sparking socket with a burning smell in Old Hostel room B-305 — was reported 7 hours ago.\nIts 2-hour deadline has passed; it is assigned to Suresh (Electrical Maintenance) but no work has started.\nOne student is affected and is still living in the room.",
+        urgency_reason: "Sparking with a burning smell is a fire risk in an occupied room.",
         recommended_action:
           "Have Electrical Maintenance isolate the room's socket circuit immediately and replace the socket today; move the student's charging to a safe point meanwhile.",
         created_at: new Date(Date.now() - 3 * H).toISOString(),

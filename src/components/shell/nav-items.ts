@@ -7,6 +7,7 @@ import {
   Siren,
   Ticket,
   Building2,
+  History,
   type LucideIcon,
 } from "lucide-react";
 import type { Role } from "@/config/roles";
@@ -25,20 +26,24 @@ export const STUDENT_NAV: NavItem[] = [
 ];
 
 const BOARD: NavItem = { href: "/staff", label: "Ticket Board", icon: LayoutDashboard };
+const HISTORY: NavItem = { href: "/staff/history", label: "All Tickets", icon: History };
 const INSIGHTS: NavItem = { href: "/insights", label: "Insights", icon: BarChart3 };
 const ESCALATIONS: NavItem = { href: "/escalations", label: "Escalations", icon: Siren };
 const QA: NavItem = { href: "/qa", label: "Q&A Board", icon: MessagesSquare };
 
 /** Sidebar items for every non-student role (must agree with ROUTE_ACCESS in config/roles). */
 export const STAFF_NAV: Record<Exclude<Role, "student">, NavItem[]> = {
-  staff: [BOARD],
-  academic_office: [BOARD, QA],
-  warden: [BOARD, INSIGHTS, ESCALATIONS],
-  dean: [ESCALATIONS, INSIGHTS, BOARD, QA],
-  hod: [ESCALATIONS, INSIGHTS, BOARD, QA],
+  staff: [BOARD, HISTORY],
+  academic_office: [BOARD, HISTORY, QA],
+  warden: [BOARD, HISTORY, INSIGHTS, ESCALATIONS],
+  dean: [ESCALATIONS, INSIGHTS, BOARD, HISTORY, QA],
+  hod: [ESCALATIONS, INSIGHTS, BOARD, HISTORY, QA],
   teacher: [QA],
 };
 
-export function isActive(pathname: string, href: string): boolean {
-  return href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);
+export function isActive(pathname: string, href: string, items?: NavItem[]): boolean {
+  const matches = (h: string) => (h === "/" ? pathname === "/" : pathname === h || pathname.startsWith(`${h}/`));
+  if (!matches(href)) return false;
+  // "/staff" shouldn't light up on "/staff/history" when that has its own item.
+  return !items?.some((i) => i.href.length > href.length && i.href.startsWith(href) && matches(i.href));
 }

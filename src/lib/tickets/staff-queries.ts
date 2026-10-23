@@ -1,8 +1,9 @@
 import "server-only";
-import { BOARD_COLUMNS, OPEN_STATUSES, type TicketStatus } from "@/config/statuses";
+import { CLOSED_ON_BOARD_DAYS, OPEN_STATUSES, TICKET_STATUSES, type TicketStatus } from "@/config/statuses";
+import { hotspotKey } from "@/lib/hotspots";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import type { Profile, Ticket, TicketEvent } from "@/lib/types";
+import type { EscalationReason, EscalationStatus, Profile, Ticket, TicketEvent } from "@/lib/types";
 import { ASSIGNABLE_ROLES, boardScope, canViewStaffTicket, type Viewer } from "./access";
 
 export interface BoardTicket extends Ticket {
@@ -22,6 +23,8 @@ export interface BoardStats {
   urgent: number;
   duplicates: number;
   resolvedToday: number;
+  /** Department staff only: tickets this person moved to Resolved, and their average rating. */
+  mine: { resolved: number; avgRating: number | null; ratedCount: number } | null;
 }
 
 export interface BoardData {
@@ -30,10 +33,13 @@ export interface BoardData {
   stats: BoardStats;
 }
 
-const BOARD_STATUSES: TicketStatus[] = [...BOARD_COLUMNS, "Reopened"];
+/** Live work on the board (Closed comes from a separate "recent" query). */
+const ACTIVE_BOARD_STATUSES: TicketStatus[] = ["Submitted", "Assigned", "In Progress", "Resolved", "Reopened"];
+
+type Scope = NonNullable<ReturnType<typeof boardScope>>;
 
 /** Applies the viewer's scope (same rules as RLS) to a tickets query. */
-function scoped<Q>(query: Q, scope: NonNullable<ReturnType<typeof boardScope>>): Q {
+export function scoped<Q>(query: Q, scope: Scope): Q {
   // Typed loosely on purpose: supabase-js builder generics are too deep to constrain here.
   type Filterable = { eq(column: string, value: string): Filterable; or(filters: string): Filterable };
   let q = query as unknown as Filterable;
@@ -58,6 +64,11 @@ async function followerCounts(ticketIds: string[]): Promise<Map<string, number>>
   return counts;
 }
 
+async function withFollowers(rows: Ticket[]): Promise<BoardTicket[]> {
+  const counts = await followerCounts(rows.map((t) => t.id));
+  return rows.map((t) => ({ ...t, follower_count: counts.get(t.id) ?? 0 }));
+}
+
 export async function listAssignableStaff(): Promise<StaffMember[]> {
   const supabase = await createClient();
   const { data } = await supabase
@@ -68,28 +79,52 @@ export async function listAssignableStaff(): Promise<StaffMember[]> {
   return (data ?? []) as StaffMember[];
 }
 
+/** "Resolved by me" + average rating of tickets assigned to me. */
+async function myStats(viewer: Viewer): Promise<BoardStats["mine"]> {
+  if (viewer.role !== "staff" && viewer.role !== "academic_office") return null;
+  const supabase = await createClient();
+  const [resolvedRes, ratedRes] = await Promise.all([
+    supabase.from("ticket_events").select("ticket_id").eq("actor_id", viewer.id).eq("to_status", "Resolved"),
+    supabase.from("tickets").select("rating").eq("assigned_to", viewer.id).not("rating", "is", null),
+  ]);
+  const ratings = (ratedRes.data ?? []).map((r) => r.rating as number);
+  return {
+    resolved: new Set((resolvedRes.data ?? []).map((r) => r.ticket_id)).size,
+    avgRating: ratings.length ? ratings.reduce((a, b) => a + b, 0) / ratings.length : null,
+    ratedCount: ratings.length,
+  };
+}
+
 /** Everything the board needs. Uses the viewer's own session, so RLS applies too. */
 export async function getBoardData(viewer: Viewer): Promise<BoardData> {
   const scope = boardScope(viewer);
-  if (!scope) return { tickets: [], staff: [], stats: { open: 0, urgent: 0, duplicates: 0, resolvedToday: 0 } };
+  if (!scope) {
+    return { tickets: [], staff: [], stats: { open: 0, urgent: 0, duplicates: 0, resolvedToday: 0, mine: null } };
+  }
   const supabase = await createClient();
+  const closedSince = new Date(Date.now() - CLOSED_ON_BOARD_DAYS * 86_400_000).toISOString();
 
-  const [ticketsRes, resolvedRes, staff] = await Promise.all([
+  const [activeRes, closedRes, resolvedRes, staff, mine] = await Promise.all([
     scoped(supabase.from("tickets").select("*"), scope)
-      .in("status", BOARD_STATUSES)
+      .in("status", ACTIVE_BOARD_STATUSES)
       .order("created_at", { ascending: false })
       .limit(300),
+    scoped(supabase.from("tickets").select("*"), scope)
+      .eq("status", "Closed")
+      .gte("updated_at", closedSince)
+      .order("updated_at", { ascending: false })
+      .limit(60),
     scoped(supabase.from("tickets").select("id", { count: "exact", head: true }), scope).gte(
       "resolved_at",
       startOfTodayIST(),
     ),
     listAssignableStaff(),
+    myStats(viewer),
   ]);
-  if (ticketsRes.error) console.error("[getBoardData]", ticketsRes.error.message);
+  if (activeRes.error) console.error("[getBoardData]", activeRes.error.message);
+  if (closedRes.error) console.error("[getBoardData] closed", closedRes.error.message);
 
-  const rows = (ticketsRes.data ?? []) as Ticket[];
-  const counts = await followerCounts(rows.map((t) => t.id));
-  const tickets = rows.map((t) => ({ ...t, follower_count: counts.get(t.id) ?? 0 }));
+  const tickets = await withFollowers([...((activeRes.data ?? []) as Ticket[]), ...((closedRes.data ?? []) as Ticket[])]);
   const open = tickets.filter((t) => OPEN_STATUSES.includes(t.status));
 
   return {
@@ -100,8 +135,60 @@ export async function getBoardData(viewer: Viewer): Promise<BoardData> {
       urgent: open.filter((t) => t.priority === "Urgent").length,
       duplicates: tickets.filter((t) => t.duplicate_status === "flagged").length,
       resolvedToday: resolvedRes.count ?? 0,
+      mine,
     },
   };
+}
+
+// ---------------------------------------------------------------------------
+// History / All tickets
+// ---------------------------------------------------------------------------
+export interface HistoryFilters {
+  status: TicketStatus | null;
+  from: string | null;
+  to: string | null;
+  category: string | null;
+  assignee: string | null;
+  /** "1".."5" = exact stars, "unrated" = closed without rating. */
+  rating: string | null;
+  q: string | null;
+}
+
+export function parseHistoryFilters(sp: Record<string, string | undefined>): HistoryFilters {
+  const date = (v?: string) => (v && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null);
+  return {
+    status: TICKET_STATUSES.find((s) => s === sp.status) ?? null,
+    from: date(sp.from),
+    to: date(sp.to),
+    category: sp.category || null,
+    assignee: sp.assignee && /^[0-9a-f-]{36}$/i.test(sp.assignee) ? sp.assignee : null,
+    rating: sp.rating && /^([1-5]|unrated)$/.test(sp.rating) ? sp.rating : null,
+    q: sp.q?.trim() || null,
+  };
+}
+
+/** Every ticket the viewer may see (any status), newest first, with filters. */
+export async function listTicketHistory(viewer: Viewer, f: HistoryFilters): Promise<BoardTicket[]> {
+  const scope = boardScope(viewer);
+  if (!scope) return [];
+  const supabase = await createClient();
+  let q = scoped(supabase.from("tickets").select("*"), scope).order("created_at", { ascending: false }).limit(300);
+  if (f.status) q = q.eq("status", f.status);
+  // Dates are IST calendar days.
+  if (f.from) q = q.gte("created_at", new Date(`${f.from}T00:00:00+05:30`).toISOString());
+  if (f.to) q = q.lt("created_at", new Date(new Date(`${f.to}T00:00:00+05:30`).getTime() + 86_400_000).toISOString());
+  if (f.category) q = q.eq("category", f.category);
+  if (f.assignee) q = q.eq("assigned_to", f.assignee);
+  if (f.rating === "unrated") q = q.eq("status", "Closed").is("rating", null);
+  else if (f.rating) q = q.eq("rating", Number(f.rating));
+  if (f.q) {
+    const ticketNo = f.q.match(/^(?:cc)?[-\s]?(\d+)$/i);
+    const text = f.q.replace(/[,()"%]/g, " ");
+    q = ticketNo ? q.ilike("ticket_no", `%${ticketNo[1]}%`) : q.or(`title.ilike.%${text}%,original_text.ilike.%${text}%`);
+  }
+  const { data, error } = await q;
+  if (error) console.error("[listTicketHistory]", error.message);
+  return withFollowers((data ?? []) as Ticket[]);
 }
 
 export interface ReporterInfo {
@@ -128,8 +215,16 @@ export interface DuplicateOriginal {
   reporter_count: number;
 }
 
+export interface LinkedEscalation {
+  id: string;
+  reason: EscalationReason;
+  status: EscalationStatus;
+}
+
 export interface StaffTicketDetail {
   ticket: Ticket;
+  /** Escalations covering this ticket (only for roles that can open them: warden/dean/HOD). */
+  escalations: LinkedEscalation[];
   events: TicketEvent[];
   reporter: ReporterInfo | null;
   followerCount: number;
@@ -144,10 +239,17 @@ export async function getStaffTicketDetail(ticketNo: string, viewer: Viewer): Pr
   const ticket = data as Ticket | null;
   if (!ticket || !canViewStaffTicket(viewer, ticket)) return null;
 
-  const [eventsRes, reporterRes, followersRes] = await Promise.all([
+  const key = hotspotKey(ticket);
+  const [eventsRes, reporterRes, followersRes, escRes] = await Promise.all([
     supabase.from("ticket_events").select("*").eq("ticket_id", ticket.id).order("created_at", { ascending: true }),
     supabase.from("profiles").select("full_name, roll_no, hostel, wing, room").eq("id", ticket.reporter_id).maybeSingle(),
     supabase.from("ticket_followers").select("user_id", { count: "exact", head: true }).eq("ticket_id", ticket.id),
+    // RLS returns nothing for department staff, which is what we want.
+    supabase
+      .from("escalations")
+      .select("id, reason, status")
+      .or(key ? `ticket_id.eq.${ticket.id},hotspot_key.eq."${key}"` : `ticket_id.eq.${ticket.id}`)
+      .order("created_at", { ascending: false }),
   ]);
 
   let original: DuplicateOriginal | null = null;
@@ -168,6 +270,7 @@ export async function getStaffTicketDetail(ticketNo: string, viewer: Viewer): Pr
 
   return {
     ticket,
+    escalations: (escRes.data ?? []) as LinkedEscalation[],
     events: (eventsRes.data ?? []) as TicketEvent[],
     reporter: (reporterRes.data as ReporterInfo | null) ?? null,
     followerCount: followersRes.count ?? 0,
