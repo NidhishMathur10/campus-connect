@@ -6,6 +6,24 @@ import { getCurrentProfile, requireProfile } from "@/lib/auth";
 import { COLLEGE_NAME } from "@/config/college";
 import { CATEGORY_STYLES } from "@/config/styles";
 import { HOSTEL_CATEGORIES, ACADEMIC_CATEGORIES } from "@/config/routing";
+import { createAdminClient } from "@/lib/supabase/admin";
+
+const LF_CHIPS = ["Phones", "Wallets", "ID cards", "Earphones", "Keys", "Bottles"];
+
+/** Found items posted in the last 7 days (null if the count can't be read). */
+async function foundThisWeek(): Promise<number | null> {
+  try {
+    const since = new Date(Date.now() - 7 * 86_400_000).toISOString();
+    const { count, error } = await createAdminClient()
+      .from("lost_found_items")
+      .select("id", { count: "exact", head: true })
+      .eq("type", "found")
+      .gte("created_at", since);
+    return error ? null : count;
+  } catch {
+    return null;
+  }
+}
 
 export default async function StudentHome() {
   // Signed-out visitors get the public landing page; everyone else goes to their role home.
@@ -13,6 +31,7 @@ export default async function StudentHome() {
   if (!userId) return <LandingPage />;
   const profile = await requireProfile(["student"]);
   const firstName = profile.full_name.split(" ")[0];
+  const foundCount = await foundThisWeek();
 
   return (
     <div className="space-y-8">
@@ -27,7 +46,7 @@ export default async function StudentHome() {
         </p>
       </div>
 
-      <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+      <div className="grid gap-5 md:grid-cols-2">
         {/* Hostel & Campus — navy hero card */}
         <Link
           href="/hostel"
@@ -42,7 +61,7 @@ export default async function StudentHome() {
           <p className="relative mt-2 max-w-sm text-sm text-text-inverse-muted">
             Plumbing, electricity, Wi-Fi, laundry, mess food, rooms, gym and sports.
           </p>
-          <div className="relative mt-auto flex flex-wrap gap-1.5 pt-6">
+          <div className="relative mt-auto flex flex-wrap gap-1.5 pt-6 pr-16">
             {HOSTEL_CATEGORIES.slice(0, 6).map((c) => {
               const Icon = CATEGORY_STYLES[c].icon;
               return (
@@ -71,7 +90,7 @@ export default async function StudentHome() {
           <p className="relative mt-2 max-w-sm text-sm text-text-muted">
             Report classroom, lab, library or academic-office issues — and ask doubts on the open Q&amp;A board.
           </p>
-          <div className="relative mt-auto flex flex-wrap gap-1.5 pt-6">
+          <div className="relative mt-auto flex flex-wrap gap-1.5 pt-6 pr-16">
             {ACADEMIC_CATEGORIES.slice(0, 4).map((c) => {
               const Icon = CATEGORY_STYLES[c].icon;
               return (
@@ -89,7 +108,7 @@ export default async function StudentHome() {
         {/* Safety & Security — calm white card with a rose accent */}
         <Link
           href="/safety"
-          className="group relative flex min-h-72 animate-slide-up flex-col overflow-hidden rounded-3xl border border-danger-fg/30 bg-surface p-7 shadow-xl transition-transform [animation-delay:160ms] hover:-translate-y-1 md:col-span-2 xl:col-span-1"
+          className="group relative flex min-h-72 animate-slide-up flex-col overflow-hidden rounded-3xl border border-danger-fg/30 bg-surface p-7 shadow-xl transition-transform [animation-delay:160ms] hover:-translate-y-1"
         >
           <div className="absolute -top-16 -right-16 size-56 rounded-full border-[28px] border-danger-fg/30" />
           <div className="relative grid size-14 place-items-center rounded-2xl bg-danger-solid text-danger-solid-fg">
@@ -100,10 +119,43 @@ export default async function StudentHome() {
           <p className="relative mt-2 max-w-sm text-sm text-text-muted">
             Ragging, harassment, threats, theft or a suspicious person — tell us safely.
           </p>
-          <p className="relative mt-auto inline-flex w-fit items-center gap-1.5 rounded-full bg-danger-bg px-3 py-1.5 text-xs font-bold text-danger-fg">
-            <Lock className="size-3.5" /> Your report is confidential
-          </p>
+          <div className="relative mt-auto pt-6 pr-16">
+            <p className="inline-flex w-fit items-center gap-1.5 rounded-full bg-danger-bg px-3 py-1.5 text-xs font-bold text-danger-fg">
+              <Lock className="size-3.5" /> Your report is confidential
+            </p>
+          </div>
           <span className="absolute right-6 bottom-6 grid size-11 place-items-center rounded-full bg-danger-solid text-danger-solid-fg transition-transform group-hover:translate-x-1">
+            <ArrowRight className="size-5" />
+          </span>
+        </Link>
+
+        {/* Lost & Found — amber accent card */}
+        <Link
+          href="/lost-found"
+          className="group relative flex min-h-72 animate-slide-up flex-col overflow-hidden rounded-3xl border border-warning-fg/30 bg-gradient-to-br from-warning-bg to-surface p-7 shadow-xl transition-transform [animation-delay:240ms] hover:-translate-y-1"
+        >
+          <div className="absolute -right-16 -bottom-16 size-56 rounded-full border-[28px] border-warning-fg/15" />
+          <div className="relative grid size-14 place-items-center rounded-2xl bg-warning-solid text-warning-solid-fg">
+            <PackageSearch className="size-7" />
+          </div>
+          <p className="eyebrow relative mt-6 text-warning-fg">Module 4</p>
+          <h2 className="relative mt-1 text-2xl font-extrabold tracking-tight text-text sm:text-3xl">Lost &amp; Found</h2>
+          <p className="relative mt-2 max-w-sm text-sm text-text-muted">
+            Lost something or found something? AI matches lost and found items and helps you get them back.
+          </p>
+          {foundCount != null && foundCount > 0 && (
+            <p className="relative mt-3 w-fit rounded-full bg-warning-bg px-3 py-1 text-xs font-bold text-warning-fg">
+              {foundCount} {foundCount === 1 ? "item" : "items"} found this week
+            </p>
+          )}
+          <div className="relative mt-auto flex flex-wrap gap-1.5 pt-6 pr-16">
+            {LF_CHIPS.map((c) => (
+              <span key={c} className="inline-flex items-center rounded-full bg-surface px-2.5 py-1 text-xs font-semibold text-text">
+                {c}
+              </span>
+            ))}
+          </div>
+          <span className="absolute right-6 bottom-6 grid size-11 place-items-center rounded-full bg-warning-solid text-warning-solid-fg transition-transform group-hover:translate-x-1">
             <ArrowRight className="size-5" />
           </span>
         </Link>
@@ -127,13 +179,6 @@ export default async function StudentHome() {
           </span>
           <TrackBox />
         </div>
-        <Link href="/lost-found" className="flex items-center gap-4 rounded-3xl border border-border bg-surface p-5 transition-colors hover:border-accent-blue sm:col-span-2">
-          <span className="grid size-11 place-items-center rounded-2xl bg-surface-accent text-accent-text"><PackageSearch className="size-5" /></span>
-          <span>
-            <span className="block font-bold text-text">Lost &amp; Found</span>
-            <span className="block text-sm text-text-muted">Lost your earbuds, ID card or bottle? Post it or find what others handed in — we match them for you</span>
-          </span>
-        </Link>
       </div>
     </div>
   );
