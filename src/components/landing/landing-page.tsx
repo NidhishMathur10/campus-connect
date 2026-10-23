@@ -10,9 +10,11 @@ import {
   Languages,
   Lock,
   Mail,
+  PackageSearch,
   Route,
   ScanSearch,
   ShieldAlert,
+  ShieldCheck,
   Ticket,
   TrendingUp,
   UserCog,
@@ -40,6 +42,8 @@ const FEATURES: { icon: LucideIcon; title: string; text: string }[] = [
   { icon: Lock, title: "Confidential Safety", text: "Ragging, harassment and threats reach only the right committee." },
   { icon: TrendingUp, title: "Auto-escalation", text: "Recurring, reopened and overdue issues go to the Dean or HOD." },
   { icon: GraduationCap, title: "Education Q&A", text: "An open board for doubts, answered by classmates and teachers." },
+  { icon: PackageSearch, title: "Lost & Found", text: "AI matches what students lost with what others found, photos included." },
+  { icon: ShieldCheck, title: "Safe claiming", text: "Owners prove it is theirs and collect from the Security Office. Valuables stay hidden." },
   { icon: BellRing, title: "Live tracking", text: "Status changes appear instantly on every device." },
   { icon: Mail, title: "Email updates", text: "Get a mail when your ticket is assigned, in progress or resolved." },
 ];
@@ -101,6 +105,31 @@ export function LandingPage() {
               </li>
             ))}
           </ol>
+
+          <div className="mt-6 animate-slide-up rounded-3xl border border-warning-fg/30 bg-warning-bg p-6 sm:p-7">
+            <div className="flex items-center gap-3">
+              <span className="grid size-11 place-items-center rounded-2xl bg-warning-solid text-warning-solid-fg">
+                <PackageSearch className="size-6" />
+              </span>
+              <div>
+                <p className="eyebrow text-warning-fg">Lost &amp; Found</p>
+                <h3 className="text-lg font-extrabold text-text">Lost your earbuds? Found someone&apos;s ID card?</h3>
+              </div>
+            </div>
+            <ol className="mt-5 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
+              {[
+                ["1. Post it", "Describe what you lost or found, with a photo if you can."],
+                ["2. AI matches", "Gemini compares it with the other side and tells both people."],
+                ["3. Claim it", "The owner answers a question only they could know."],
+                ["4. Collect", "The Security Officer verifies and hands it over at the office."],
+              ].map(([t, d]) => (
+                <li key={t} className="rounded-2xl bg-surface p-4">
+                  <p className="font-bold text-text">{t}</p>
+                  <p className="mt-0.5 text-text-muted">{d}</p>
+                </li>
+              ))}
+            </ol>
+          </div>
         </section>
 
         {/* Features */}
@@ -110,7 +139,7 @@ export function LandingPage() {
             <h2 id="features-title" className="mt-2 text-center text-2xl font-extrabold tracking-tight sm:text-4xl">
               Everything a complaint needs
             </h2>
-            <ul className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+            <ul className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {FEATURES.map(({ icon: Icon, title, text }) => (
                 <li key={title} className="rounded-3xl border border-text-inverse/15 bg-text-inverse/5 p-5 transition-colors hover:bg-text-inverse/10">
                   <span className="grid size-10 place-items-center rounded-2xl bg-text-inverse/10">
