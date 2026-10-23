@@ -84,6 +84,8 @@ export interface TicketEvent {
   from_status: TicketStatus | null;
   to_status: TicketStatus | null;
   note: string | null;
+  /** Staff-only note (hidden from students by RLS). */
+  is_internal: boolean;
   created_at: string;
 }
 

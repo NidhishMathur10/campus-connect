@@ -118,6 +118,9 @@ create table if not exists public.ticket_events (
   created_at  timestamptz not null default now()
 );
 
+-- Phase 3: staff-only notes (hidden from students).
+alter table public.ticket_events add column if not exists is_internal boolean not null default false;
+
 create table if not exists public.ticket_followers (
   ticket_id  uuid not null references public.tickets(id) on delete cascade,
   user_id    uuid not null references public.profiles(id) on delete cascade,
@@ -345,7 +348,7 @@ create policy "events_select" on public.ticket_events for select to authenticate
     exists (select 1 from public.tickets t where t.id = ticket_id and public.can_view_ticket(t.id, t.reporter_id, t.department, t.assigned_to, t.module))
     and (
       public.app_role() <> 'student'
-      or type not in ('override','duplicate_flagged','duplicate_dismissed')
+      or (type not in ('override','duplicate_flagged','duplicate_dismissed') and not is_internal)
     )
   );
 create policy "events_insert" on public.ticket_events for insert to authenticated

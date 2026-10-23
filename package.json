@@ -9,9 +9,11 @@
     "lint": "eslint",
     "seed": "tsx scripts/seed.ts",
     "typecheck": "tsc --noEmit",
+    "check:phase3": "tsx scripts/check-phase3.ts",
     "test:ai": "tsx --conditions=react-server scripts/test-ai.ts"
   },
   "dependencies": {
+    "@dnd-kit/core": "^6.3.1",
     "@google/genai": "^2.31.0",
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.118.0",

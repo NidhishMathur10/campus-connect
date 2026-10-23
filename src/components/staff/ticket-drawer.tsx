@@ -1,0 +1,613 @@
+"use client";
+
+import { useState, useTransition } from "react";
+import {
+  AlertCircle,
+  ArrowRight,
+  Camera,
+  CheckCircle2,
+  Copy,
+  ExternalLink,
+  GitMerge,
+  Languages,
+  Loader2,
+  Lock,
+  MapPin,
+  MessageSquarePlus,
+  ShieldAlert,
+  Sparkles,
+  User,
+  Users,
+  Wrench,
+  XCircle,
+} from "lucide-react";
+import { toast } from "sonner";
+import { CategoryBadge, EscalatedBadge, PriorityBadge, StatusBadge } from "@/components/common/badges";
+import { SimpleSelect } from "@/components/common/simple-select";
+import { SafetyBadge } from "@/components/tickets/ai-bits";
+import { TicketTimeline } from "@/components/tickets/ticket-timeline";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Textarea } from "@/components/ui/textarea";
+import { categoriesFor, DEPARTMENTS, MODULE_LABELS, PRIORITIES } from "@/config/routing";
+import { STAFF_TRANSITIONS } from "@/config/statuses";
+import { formatDateTime, formatLocation, languageName, timeAgo } from "@/lib/format";
+import type { Viewer } from "@/lib/tickets/access";
+import {
+  addTicketNote,
+  assignTicket,
+  dismissDuplicate,
+  escalateToDean,
+  mergeDuplicate,
+  overrideTicketField,
+} from "@/lib/tickets/staff-actions";
+import type { DuplicateOriginal, StaffMember, StaffTicketDetail } from "@/lib/tickets/staff-queries";
+import type { FieldMeta, Ticket } from "@/lib/types";
+import { cn } from "@/lib/utils";
+import { assigneeOptions, mapIds, type MoveRequest } from "./move-dialog";
+import { SlaCountdown, useNow } from "./time-bits";
+
+type ActionResult = { ok: true } | { ok: false; error: string };
+
+function Section({ title, icon: Icon, children, className }: { title: string; icon?: typeof Sparkles; children: React.ReactNode; className?: string }) {
+  return (
+    <section className={cn("space-y-3 rounded-3xl border border-slate-200 bg-white p-4 sm:p-5", className)}>
+      <p className="eyebrow flex items-center gap-1.5">
+        {Icon && <Icon className="size-3.5" />} {title}
+      </p>
+      {children}
+    </section>
+  );
+}
+
+function ConfidenceBar({ label, value, meta }: { label: string; value: string; meta?: FieldMeta }) {
+  const pct = meta ? Math.round(meta.confidence * 100) : null;
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center justify-between gap-2">
+        <p className="eyebrow">{label}</p>
+        {pct != null && <span className="text-xs font-bold text-slate-600">{pct}%</span>}
+      </div>
+      <p className="text-sm font-bold text-navy">{value}</p>
+      {pct != null && (
+        <div className="h-1.5 overflow-hidden rounded-full bg-slate-100">
+          <div
+            className={cn("h-full rounded-full", pct >= 80 ? "bg-emerald-500" : pct >= 55 ? "bg-amber-400" : "bg-red-500")}
+            style={{ width: `${pct}%` }}
+          />
+        </div>
+      )}
+      {meta?.reason && <p className="text-xs text-slate-500">{meta.reason}</p>}
+    </div>
+  );
+}
+
+function Photo({ url, alt, className }: { url: string; alt: string; className?: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button type="button" onClick={() => setOpen(true)} className={cn("block overflow-hidden rounded-2xl border border-slate-200", className)}>
+        {/* eslint-disable-next-line @next/next/no-img-element -- Supabase storage URL */}
+        <img src={url} alt={alt} className="h-full w-full object-cover transition-transform hover:scale-105" />
+      </button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-[calc(100%-1rem)] rounded-3xl p-2 sm:max-w-3xl">
+          <DialogTitle className="sr-only">{alt}</DialogTitle>
+          {/* eslint-disable-next-line @next/next/no-img-element -- Supabase storage URL */}
+          <img src={url} alt={alt} className="max-h-[85dvh] w-full rounded-2xl object-contain" />
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Duplicate review
+// ---------------------------------------------------------------------------
+function CompareColumn({
+  heading,
+  t,
+  reporters,
+}: {
+  heading: string;
+  t: Pick<Ticket, "ticket_no" | "title" | "summary" | "status" | "building" | "floor" | "spot" | "machine_id" | "photo_url" | "created_at">;
+  reporters: number;
+}) {
+  return (
+    <div className="min-w-0 space-y-2 rounded-2xl border border-amber-200 bg-white p-3 text-sm">
+      <p className="eyebrow text-amber-700">{heading}</p>
+      <div className="flex flex-wrap items-center gap-1.5">
+        <span className="font-mono text-xs font-bold text-navy">{t.ticket_no}</span>
+        <StatusBadge status={t.status} className="text-[11px]" />
+      </div>
+      <p className="font-bold text-navy">{t.title}</p>
+      {t.summary && <p className="text-xs text-slate-600">{t.summary}</p>}
+      <p className="flex items-start gap-1 text-xs text-slate-500"><MapPin className="mt-0.5 size-3.5 shrink-0" /> {formatLocation(t)}</p>
+      <p className="flex items-center gap-1 text-xs text-slate-500"><Users className="size-3.5" /> {reporters} student{reporters === 1 ? "" : "s"}</p>
+      <p className="text-xs text-slate-500">Reported {formatDateTime(t.created_at)}</p>
+      {t.photo_url ? (
+        <Photo url={t.photo_url} alt={`Photo on ${t.ticket_no}`} className="h-28 w-full" />
+      ) : (
+        <p className="rounded-xl bg-slate-50 p-2 text-center text-xs text-slate-400">No photo</p>
+      )}
+    </div>
+  );
+}
+
+function DuplicateBanner({
+  ticket,
+  original,
+  followerCount,
+  canManage,
+  run,
+  onOpenTicket,
+}: {
+  ticket: Ticket;
+  original: DuplicateOriginal | null;
+  followerCount: number;
+  canManage: boolean;
+  run: (key: string, fn: () => Promise<ActionResult>, success: string) => void;
+  onOpenTicket: (ticketNo: string) => void;
+}) {
+  const pct = Math.round((ticket.duplicate_score ?? 0) * 100);
+  const origNo = original?.ticket_no ?? "the original";
+  return (
+    <div className="space-y-3 rounded-3xl border-2 border-amber-300 bg-amber-50 p-4 sm:p-5">
+      <div className="space-y-1">
+        <p className="eyebrow flex items-center gap-1.5 text-amber-700"><Copy className="size-3.5" /> Duplicate review</p>
+        <p className="text-lg font-extrabold text-navy">
+          Possible duplicate of{" "}
+          {original ? (
+            <button type="button" onClick={() => onOpenTicket(original.ticket_no)} className="text-accent-blue underline-offset-2 hover:underline">
+              {original.ticket_no}
+            </button>
+          ) : (
+            "another ticket"
+          )}{" "}
+          ({pct}% similar)
+        </p>
+        {ticket.duplicate_reason && <p className="text-sm text-amber-900"><Sparkles className="mr-1 inline size-3.5" />{ticket.duplicate_reason}</p>}
+      </div>
+      {original && (
+        <div className="grid gap-2 sm:grid-cols-2">
+          <CompareColumn heading="This ticket" t={ticket} reporters={1 + followerCount} />
+          <CompareColumn heading="Original" t={original} reporters={original.reporter_count} />
+        </div>
+      )}
+      {canManage && (
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <Button
+            className="flex-1 bg-amber-600 hover:bg-amber-700"
+            disabled={!original}
+            onClick={() => run("merge", () => mergeDuplicate(ticket.id), `Merged into ${origNo}`)}
+          >
+            <GitMerge /> Merge into {origNo}
+          </Button>
+          <Button variant="outline" className="flex-1" onClick={() => run("dismiss", () => dismissDuplicate(ticket.id), "Marked as not a duplicate")}>
+            <XCircle /> Not a duplicate
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Actions
+// ---------------------------------------------------------------------------
+type OverrideField = "category" | "department" | "priority";
+const OVERRIDE_LABELS: Record<OverrideField, string> = { category: "Category", department: "Department", priority: "Priority" };
+
+function ActionsPanel({
+  detail,
+  viewer,
+  staff,
+  run,
+  busy,
+  onRequestMove,
+}: {
+  detail: StaffTicketDetail;
+  viewer: Viewer;
+  staff: StaffMember[];
+  run: (key: string, fn: () => Promise<ActionResult>, success: string) => void;
+  busy: string | null;
+  onRequestMove: (req: MoveRequest) => void;
+}) {
+  const { ticket } = detail;
+  const closed = ticket.status === "Closed" || ticket.status === "Merged";
+  const options = assigneeOptions(staff, viewer, ticket.department);
+  const moves = STAFF_TRANSITIONS[ticket.status] ?? [];
+
+  const [note, setNote] = useState("");
+  const [noteVisible, setNoteVisible] = useState(false);
+  const [field, setField] = useState<OverrideField>("priority");
+  const [value, setValue] = useState<string | null>(null);
+  const [reason, setReason] = useState("");
+  const [escalateOpen, setEscalateOpen] = useState(false);
+  const [escalateReason, setEscalateReason] = useState("");
+
+  const valueOptions: readonly string[] =
+    field === "category" ? categoriesFor(ticket.module) : field === "department" ? DEPARTMENTS : PRIORITIES;
+
+  return (
+    <Section title="Actions" icon={Wrench}>
+      {closed ? (
+        <p className="text-sm text-slate-500">This ticket is {ticket.status.toLowerCase()} — no further actions.</p>
+      ) : (
+        <div className="space-y-4">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label>Assigned to</Label>
+              <SimpleSelect
+                {...mapIds(options, ticket.assigned_to, (id) =>
+                  run("assign", () => assignTicket(ticket.id, id), id ? "Ticket assigned" : "Ticket unassigned"),
+                )}
+                options={options.map((o) => o.label)}
+                placeholder="Unassigned"
+                noneLabel="Unassigned"
+                disabled={busy === "assign"}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Move status</Label>
+              <div className="flex flex-wrap gap-1.5">
+                {moves.length === 0 && <p className="text-xs text-slate-500">Waiting for the student to confirm.</p>}
+                {moves.map((to) => (
+                  <Button key={to} size="sm" variant={to === "Resolved" ? "default" : "outline"} onClick={() => onRequestMove({ ticket, to })}>
+                    <ArrowRight /> {to}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-2 rounded-2xl bg-slate-50 p-3">
+            <Label htmlFor="drawer-note" className="flex items-center gap-1.5"><MessageSquarePlus className="size-4" /> Add a note</Label>
+            <Textarea
+              id="drawer-note"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder={noteVisible ? "Message the student sees in their timeline" : "Internal note — only staff can see this"}
+              maxLength={1000}
+              className="min-h-16 bg-white"
+            />
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <label className="flex items-center gap-2 text-xs font-semibold text-slate-600">
+                <input type="checkbox" checked={noteVisible} onChange={(e) => setNoteVisible(e.target.checked)} className="size-4 accent-navy" />
+                Visible to the student
+              </label>
+              <Button
+                size="sm"
+                disabled={note.trim().length < 2 || busy === "note"}
+                onClick={() =>
+                  run(
+                    "note",
+                    async () => {
+                      const res = await addTicketNote(ticket.id, { note, internal: !noteVisible });
+                      if (res.ok) setNote("");
+                      return res;
+                    },
+                    noteVisible ? "Note sent to the student" : "Internal note added",
+                  )
+                }
+              >
+                {busy === "note" ? <Loader2 className="animate-spin" /> : noteVisible ? <MessageSquarePlus /> : <Lock />}
+                {noteVisible ? "Add note" : "Add internal note"}
+              </Button>
+            </div>
+          </div>
+
+          <details className="group rounded-2xl border border-slate-200 p-3">
+            <summary className="cursor-pointer text-sm font-semibold text-navy">Correct the AI (override category / department / priority)</summary>
+            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+              <SimpleSelect
+                value={OVERRIDE_LABELS[field]}
+                onChange={(label) => {
+                  const f = (Object.keys(OVERRIDE_LABELS) as OverrideField[]).find((k) => OVERRIDE_LABELS[k] === label);
+                  if (f) {
+                    setField(f);
+                    setValue(null);
+                  }
+                }}
+                options={Object.values(OVERRIDE_LABELS)}
+                placeholder="Field"
+              />
+              <SimpleSelect value={value} onChange={setValue} options={valueOptions} placeholder={`Current: ${ticket[field]}`} />
+              <Input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Reason (required)" maxLength={300} className="sm:col-span-2" />
+              {field === "department" && (
+                <p className="text-xs text-slate-500 sm:col-span-2">Changing the department reroutes the ticket to that team (and releases the current assignee).</p>
+              )}
+              <Button
+                size="sm"
+                variant="outline"
+                className="sm:col-span-2"
+                disabled={!value || value === ticket[field] || reason.trim().length < 3 || busy === "override"}
+                onClick={() =>
+                  run(
+                    "override",
+                    async () => {
+                      const res = await overrideTicketField(ticket.id, { field, value: value!, reason });
+                      if (res.ok) {
+                        setValue(null);
+                        setReason("");
+                      }
+                      return res;
+                    },
+                    `${OVERRIDE_LABELS[field]} updated`,
+                  )
+                }
+              >
+                {busy === "override" && <Loader2 className="animate-spin" />} Save override
+              </Button>
+            </div>
+          </details>
+
+          {viewer.role === "warden" && ticket.module === "hostel" && (
+            ticket.escalated ? (
+              <p className="flex items-center gap-2 text-sm font-semibold text-red-700"><ShieldAlert className="size-4" /> Escalated to the Dean</p>
+            ) : (
+              <Button variant="destructive" className="w-full" onClick={() => setEscalateOpen(true)}>
+                <ShieldAlert /> Escalate to Dean
+              </Button>
+            )
+          )}
+        </div>
+      )}
+
+      <Dialog open={escalateOpen} onOpenChange={setEscalateOpen}>
+        <DialogContent className="rounded-3xl sm:max-w-md">
+          <DialogHeader className="text-left">
+            <DialogTitle className="text-lg font-extrabold text-navy">Escalate {ticket.ticket_no} to the Dean</DialogTitle>
+            <DialogDescription>The Dean of Student Affairs gets this in their Escalations inbox.</DialogDescription>
+          </DialogHeader>
+          <Textarea
+            value={escalateReason}
+            onChange={(e) => setEscalateReason(e.target.value)}
+            placeholder="Why does this need the Dean? e.g. Third complaint this month, needs budget approval for new pipes."
+            maxLength={600}
+            className="min-h-24"
+            autoFocus
+          />
+          <Button
+            variant="destructive"
+            disabled={escalateReason.trim().length < 5 || busy === "escalate"}
+            onClick={() =>
+              run(
+                "escalate",
+                async () => {
+                  const res = await escalateToDean(ticket.id, escalateReason);
+                  if (res.ok) setEscalateOpen(false);
+                  return res;
+                },
+                "Escalated to the Dean",
+              )
+            }
+          >
+            {busy === "escalate" ? <Loader2 className="animate-spin" /> : <ShieldAlert />} Escalate
+          </Button>
+        </DialogContent>
+      </Dialog>
+    </Section>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Drawer
+// ---------------------------------------------------------------------------
+export function TicketDrawer({
+  open,
+  detail,
+  viewer,
+  staff,
+  canManage,
+  onClose,
+  onChanged,
+  onOpenTicket,
+  onRequestMove,
+}: {
+  open: boolean;
+  /** Null while loading. */
+  detail: StaffTicketDetail | null;
+  viewer: Viewer;
+  staff: StaffMember[];
+  canManage: boolean;
+  onClose: () => void;
+  onChanged: () => void;
+  onOpenTicket: (ticketNo: string) => void;
+  onRequestMove: (req: MoveRequest) => void;
+}) {
+  const [busy, setBusy] = useState<string | null>(null);
+  const [, startTransition] = useTransition();
+
+  function run(key: string, fn: () => Promise<ActionResult>, success: string) {
+    setBusy(key);
+    startTransition(async () => {
+      try {
+        const res = await fn();
+        if (res.ok) {
+          toast.success(success);
+          onChanged();
+        } else toast.error(res.error);
+      } catch {
+        toast.error("Something went wrong. Please try again.");
+      } finally {
+        setBusy(null);
+      }
+    });
+  }
+
+  return (
+    <Sheet open={open} onOpenChange={(o) => !o && onClose()}>
+      <SheetContent
+        side="right"
+        className="gap-0 overflow-y-auto bg-page p-0 data-[side=right]:w-full data-[side=right]:sm:max-w-2xl"
+      >
+        {detail ? (
+          <DrawerBody
+            key={detail.ticket.id}
+            detail={detail}
+            viewer={viewer}
+            staff={staff}
+            canManage={canManage}
+            run={run}
+            busy={busy}
+            onOpenTicket={onOpenTicket}
+            onRequestMove={onRequestMove}
+          />
+        ) : (
+          <div className="space-y-4 p-6">
+            <SheetHeader className="p-0">
+              <SheetTitle>Loading ticket…</SheetTitle>
+              <SheetDescription className="sr-only">Ticket details are loading</SheetDescription>
+            </SheetHeader>
+            <Skeleton className="h-8 w-2/3 rounded-full" />
+            <Skeleton className="h-40 w-full rounded-3xl" />
+            <Skeleton className="h-60 w-full rounded-3xl" />
+          </div>
+        )}
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+function DrawerBody({
+  detail,
+  viewer,
+  staff,
+  canManage,
+  run,
+  busy,
+  onOpenTicket,
+  onRequestMove,
+}: {
+  detail: StaffTicketDetail;
+  viewer: Viewer;
+  staff: StaffMember[];
+  canManage: boolean;
+  run: (key: string, fn: () => Promise<ActionResult>, success: string) => void;
+  busy: string | null;
+  onOpenTicket: (ticketNo: string) => void;
+  onRequestMove: (req: MoveRequest) => void;
+}) {
+  const now = useNow();
+  const { ticket, events, reporter, followerCount, original } = detail;
+  const ai = ticket.ai_meta;
+  const translated = ticket.language !== "en" && ticket.english_text && ticket.english_text !== ticket.original_text;
+  const affected = 1 + followerCount;
+  const assignee = staff.find((s) => s.id === ticket.assigned_to);
+
+  return (
+    <div className="space-y-4 p-4 pb-10 sm:p-6">
+      <SheetHeader className="space-y-2 p-0 pr-10">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="rounded-full bg-navy px-3 py-1 font-mono text-sm font-bold text-white">{ticket.ticket_no}</span>
+          <span className="eyebrow">{MODULE_LABELS[ticket.module]}</span>
+          {!canManage && <span className="rounded-full bg-slate-200 px-2.5 py-0.5 text-xs font-semibold text-slate-600">Read-only</span>}
+        </div>
+        <SheetTitle className="text-2xl font-extrabold tracking-tight text-navy">{ticket.title}</SheetTitle>
+        <SheetDescription asChild>
+          <div className="space-y-2">
+            <div className="flex flex-wrap gap-1.5">
+              <StatusBadge status={ticket.status} />
+              <CategoryBadge category={ticket.category} />
+              <PriorityBadge priority={ticket.priority} />
+              {ticket.escalated && <EscalatedBadge />}
+              {ai?.is_safety_hazard && <SafetyBadge />}
+            </div>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500">
+              <span>Reported {formatDateTime(ticket.created_at)} ({timeAgo(ticket.created_at, now)})</span>
+              <SlaCountdown dueAt={ticket.sla_due_at} status={ticket.status} now={now} />
+              <span>{ticket.department}{assignee ? ` · ${assignee.full_name}` : " · Unassigned"}</span>
+            </div>
+          </div>
+        </SheetDescription>
+      </SheetHeader>
+
+      {ticket.duplicate_status === "flagged" && (
+        <DuplicateBanner ticket={ticket} original={original} followerCount={followerCount} canManage={canManage} run={run} onOpenTicket={onOpenTicket} />
+      )}
+      {ticket.duplicate_status === "merged" && original && (
+        <button
+          type="button"
+          onClick={() => onOpenTicket(original.ticket_no)}
+          className="flex w-full items-center gap-3 rounded-3xl border border-zinc-200 bg-zinc-50 p-4 text-left text-sm font-semibold text-zinc-700 hover:border-accent-blue"
+        >
+          <GitMerge className="size-5" /> Merged into {original.ticket_no} — open the original <ExternalLink className="ml-auto size-4" />
+        </button>
+      )}
+
+      {canManage && <ActionsPanel detail={detail} viewer={viewer} staff={staff} run={run} busy={busy} onRequestMove={onRequestMove} />}
+
+      <Section title="AI analysis" icon={Sparkles}>
+        {ticket.details_incomplete && (
+          <p className="flex items-start gap-2 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+            <AlertCircle className="mt-0.5 size-4 shrink-0" /> Details incomplete — the student didn&apos;t answer every follow-up question. You may need to contact them.
+          </p>
+        )}
+        {ai?.extracted_issue && (
+          <div>
+            <p className="eyebrow">Extracted issue</p>
+            <p className="text-sm font-semibold text-navy">{ai.extracted_issue}</p>
+          </div>
+        )}
+        <div>
+          <p className="eyebrow">Summary</p>
+          <p className="text-sm whitespace-pre-wrap text-slate-700">{ticket.summary ?? ticket.english_text ?? ticket.original_text}</p>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <ConfidenceBar label="Category" value={ticket.category} meta={ai?.category} />
+          <ConfidenceBar label="Department" value={ticket.department} meta={ai?.department} />
+          <ConfidenceBar label="Priority" value={ticket.priority} meta={ai?.priority} />
+        </div>
+        {ai?.model === "manual" && <p className="text-xs text-slate-500">AI was unavailable — the student filled these in by hand.</p>}
+        {ticket.photo_analysis && (
+          <div className="space-y-1 rounded-2xl bg-slate-50 p-3 text-sm">
+            <p className="eyebrow flex items-center gap-1.5"><Camera className="size-3.5" /> Photo analysis</p>
+            <p className="text-slate-700"><span className="font-semibold">Observed:</span> {ticket.photo_analysis.observed}</p>
+            <p className={cn("flex items-center gap-1.5 font-semibold", ticket.photo_analysis.matches_complaint ? "text-emerald-700" : "text-red-700")}>
+              {ticket.photo_analysis.matches_complaint ? <CheckCircle2 className="size-4" /> : <XCircle className="size-4" />}
+              {ticket.photo_analysis.matches_complaint ? "Matches the complaint" : "Doesn't match the complaint"}
+            </p>
+            {ticket.photo_analysis.notes && <p className="text-slate-600">{ticket.photo_analysis.notes}</p>}
+          </div>
+        )}
+      </Section>
+
+      <Section title={`Original complaint${translated ? ` (${languageName(ticket.language)})` : ""}`}>
+        <p className="text-sm whitespace-pre-wrap text-slate-700">{ticket.original_text}</p>
+        {translated && (
+          <>
+            <p className="eyebrow flex items-center gap-1.5"><Languages className="size-3.5" /> English translation</p>
+            <p className="text-sm text-slate-700">{ticket.english_text}</p>
+          </>
+        )}
+        <p className="flex items-center gap-1.5 text-sm font-semibold text-slate-700"><MapPin className="size-4 text-slate-400" /> {formatLocation(ticket)}</p>
+        {ticket.photo_url && <Photo url={ticket.photo_url} alt="Complaint photo" className="h-56 w-full sm:w-80" />}
+      </Section>
+
+      <Section title="Reporter" icon={User}>
+        <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
+          <div>
+            <p className="font-bold text-navy">{reporter?.full_name ?? "Student"}</p>
+            <p className="text-slate-500">
+              {[reporter?.roll_no && `Roll ${reporter.roll_no}`, reporter?.hostel, reporter?.wing, reporter?.room && `Room ${reporter.room}`]
+                .filter(Boolean)
+                .join(" · ") || "No profile details"}
+            </p>
+          </div>
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-sky-tint px-3 py-1 text-xs font-bold text-blue-700">
+            <Users className="size-3.5" /> {affected} student{affected === 1 ? "" : "s"} affected
+          </span>
+        </div>
+      </Section>
+
+      <Section title="Full history (staff view)">
+        <TicketTimeline events={events} />
+      </Section>
+    </div>
+  );
+}

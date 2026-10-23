@@ -14,7 +14,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { ROLE_LABELS } from "@/config/roles";
-import type { TicketEventType } from "@/config/statuses";
+import { INTERNAL_EVENT_TYPES, type TicketEventType } from "@/config/statuses";
 import { formatDateTime, timeAgo } from "@/lib/format";
 import type { TicketEvent } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -27,9 +27,17 @@ const EVENT_META: Record<TicketEventType, { icon: LucideIcon; color: string; lab
     label: (e) => (e.to_status ? `Status → ${e.to_status}` : "Status changed"),
   },
   assigned: { icon: UserCheck, color: "bg-blue-100 text-blue-700", label: () => "Assigned" },
-  note: { icon: MessageSquare, color: "bg-slate-100 text-slate-700", label: () => "Note from staff" },
+  note: {
+    icon: MessageSquare,
+    color: "bg-slate-100 text-slate-700",
+    label: (e) => (e.is_internal ? "Internal note" : e.actor_role === "student" ? "Note" : "Note from staff"),
+  },
   duplicate_flagged: { icon: Copy, color: "bg-amber-100 text-amber-700", label: () => "Flagged as possible duplicate" },
-  merged: { icon: GitMerge, color: "bg-zinc-200 text-zinc-700", label: () => "Merged" },
+  merged: {
+    icon: GitMerge,
+    color: "bg-zinc-200 text-zinc-700",
+    label: (e) => (e.to_status === "Merged" ? "Merged into another ticket" : "Duplicate merged in"),
+  },
   duplicate_dismissed: { icon: CheckCircle2, color: "bg-slate-100 text-slate-700", label: () => "Not a duplicate" },
   override: { icon: Wrench, color: "bg-slate-100 text-slate-700", label: () => "Details corrected by staff" },
   escalated: { icon: ShieldAlert, color: "bg-red-600 text-white", label: () => "Escalated" },
@@ -63,7 +71,14 @@ export function TicketTimeline({ events }: { events: TicketEvent[] }) {
             </span>
             <div className="min-w-0 flex-1 pt-0.5">
               <div className="flex flex-wrap items-baseline justify-between gap-x-3">
-                <p className="font-bold text-navy">{meta.label(e)}</p>
+                <p className="flex items-center gap-2 font-bold text-navy">
+                  {meta.label(e)}
+                  {(e.is_internal || INTERNAL_EVENT_TYPES.includes(e.type)) && (
+                    <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold tracking-wider text-amber-800 uppercase">
+                      Staff only
+                    </span>
+                  )}
+                </p>
                 <time className="text-xs text-slate-500" dateTime={e.created_at} title={formatDateTime(e.created_at)}>
                   {formatDateTime(e.created_at)} · {timeAgo(e.created_at)}
                 </time>

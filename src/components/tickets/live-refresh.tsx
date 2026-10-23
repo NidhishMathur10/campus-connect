@@ -1,17 +1,29 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
+import type { Ticket } from "@/lib/types";
 
 /**
- * Subscribes to Supabase Realtime for one ticket (its row + its events) and
- * re-renders the server page when anything changes. RLS still applies.
+ * Subscribes to Supabase Realtime and re-renders the server page when anything
+ * changes. With `ticketId` it watches one ticket (row + events); without, it
+ * watches every ticket the user can see. RLS decides what each user receives.
  */
-export function LiveRefresh({ ticketId, className }: { ticketId: string; className?: string }) {
+export function useLiveTickets({
+  ticketId,
+  onTicketInsert,
+}: {
+  ticketId?: string;
+  onTicketInsert?: (ticket: Ticket) => void;
+} = {}): boolean {
   const router = useRouter();
   const [live, setLive] = useState(false);
+  const onInsert = useRef(onTicketInsert);
+  useEffect(() => {
+    onInsert.current = onTicketInsert;
+  }, [onTicketInsert]);
 
   useEffect(() => {
     const supabase = createClient();
@@ -23,9 +35,20 @@ export function LiveRefresh({ ticketId, className }: { ticketId: string; classNa
     };
 
     const channel = supabase
-      .channel(`ticket-${ticketId}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "ticket_events", filter: `ticket_id=eq.${ticketId}` }, refresh)
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "tickets", filter: `id=eq.${ticketId}` }, refresh)
+      .channel(ticketId ? `ticket-${ticketId}` : `tickets-${Math.random().toString(36).slice(2)}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "ticket_events", ...(ticketId ? { filter: `ticket_id=eq.${ticketId}` } : {}) },
+        refresh,
+      )
+      .on(
+        "postgres_changes",
+        { event: ticketId ? "UPDATE" : "*", schema: "public", table: "tickets", ...(ticketId ? { filter: `id=eq.${ticketId}` } : {}) },
+        (payload) => {
+          if (payload.eventType === "INSERT") onInsert.current?.(payload.new as Ticket);
+          refresh();
+        },
+      )
       .subscribe((status) => setLive(status === "SUBSCRIBED"));
 
     return () => {
@@ -34,6 +57,10 @@ export function LiveRefresh({ ticketId, className }: { ticketId: string; classNa
     };
   }, [ticketId, router]);
 
+  return live;
+}
+
+export function LiveBadge({ live, className }: { live: boolean; className?: string }) {
   return (
     <span
       className={cn(
@@ -47,4 +74,10 @@ export function LiveRefresh({ ticketId, className }: { ticketId: string; classNa
       {live ? "Live" : "Connecting…"}
     </span>
   );
+}
+
+/** Live badge + auto-refresh. Omit `ticketId` to watch all visible tickets. */
+export function LiveRefresh({ ticketId, className }: { ticketId?: string; className?: string }) {
+  const live = useLiveTickets({ ticketId });
+  return <LiveBadge live={live} className={className} />;
 }

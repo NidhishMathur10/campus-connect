@@ -51,3 +51,28 @@ export const ESCALATION_RULES = {
   reopenCount: 2,
   duplicateWindowDays: 7,
 } as const;
+
+/**
+ * Status changes staff may make (CLAUDE.md §5). Resolved → Closed / Reopened is the
+ * student's step; Merged only happens through "Merge".
+ */
+export const STAFF_TRANSITIONS: Partial<Record<TicketStatus, TicketStatus[]>> = {
+  Submitted: ["Assigned", "In Progress"],
+  Reopened: ["Assigned", "In Progress"],
+  Assigned: ["In Progress"],
+  "In Progress": ["Resolved", "Assigned"],
+  Resolved: ["In Progress"],
+};
+
+/** Moving into these statuses needs a note for the student. */
+export const NOTE_REQUIRED_STATUSES: TicketStatus[] = ["In Progress", "Resolved"];
+
+export function canTransition(from: TicketStatus, to: TicketStatus): boolean {
+  return STAFF_TRANSITIONS[from]?.includes(to) ?? false;
+}
+
+/** Which Kanban column a ticket sits in (Reopened shows under Submitted). */
+export function boardColumnOf(status: TicketStatus): TicketStatus | null {
+  if (status === "Reopened") return "Submitted";
+  return BOARD_COLUMNS.includes(status) ? status : null;
+}

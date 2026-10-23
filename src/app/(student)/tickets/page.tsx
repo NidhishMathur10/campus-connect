@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Plus, Ticket } from "lucide-react";
 import { EmptyState } from "@/components/common/empty-state";
 import { PageHeader } from "@/components/common/page-header";
+import { LiveRefresh } from "@/components/tickets/live-refresh";
 import { TicketCard } from "@/components/tickets/ticket-card";
 import { TrackBox } from "@/components/tickets/track-box";
 import { Button } from "@/components/ui/button";
@@ -34,9 +35,12 @@ export default async function MyTicketsPage({
         title="My Tickets"
         description="Everything you've reported (and joined with “Me too”), with live progress."
         actions={
-          <Button asChild>
-            <Link href="/hostel"><Plus /> Report a problem</Link>
-          </Button>
+          <>
+            <LiveRefresh className="self-center" />
+            <Button asChild>
+              <Link href="/hostel"><Plus /> Report a problem</Link>
+            </Button>
+          </>
         }
       />
 

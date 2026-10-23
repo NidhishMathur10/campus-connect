@@ -86,14 +86,16 @@ export async function trackTicket(
     .select("id, ticket_id, type, from_status, to_status, actor_role, actor_name, created_at")
     .eq("ticket_id", ticket.id)
     .not("type", "in", `(${INTERNAL_EVENT_TYPES.join(",")})`)
+    .eq("is_internal", false)
     .order("created_at", { ascending: true });
 
   // Basic view: no notes (they can contain room numbers / personal remarks), and
   // other students are shown as "A student".
-  const safe = ((events ?? []) as Omit<TicketEvent, "note" | "actor_id">[]).map((e) => ({
+  const safe = ((events ?? []) as Omit<TicketEvent, "note" | "actor_id" | "is_internal">[]).map((e) => ({
     ...e,
     actor_id: null,
     note: null,
+    is_internal: false,
     actor_name: e.actor_role === "student" ? "A student" : e.actor_name,
   }));
   return { ticket, events: safe };

@@ -1,0 +1,371 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { z } from "zod";
+import {
+  categoriesFor,
+  computeSlaDueAt,
+  DEPARTMENTS,
+  PRIORITIES,
+  type Priority,
+} from "@/config/routing";
+import { canTransition, NOTE_REQUIRED_STATUSES, TICKET_STATUSES, type TicketStatus } from "@/config/statuses";
+import { getCurrentProfile } from "@/lib/auth";
+import { checkEscalations } from "@/lib/escalations";
+import { createAdminClient } from "@/lib/supabase/admin";
+import type { Profile, Ticket } from "@/lib/types";
+import { ASSIGNABLE_ROLES, canManageTicket } from "./access";
+import type { ActionResult } from "./actions";
+
+type Admin = ReturnType<typeof createAdminClient>;
+
+function actor(p: Profile) {
+  return { actor_id: p.id, actor_name: p.full_name, actor_role: p.role };
+}
+
+/**
+ * Loads the ticket with the service-role client, but only after checking the
+ * caller may manage it (same rules as RLS can_manage_ticket()).
+ */
+async function loadManaged(
+  ticketId: string,
+): Promise<{ ok: true; profile: Profile; ticket: Ticket; admin: Admin } | { ok: false; error: string }> {
+  const { profile } = await getCurrentProfile();
+  if (!profile) return { ok: false, error: "Please log in again." };
+  if (!z.uuid().safeParse(ticketId).success) return { ok: false, error: "Unknown ticket." };
+
+  const admin = createAdminClient();
+  const { data } = await admin.from("tickets").select("*").eq("id", ticketId).maybeSingle();
+  const ticket = data as Ticket | null;
+  if (!ticket) return { ok: false, error: "That ticket no longer exists." };
+  if (!canManageTicket(profile, ticket)) {
+    return { ok: false, error: "You can view this ticket but not change it." };
+  }
+  return { ok: true, profile, ticket, admin };
+}
+
+async function addEvents(admin: Admin, rows: Record<string, unknown>[]) {
+  const { error } = await admin.from("ticket_events").insert(rows);
+  if (error) console.error("[staff-actions] events", error.message);
+}
+
+async function done(ticketId: string, ticketNo: string): Promise<ActionResult> {
+  await checkEscalations({ ticketId });
+  revalidatePath("/staff");
+  revalidatePath(`/tickets/${ticketNo}`);
+  revalidatePath("/tickets");
+  return { ok: true };
+}
+
+const noteSchema = z.string().trim().max(1000);
+
+// ---------------------------------------------------------------------------
+// Assign
+// ---------------------------------------------------------------------------
+export async function assignTicket(ticketId: string, assigneeId: string | null): Promise<ActionResult> {
+  const loaded = await loadManaged(ticketId);
+  if (!loaded.ok) return loaded;
+  const { profile, ticket, admin } = loaded;
+  if (["Closed", "Merged"].includes(ticket.status)) return { ok: false, error: "This ticket is already closed." };
+
+  let assignee: { id: string; full_name: string; department: string | null } | null = null;
+  if (assigneeId) {
+    if (!z.uuid().safeParse(assigneeId).success) return { ok: false, error: "Unknown staff member." };
+    const { data } = await admin
+      .from("profiles")
+      .select("id, full_name, department, role")
+      .eq("id", assigneeId)
+      .maybeSingle();
+    if (!data || !ASSIGNABLE_ROLES.includes(data.role)) return { ok: false, error: "Pick a staff member." };
+    // Department staff assign within the ticket's department; the warden can pick anyone.
+    if (profile.role !== "warden" && data.department !== ticket.department) {
+      return { ok: false, error: `Only ${ticket.department} staff can be assigned this ticket.` };
+    }
+    assignee = data;
+  }
+  if ((assignee?.id ?? null) === ticket.assigned_to) return { ok: true };
+
+  const moveToAssigned = !!assignee && (ticket.status === "Submitted" || ticket.status === "Reopened");
+  const { error } = await admin
+    .from("tickets")
+    .update({ assigned_to: assignee?.id ?? null, ...(moveToAssigned ? { status: "Assigned" } : {}) })
+    .eq("id", ticket.id);
+  if (error) return { ok: false, error: "Could not assign the ticket. Please try again." };
+
+  const events: Record<string, unknown>[] = [
+    {
+      ticket_id: ticket.id,
+      ...actor(profile),
+      type: "assigned",
+      note: assignee ? `Assigned to ${assignee.full_name}` : "Unassigned",
+    },
+  ];
+  if (moveToAssigned) {
+    events.push({ ticket_id: ticket.id, ...actor(profile), type: "status_change", from_status: ticket.status, to_status: "Assigned" });
+  }
+  await addEvents(admin, events);
+  return done(ticket.id, ticket.ticket_no);
+}
+
+// ---------------------------------------------------------------------------
+// Status change
+// ---------------------------------------------------------------------------
+export async function changeTicketStatus(
+  ticketId: string,
+  input: { to: TicketStatus; note?: string; assigneeId?: string | null },
+): Promise<ActionResult> {
+  const to = z.enum(TICKET_STATUSES).safeParse(input.to);
+  const noteParsed = noteSchema.safeParse(input.note ?? "");
+  if (!to.success || !noteParsed.success) return { ok: false, error: "Invalid status change." };
+  const note = noteParsed.data;
+
+  const loaded = await loadManaged(ticketId);
+  if (!loaded.ok) return loaded;
+  const { profile, ticket, admin } = loaded;
+
+  if (!canTransition(ticket.status, to.data)) {
+    return { ok: false, error: `Can't move a ${ticket.status} ticket to ${to.data}.` };
+  }
+  if (NOTE_REQUIRED_STATUSES.includes(to.data) && note.length < 3) {
+    return { ok: false, error: `Please add a short note for the student when moving to ${to.data}.` };
+  }
+
+  // Moving to Assigned needs someone to assign: the chosen person, or yourself.
+  if (to.data === "Assigned") {
+    const assigneeId = input.assigneeId ?? ticket.assigned_to ?? (profile.role !== "warden" ? profile.id : null);
+    if (!assigneeId) return { ok: false, error: "Pick who should work on this ticket." };
+    if (assigneeId !== ticket.assigned_to) {
+      const res = await assignTicket(ticket.id, assigneeId);
+      if (!res.ok) return res;
+      // assignTicket already moved Submitted/Reopened → Assigned.
+      if (ticket.status === "Submitted" || ticket.status === "Reopened") {
+        if (note) await addEvents(admin, [{ ticket_id: ticket.id, ...actor(profile), type: "note", note }]);
+        return done(ticket.id, ticket.ticket_no);
+      }
+    }
+  }
+
+  const resolving = to.data === "Resolved";
+  const update: Record<string, unknown> = {
+    status: to.data,
+    resolved_at: resolving ? new Date().toISOString() : null,
+  };
+  // Starting work yourself on an unassigned ticket assigns it to you.
+  if (to.data === "In Progress" && !ticket.assigned_to && profile.role !== "warden") update.assigned_to = profile.id;
+
+  const { error } = await admin.from("tickets").update(update).eq("id", ticket.id).eq("status", ticket.status);
+  if (error) return { ok: false, error: "Could not update the status. Please try again." };
+
+  const events: Record<string, unknown>[] = [];
+  if (update.assigned_to) {
+    events.push({ ticket_id: ticket.id, ...actor(profile), type: "assigned", note: `Assigned to ${profile.full_name}` });
+  }
+  events.push({
+    ticket_id: ticket.id,
+    ...actor(profile),
+    type: "status_change",
+    from_status: ticket.status,
+    to_status: to.data,
+    note: note || (resolving ? "Marked resolved." : null),
+  });
+  await addEvents(admin, events);
+  return done(ticket.id, ticket.ticket_no);
+}
+
+// ---------------------------------------------------------------------------
+// Overrides (category / department / priority) — department change reroutes
+// ---------------------------------------------------------------------------
+const OverrideSchema = z.discriminatedUnion("field", [
+  z.object({ field: z.literal("category"), value: z.string() }),
+  z.object({ field: z.literal("department"), value: z.enum(DEPARTMENTS) }),
+  z.object({ field: z.literal("priority"), value: z.enum(PRIORITIES) }),
+]);
+
+export async function overrideTicketField(
+  ticketId: string,
+  input: { field: "category" | "department" | "priority"; value: string; reason: string },
+): Promise<ActionResult> {
+  const parsed = OverrideSchema.safeParse(input);
+  const reason = input.reason?.trim() ?? "";
+  if (!parsed.success) return { ok: false, error: "Pick a valid value." };
+  if (reason.length < 3) return { ok: false, error: "Please give a short reason for the change." };
+
+  const loaded = await loadManaged(ticketId);
+  if (!loaded.ok) return loaded;
+  const { profile, ticket, admin } = loaded;
+  const { field, value } = parsed.data;
+  if (ticket[field] === value) return { ok: true };
+
+  const update: Record<string, unknown> = { [field]: value };
+  const publicNotes: string[] = [];
+
+  if (field === "category") {
+    if (!(categoriesFor(ticket.module) as readonly string[]).includes(value)) {
+      return { ok: false, error: "That category isn't used in this module." };
+    }
+    update.sla_due_at = computeSlaDueAt(ticket.module, value, ticket.priority, new Date(ticket.created_at)).toISOString();
+  }
+  if (field === "priority") {
+    update.sla_due_at = computeSlaDueAt(ticket.module, ticket.category, value as Priority, new Date(ticket.created_at)).toISOString();
+  }
+  if (field === "department") {
+    // Reroute: the old assignee belongs to the old department, so release the ticket.
+    if (ticket.assigned_to) {
+      const { data: assignee } = await admin.from("profiles").select("department").eq("id", ticket.assigned_to).maybeSingle();
+      if (assignee?.department !== value) {
+        update.assigned_to = null;
+        if (ticket.status === "Assigned") update.status = "Submitted";
+      }
+    }
+    publicNotes.push(`Sent to ${value}.`);
+  }
+
+  const { error } = await admin.from("tickets").update(update).eq("id", ticket.id);
+  if (error) return { ok: false, error: "Could not save the change. Please try again." };
+
+  const label = field[0].toUpperCase() + field.slice(1);
+  const events: Record<string, unknown>[] = [
+    { ticket_id: ticket.id, ...actor(profile), type: "override", note: `${label}: ${ticket[field]} → ${value}. Reason: ${reason}` },
+  ];
+  if (update.status) {
+    events.push({ ticket_id: ticket.id, ...actor(profile), type: "status_change", from_status: ticket.status, to_status: update.status });
+  }
+  // Students can't see overrides, so tell them where their ticket went.
+  if (publicNotes.length) events.push({ ticket_id: ticket.id, ...actor(profile), type: "note", note: publicNotes.join(" ") });
+  await addEvents(admin, events);
+  return done(ticket.id, ticket.ticket_no);
+}
+
+// ---------------------------------------------------------------------------
+// Notes
+// ---------------------------------------------------------------------------
+export async function addTicketNote(
+  ticketId: string,
+  input: { note: string; internal: boolean },
+): Promise<ActionResult> {
+  const note = noteSchema.safeParse(input.note);
+  if (!note.success || note.data.length < 2) return { ok: false, error: "Write a note first." };
+  const loaded = await loadManaged(ticketId);
+  if (!loaded.ok) return loaded;
+  const { profile, ticket, admin } = loaded;
+
+  await addEvents(admin, [
+    { ticket_id: ticket.id, ...actor(profile), type: "note", note: note.data, is_internal: !!input.internal },
+  ]);
+  return done(ticket.id, ticket.ticket_no);
+}
+
+// ---------------------------------------------------------------------------
+// Duplicates
+// ---------------------------------------------------------------------------
+export async function mergeDuplicate(ticketId: string): Promise<ActionResult> {
+  const loaded = await loadManaged(ticketId);
+  if (!loaded.ok) return loaded;
+  const { profile, ticket, admin } = loaded;
+  if (ticket.duplicate_status !== "flagged" || !ticket.duplicate_of) {
+    return { ok: false, error: "This ticket isn't flagged as a duplicate." };
+  }
+
+  const { data: origData } = await admin.from("tickets").select("*").eq("id", ticket.duplicate_of).maybeSingle();
+  const original = origData as Ticket | null;
+  if (!original || original.status === "Merged") {
+    return { ok: false, error: "The original ticket is gone or was itself merged. Use “Not a duplicate” instead." };
+  }
+
+  const { error } = await admin
+    .from("tickets")
+    .update({ status: "Merged", duplicate_status: "merged" })
+    .eq("id", ticket.id)
+    .eq("duplicate_status", "flagged");
+  if (error) return { ok: false, error: "Could not merge. Please try again." };
+
+  // Reporter + followers of the duplicate now follow the original.
+  const { data: followers } = await admin.from("ticket_followers").select("user_id").eq("ticket_id", ticket.id);
+  const userIds = [...new Set([ticket.reporter_id, ...(followers ?? []).map((f) => f.user_id as string)])].filter(
+    (id) => id !== original.reporter_id,
+  );
+  if (userIds.length) {
+    const { error: fErr } = await admin
+      .from("ticket_followers")
+      .upsert(userIds.map((user_id) => ({ ticket_id: original.id, user_id })), {
+        onConflict: "ticket_id,user_id",
+        ignoreDuplicates: true,
+      });
+    if (fErr) console.error("[mergeDuplicate] followers", fErr.message);
+  }
+
+  await addEvents(admin, [
+    {
+      ticket_id: ticket.id,
+      ...actor(profile),
+      type: "merged",
+      from_status: ticket.status,
+      to_status: "Merged",
+      note: `Merged into ${original.ticket_no} — the same problem was already reported. You'll get updates there.`,
+    },
+    {
+      ticket_id: original.id,
+      ...actor(profile),
+      type: "merged",
+      note: `${ticket.ticket_no} was merged into this ticket — ${userIds.length} more student${userIds.length === 1 ? "" : "s"} affected.`,
+    },
+  ]);
+  await checkEscalations({ ticketId: original.id });
+  revalidatePath(`/tickets/${original.ticket_no}`);
+  return done(ticket.id, ticket.ticket_no);
+}
+
+export async function dismissDuplicate(ticketId: string): Promise<ActionResult> {
+  const loaded = await loadManaged(ticketId);
+  if (!loaded.ok) return loaded;
+  const { profile, ticket, admin } = loaded;
+  if (ticket.duplicate_status !== "flagged") return { ok: false, error: "This ticket isn't flagged as a duplicate." };
+
+  const { error } = await admin.from("tickets").update({ duplicate_status: "dismissed" }).eq("id", ticket.id);
+  if (error) return { ok: false, error: "Could not update. Please try again." };
+  await addEvents(admin, [
+    { ticket_id: ticket.id, ...actor(profile), type: "duplicate_dismissed", note: "Reviewed by staff — not a duplicate." },
+  ]);
+  return done(ticket.id, ticket.ticket_no);
+}
+
+// ---------------------------------------------------------------------------
+// Warden: escalate to the Dean
+// ---------------------------------------------------------------------------
+export async function escalateToDean(ticketId: string, reason: string): Promise<ActionResult> {
+  const why = reason.trim();
+  if (why.length < 5) return { ok: false, error: "Tell the Dean briefly why this needs their attention." };
+  const loaded = await loadManaged(ticketId);
+  if (!loaded.ok) return loaded;
+  const { profile, ticket, admin } = loaded;
+  if (profile.role !== "warden" || ticket.module !== "hostel") {
+    return { ok: false, error: "Only the warden can escalate hostel tickets." };
+  }
+
+  const { count } = await admin
+    .from("ticket_followers")
+    .select("user_id", { count: "exact", head: true })
+    .eq("ticket_id", ticket.id);
+
+  const { error } = await admin.from("escalations").insert({
+    module: "hostel",
+    ticket_id: ticket.id,
+    reason: "manual",
+    target_role: "dean",
+    brief: `${ticket.ticket_no} · ${ticket.title} (${ticket.category}, ${ticket.priority}). Warden: ${why.slice(0, 600)}`,
+    affected_count: 1 + (count ?? 0),
+  });
+  if (error) {
+    // Unique index: one open manual escalation per ticket.
+    if (error.code === "23505") return { ok: false, error: "This ticket is already escalated to the Dean." };
+    console.error("[escalateToDean]", error.message);
+    return { ok: false, error: "Could not escalate. Please try again." };
+  }
+
+  await admin.from("tickets").update({ escalated: true }).eq("id", ticket.id);
+  await addEvents(admin, [
+    { ticket_id: ticket.id, ...actor(profile), type: "escalated", note: `Escalated to the Dean of Student Affairs: ${why.slice(0, 500)}` },
+  ]);
+  revalidatePath("/escalations");
+  return done(ticket.id, ticket.ticket_no);
+}

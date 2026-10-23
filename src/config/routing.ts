@@ -30,6 +30,9 @@ export const DEPARTMENTS = [
 ] as const;
 export type Department = (typeof DEPARTMENTS)[number];
 
+/** "Other" hostel tickets land here until the warden picks a real department. */
+export const TRIAGE_DEPARTMENT: Department = "Warden (manual triage)";
+
 export const HOSTEL_CATEGORIES = [
   "Plumbing",
   "Water Supply",
