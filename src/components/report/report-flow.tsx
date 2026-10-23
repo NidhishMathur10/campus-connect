@@ -22,6 +22,7 @@ import { formatLocation } from "@/lib/format";
 import { createTicket, followTicket } from "@/lib/tickets/actions";
 import { AiThinking, Bubble, ChatReply } from "./chat";
 import { SimilarTicketCard } from "./similar-ticket-card";
+import { LostFoundHint } from "@/components/safety/lost-found-hint";
 import { PreviewCard, type TicketDraft } from "./preview-card";
 import { hostelDraft, type OwnRoom } from "./hostel-place";
 import { EMPTY_DRAFT, ReportForm, type FormNotice, type ReportDraft } from "./report-form";
@@ -664,7 +665,9 @@ export function ReportFlow({
             busy={checkingDup || !!choiceBusy}
             confirmBlocked={match ? "Choose an option in the card above first." : undefined}
             notice={
-              !isSecurity && dup ? (
+              isSecurity && ticket.category === "Theft / Lost item" ? (
+                <LostFoundHint text={draft.text} building={ticket.location.building} spot={ticket.location.spot} />
+              ) : !isSecurity && dup ? (
                 <SimilarTicketCard
                   checking={dup.checking}
                   match={match}

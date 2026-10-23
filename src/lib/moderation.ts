@@ -17,7 +17,7 @@ export async function deleteStoredPhoto(path: string): Promise<void> {
  */
 export async function logModeration(
   profile: Pick<Profile, "id" | "roll_no">,
-  module: TicketModule,
+  module: TicketModule | "lost_found",
   moderation: ModerationResult,
 ): Promise<void> {
   const rows: { kind: "text" | "photo"; level: string; reason: string }[] = [];

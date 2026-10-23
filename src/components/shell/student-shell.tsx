@@ -34,7 +34,7 @@ export function StudentShell({ user, userId, children }: { user: ShellUser; user
                   <Link
                     href={item.href}
                     className={cn(
-                      "rounded-full px-4 py-2 text-sm font-semibold transition-colors",
+                      "rounded-full px-3 py-2 text-sm font-semibold transition-colors lg:px-4",
                       active ? "bg-primary text-primary-fg" : "text-text-muted hover:bg-surface-2 hover:text-text",
                     )}
                   >
@@ -59,7 +59,7 @@ export function StudentShell({ user, userId, children }: { user: ShellUser; user
 
       {/* Mobile bottom tab bar */}
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
-        <ul className="grid grid-cols-5">
+        <ul className="grid grid-cols-6">
           {STUDENT_NAV.map((item) => {
             const active = isActive(pathname, item.href);
             const Icon = item.icon;
@@ -80,7 +80,7 @@ export function StudentShell({ user, userId, children }: { user: ShellUser; user
                   >
                     <Icon className="size-5" />
                   </span>
-                  {item.label}
+                  {item.shortLabel ?? item.label}
                 </Link>
               </li>
             );

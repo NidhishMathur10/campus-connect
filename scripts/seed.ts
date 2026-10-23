@@ -131,6 +131,8 @@ async function wipe() {
   must(await db.from("escalations").delete().not("id", "is", null), "wipe escalations");
   must(await db.from("hotspot_insights").delete().not("hotspot_key", "is", null), "wipe hotspot insights");
   must(await db.from("tickets").delete().not("id", "is", null), "wipe tickets");
+  // Cascades to matches, claims and the audit log.
+  must(await db.from("lost_found_items").delete().not("id", "is", null), "wipe lost & found");
   must(await db.from("questions").delete().not("id", "is", null), "wipe questions");
   must(await db.from("notifications").delete().not("id", "is", null), "wipe notifications");
   must(await db.from("email_log").delete().not("id", "is", null), "wipe email log");
@@ -138,6 +140,8 @@ async function wipe() {
   must(await db.from("app_settings").delete().not("key", "is", null), "wipe settings");
   const { error } = await db.rpc("reset_ticket_seq");
   if (error) console.warn(`! Could not reset ticket numbers (${error.message}). Did you run schema.sql?`);
+  const lf = await db.rpc("reset_lost_found_seq");
+  if (lf.error) console.warn(`! Could not reset Lost & Found numbers (${lf.error.message}). Did you re-run schema.sql?`);
   console.log("✔ Cleared old tickets, escalations and Q&A");
 }
 
@@ -940,6 +944,153 @@ async function seedQuestions() {
 }
 
 // ---------------------------------------------------------------------------
+// 5. Lost & Found: 4 found + 2 lost items; one lost report matches the earbuds
+// ---------------------------------------------------------------------------
+interface LfSeed {
+  key: string;
+  type: "lost" | "found";
+  /** Roll number (login id) of the reporter. */
+  by: string;
+  title: string;
+  description: string;
+  publicDescription: string;
+  category: string;
+  color?: string;
+  brand?: string;
+  marks?: string;
+  sensitive?: boolean;
+  building: string;
+  spot: string;
+  daysAgo: number;
+  heldAt?: "security_office" | "with_finder";
+  question?: string;
+  answer?: string;
+}
+
+const LOST_FOUND: LfSeed[] = [
+  {
+    key: "earbuds", type: "found", by: "2616400102", title: "Black JBL earbuds with case",
+    description: "Found a black earbuds case with a pair of JBL earbuds on the reading table near the window in the library.",
+    publicDescription: "Black wireless earbuds in a black charging case, JBL logo on the case.",
+    category: "Earphones", color: "black", brand: "JBL", marks: "scuffed corner on the case",
+    building: "Block B", spot: "Library", daysAgo: 1, heldAt: "security_office",
+    question: "What is stuck on the inside of the case lid?", answer: "A small white star sticker",
+  },
+  {
+    key: "bottle", type: "found", by: "2616400101", title: "Blue steel water bottle",
+    description: "Blue steel water bottle with a Linux penguin sticker, left on the bench near court 2.",
+    publicDescription: "Blue steel water bottle with a sticker on the side.",
+    category: "Bottle", color: "blue", marks: "penguin sticker, dent near the base",
+    building: "Sports Complex", spot: "Court 2 bench", daysAgo: 3, heldAt: "with_finder",
+    question: "What is written on the bottom of the bottle?", answer: "Initials A.K. in marker",
+  },
+  {
+    key: "idcard", type: "found", by: "2616400101", title: "College ID card",
+    description: "Found a college ID card on a table in the New Hostel mess. Name and roll number are printed on it.",
+    publicDescription: "A college ID card in a blue lanyard sleeve.",
+    category: "ID card", color: "blue", sensitive: true,
+    building: "New Hostel Mess", spot: "Dining hall", daysAgo: 2, heldAt: "security_office",
+    question: "What year of admission is printed on the card?", answer: "2025",
+  },
+  {
+    key: "umbrella", type: "found", by: "2616400103", title: "Black folding umbrella",
+    description: "Black folding umbrella left in the Block A ground floor lobby. Has a wooden handle.",
+    publicDescription: "Black folding umbrella with a wooden handle.",
+    category: "Umbrella", color: "black", marks: "wooden handle",
+    building: "Block A", spot: "Ground floor lobby", daysAgo: 27, heldAt: "security_office",
+    question: "What colour is the strap or cover?", answer: "Dark green cover",
+  },
+  {
+    key: "lost-earbuds", type: "lost", by: "2616400103", title: "Black earbuds with case",
+    description: "I lost my black wireless earbuds in their charging case. I think I left them on a table in the library on the first floor.",
+    publicDescription: "Black wireless earbuds in a black charging case.",
+    category: "Earphones", color: "black",
+    building: "Block B", spot: "Library", daysAgo: 1,
+  },
+  {
+    key: "lost-book", type: "lost", by: "2616400102", title: "Engineering Physics textbook",
+    description: "Lost my Engineering Physics textbook (blue cover) with my notes inside, probably after the lecture in Block C.",
+    publicDescription: "Blue-covered Engineering Physics textbook with handwritten notes.",
+    category: "Book", color: "blue",
+    building: "Block C", spot: "Room C-204", daysAgo: 4,
+  },
+];
+
+async function seedLostFound() {
+  const ids = new Map<string, string>();
+  const nos = new Map<string, string>();
+  for (const it of LOST_FOUND) {
+    const at = new Date(Date.now() - it.daysAgo * D).toISOString();
+    const row = must(
+      await db
+        .from("lost_found_items")
+        .insert({
+          type: it.type,
+          reporter_id: u(it.by).id,
+          title: it.title,
+          description: it.description,
+          public_description: it.publicDescription,
+          item_category: it.category,
+          color: it.color ?? null,
+          brand: it.brand ?? null,
+          marks: it.marks ?? null,
+          sensitive: it.sensitive ?? false,
+          building: it.building,
+          spot: it.spot,
+          happened_at: at,
+          created_at: at,
+          held_at: it.type === "found" ? (it.heldAt ?? "security_office") : null,
+          verification_question: it.question ?? null,
+          verification_answer: it.answer ?? null,
+          ai_meta: { model: "seed", moderation: "passed" },
+        })
+        .select("id, item_no")
+        .single(),
+      `lost & found ${it.key}`,
+    )!;
+    ids.set(it.key, row.id);
+    nos.set(it.key, row.item_no);
+    must(
+      await db.from("lost_found_log").insert({
+        item_id: row.id,
+        actor_id: u(it.by).id,
+        actor_name: u(it.by).name,
+        actor_roll_no: it.by,
+        action: `${it.type}_reported`,
+        detail: `${row.item_no} · ${it.category}`,
+        created_at: at,
+      }),
+      "lost & found log",
+    );
+  }
+
+  // The AI's suggested match: Rahul's lost earbuds <-> the found JBL earbuds.
+  const reason = "Both are black wireless earbuds with a charging case, lost and found in the Block B library within a day of each other.";
+  must(
+    await db.from("lost_found_matches").insert({ lost_id: ids.get("lost-earbuds")!, found_id: ids.get("earbuds")!, score: 0.86, reason, status: "suggested" }),
+    "lost & found match",
+  );
+  must(
+    await db.from("lost_found_log").insert({
+      item_id: ids.get("earbuds")!,
+      actor_name: "CampusConnect AI",
+      action: "match_suggested",
+      detail: `${nos.get("lost-earbuds")}↔${nos.get("earbuds")} (86%)`,
+    }),
+    "lost & found log",
+  );
+  must(
+    await db.from("notifications").insert([
+      { user_id: u("2616400103").id, kind: "lost_found", title: "A possible match was found", body: `Someone found "Black JBL earbuds with case" — it could be your lost earbuds.`, link: `/lost-found/${ids.get("earbuds")}` },
+      { user_id: u("2616400102").id, kind: "lost_found", title: "A possible match was found", body: `Someone reported losing "Black earbuds with case", which could be the earbuds you found.`, link: `/lost-found/${ids.get("lost-earbuds")}` },
+    ]),
+    "lost & found notifications",
+  );
+  const found = LOST_FOUND.filter((i) => i.type === "found").length;
+  console.log(`✔ ${LOST_FOUND.length} Lost & Found items (${found} found, ${LOST_FOUND.length - found} lost), 1 suggested match`);
+}
+
+// ---------------------------------------------------------------------------
 async function main() {
   console.log("Seeding CampusConnect…");
   await seedAccounts();
@@ -947,6 +1098,7 @@ async function main() {
   const ids = await seedTickets();
   await seedEscalations(ids);
   await seedQuestions();
+  await seedLostFound();
   console.log("Done ✔  Log in with any demo account (password demo1234).");
 }
 

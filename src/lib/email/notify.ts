@@ -25,7 +25,7 @@ import { deliverWhatsApp } from "./whatsapp";
  * Anti-Ragging Committee and the Dean, and the email says nothing about the report itself.
  */
 
-interface Person {
+export interface Person {
   id: string;
   full_name: string;
   email: string | null;
@@ -35,9 +35,9 @@ interface Person {
   department: string | null;
 }
 
-const PERSON_COLUMNS = "id, full_name, email, phone, whatsapp_optin, role, department";
+export const PERSON_COLUMNS = "id, full_name, email, phone, whatsapp_optin, role, department";
 
-async function peopleByIds(ids: string[]): Promise<Person[]> {
+export async function peopleByIds(ids: string[]): Promise<Person[]> {
   const unique = [...new Set(ids)];
   if (unique.length === 0) return [];
   const { data } = await createAdminClient()
@@ -74,7 +74,7 @@ function expectedTime(t: Pick<Ticket, "created_at" | "sla_due_at">): string {
   return `within ${hours} hour${hours === 1 ? "" : "s"}`;
 }
 
-async function send(
+export async function send(
   person: Pick<Person, "email">,
   template: string,
   ticketId: string | null,
@@ -87,7 +87,7 @@ async function send(
 }
 
 /** Short plain-text WhatsApp message (under 500 characters). Opted-in people and demo accounts only. */
-async function wa(person: Person, template: string, ticketId: string | null, body: string) {
+export async function wa(person: Person, template: string, ticketId: string | null, body: string) {
   const demo = !!person.email && isDemoEmail(person.email, collegeEmailDomain());
   if (!demo && !(person.whatsapp_optin && person.phone)) return;
   await deliverWhatsApp({
@@ -100,7 +100,7 @@ async function wa(person: Person, template: string, ticketId: string | null, bod
 }
 
 /** In-app bell rows; a failure never affects the email/WhatsApp sends around it. */
-async function notifyInApp(rows: NewNotification[]) {
+export async function notifyInApp(rows: NewNotification[]) {
   try {
     await notify(rows);
   } catch (err) {
@@ -108,7 +108,7 @@ async function notifyInApp(rows: NewNotification[]) {
   }
 }
 
-const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
+export const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
 
 // ---------------------------------------------------------------------------
 // Confidential Safety & Security tickets: generic emails, no details, ever.

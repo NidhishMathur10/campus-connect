@@ -50,13 +50,13 @@ export function StaffShell({
   children,
 }: {
   user: ShellUser;
-  /** Faculty (who report issues) get the notification bell. */
+  /** Faculty (who report issues) and the Security Officer (Lost & Found claims) get the notification bell. */
   userId: string;
   role: Exclude<Role, "student">;
   children: ReactNode;
 }) {
   const items = STAFF_NAV[role];
-  const showBell = isFaculty(role);
+  const showBell = isFaculty(role) || role === "security_officer";
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
 

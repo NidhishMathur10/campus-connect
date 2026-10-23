@@ -211,7 +211,7 @@ export interface AnswerComment extends Moderated {
 export interface AppNotification {
   id: string;
   user_id: string;
-  kind: "answer" | "best_answer" | "comment" | "ticket";
+  kind: "answer" | "best_answer" | "comment" | "ticket" | "lost_found";
   title: string;
   body: string | null;
   link: string | null;
