@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Building2, CalendarDays, Loader2, Search, SearchX } from "lucide-react";
 import { CategoryBadge, PriorityBadge, StatusBadge } from "@/components/common/badges";
 import { Button } from "@/components/ui/button";
@@ -13,13 +13,12 @@ import type { PublicTrackResponse } from "@/lib/tickets/public-track";
 import { cn } from "@/lib/utils";
 
 /** Track a ticket by its number, no login (login page card and the public /track page). */
-export function PublicTrackCard({ className, compact = false }: { className?: string; compact?: boolean }) {
-  const [ticketNo, setTicketNo] = useState("");
+export function PublicTrackCard({ className, compact = false, initialTicketNo }: { className?: string; compact?: boolean; initialTicketNo?: string }) {
+  const [ticketNo, setTicketNo] = useState(initialTicketNo ?? "");
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<PublicTrackResponse | null>(null);
 
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
+  async function lookup() {
     if (busy) return;
     setBusy(true);
     try {
@@ -35,6 +34,21 @@ export function PublicTrackCard({ className, compact = false }: { className?: st
       setBusy(false);
     }
   }
+
+  function submit(e: React.FormEvent) {
+    e.preventDefault();
+    void lookup();
+  }
+
+  // Opened from a shared link (/track?no=CC-1043): look it up straight away.
+  const autoLooked = useRef(false);
+  useEffect(() => {
+    if (initialTicketNo && !autoLooked.current) {
+      autoLooked.current = true;
+      void lookup();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <section className={cn("space-y-4 rounded-3xl border border-border bg-surface p-5 shadow-sm sm:p-6", className)}>

@@ -32,6 +32,8 @@
     "warning-solid-fg": ["#ffffff", "#ffffff"],
     "success-solid": ["#047857", "#047857"],
     "success-solid-fg": ["#ffffff", "#ffffff"],
+    "whatsapp": ["#0b7a5c", "#0b7a5c"],
+    "whatsapp-fg": ["#ffffff", "#ffffff"],
     "scrim": ["rgba(15, 23, 42, 0.78)", "rgba(2, 6, 23, 0.8)"],
     "shadow-color": ["rgba(15, 23, 42, 0.16)", "rgba(0, 0, 0, 0.55)"],
     "shadow-color-soft": ["rgba(15, 23, 42, 0.05)", "rgba(0, 0, 0, 0.3)"],

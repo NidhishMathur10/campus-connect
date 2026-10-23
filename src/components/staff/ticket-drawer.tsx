@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { CategoryBadge, ConfidentialBadge, EscalatedBadge, FacultyBadge, NotModeratedBadge, PriorityBadge, ScopeBadge, StatusBadge } from "@/components/common/badges";
+import { WhatsAppShareButton } from "@/components/common/whatsapp-share";
 import { ROLE_LABELS } from "@/config/roles";
 import { SimpleSelect } from "@/components/common/simple-select";
 import { SafetyBadge } from "@/components/tickets/ai-bits";
@@ -715,6 +716,13 @@ function DrawerBody({
               <p className="mt-1 text-xs font-semibold text-danger-fg">Name hidden from investigating staff — you can see it as {ticket.department === "Anti-Ragging Committee" ? "the committee" : "Dean"}.</p>
             )}
           </div>
+          <WhatsAppShareButton
+            kind="update"
+            ticket={ticket}
+            phone={reporter?.phone}
+            note={[...events].reverse().find((e) => e.note && !e.is_internal && (e.type === "note" || e.type === "status_change"))?.note}
+            hidden={reporterHidden || ticket.is_confidential || ticket.module === "security"}
+          />
           <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-accent px-3 py-1 text-xs font-bold text-info-fg">
             <Users className="size-3.5" /> {affected} {detail.faculty_reporter ? "reporter" : "student"}{affected === 1 ? "" : "s"} affected
           </span>

@@ -39,7 +39,7 @@ for (const [mode, name] of [[0, "light"], [1, "dark"]]) {
   pairs.push(["surface-inverse", "text-inverse", 4.5], ["surface-inverse", "text-inverse-muted", 4.5],
     ["surface-inverse", "info-on-inverse", 4.5], ["surface-inverse", "warning-on-inverse", 4.5],
     ["primary", "primary-fg", 4.5], ["accent-2", "accent-fg", 4.5],
-    ["danger-solid", "danger-solid-fg", 4.5], ["warning-solid", "warning-solid-fg", 4.5], ["success-solid", "success-solid-fg", 4.5],
+    ["danger-solid", "danger-solid-fg", 4.5], ["warning-solid", "warning-solid-fg", 4.5], ["success-solid", "success-solid-fg", 4.5], ["whatsapp", "whatsapp-fg", 4.5],
     ["danger-solid-fg", "danger-solid", 4.5],
     ["input-bg", "text", 4.5], ["input-bg", "placeholder", 3],
     ["surface", "star", 3], ["surface", "border", 1.2], ["input-bg", "input-border", 1.5]);

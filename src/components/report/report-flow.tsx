@@ -190,7 +190,7 @@ export function ReportFlow({
   const checks = useRef(new Map<string, Promise<DupResult | null>>());
   const match = dup && !dup.checking ? (dup.result?.match ?? null) : null;
   const [choiceBusy, setChoiceBusy] = useState<"metoo" | "new" | null>(null);
-  const [result, setResult] = useState<{ ticketNo: string; followed: boolean } | null>(null);
+  const [result, setResult] = useState<{ ticketNo: string; followed: boolean; title?: string } | null>(null);
   const busy = useRef(false); // hard guard against double submits
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -509,7 +509,7 @@ export function ReportFlow({
       return;
     }
     setDup(null);
-    setResult({ ticketNo: res.ticket_no, followed: false });
+    setResult({ ticketNo: res.ticket_no, followed: false, title: ticket.title.trim() });
     setPhase("success");
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -551,6 +551,7 @@ export function ReportFlow({
       <SuccessCard
         ticketNo={result.ticketNo}
         followed={result.followed}
+        title={result.title}
         confidential={isSecurity}
         trackBase={audience === "faculty" ? "/reports" : "/tickets"}
         onReportAnother={reset}

@@ -47,7 +47,7 @@ export default async function ProfilePage() {
       <section className="animate-slide-up space-y-3 rounded-3xl border border-border bg-surface p-5 shadow-sm sm:p-6">
         <p className="eyebrow">WhatsApp updates</p>
         <p className="text-sm text-text-muted">
-          Get short ticket updates on WhatsApp. Sandbox: first send the join code to the Twilio number.
+          Save your number so staff can reach you on WhatsApp. Automated alerts are coming soon.
         </p>
         <WhatsappForm initialPhone={profile.phone ?? ""} initialOptIn={profile.whatsapp_optin} />
       </section>

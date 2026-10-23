@@ -47,6 +47,8 @@
   --color-warning-solid-fg: var(--warning-solid-fg);
   --color-success-solid: var(--success-solid);
   --color-success-solid-fg: var(--success-solid-fg);
+  --color-whatsapp: var(--whatsapp);
+  --color-whatsapp-fg: var(--whatsapp-fg);
   --color-scrim: var(--scrim);
   --color-page: var(--bg);
   --color-accent-blue: var(--accent);
@@ -221,6 +223,8 @@
   --warning-solid-fg: #ffffff;
   --success-solid: #047857;
   --success-solid-fg: #ffffff;
+  --whatsapp: #0b7a5c;
+  --whatsapp-fg: #ffffff;
   --scrim: rgba(15, 23, 42, 0.78);
   --shadow-color: rgba(15, 23, 42, 0.16);
   --shadow-color-soft: rgba(15, 23, 42, 0.05);
@@ -343,6 +347,8 @@
   --warning-solid-fg: #ffffff;
   --success-solid: #047857;
   --success-solid-fg: #ffffff;
+  --whatsapp: #0b7a5c;
+  --whatsapp-fg: #ffffff;
   --scrim: rgba(2, 6, 23, 0.8);
   --shadow-color: rgba(0, 0, 0, 0.55);
   --shadow-color-soft: rgba(0, 0, 0, 0.3);
