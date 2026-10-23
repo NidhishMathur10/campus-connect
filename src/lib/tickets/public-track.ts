@@ -73,6 +73,7 @@ export async function publicTrack(
     .select("id, ticket_no, module, category, building, status, priority, created_at, department")
     .eq("ticket_no", ticketNo)
     .neq("module", "security")
+    .eq("teacher_complaint", false)
     .maybeSingle();
   if (!data) return null;
 

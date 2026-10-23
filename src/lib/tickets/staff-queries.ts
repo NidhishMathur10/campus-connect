@@ -55,6 +55,8 @@ export function scoped<Q>(query: Q, scope: Scope): Q {
   // Typed loosely on purpose: supabase-js builder generics are too deep to constrain here.
   type Filterable = { eq(column: string, value: string): Filterable; or(filters: string): Filterable };
   let q = query as unknown as Filterable;
+  // Teacher concerns live on /concerns (HOD / Dean), never on the generic board or history.
+  q = q.eq("teacher_complaint", "false");
   if (scope.module) q = q.eq("module", scope.module);
   if (scope.or) q = q.or(scope.or);
   return q as unknown as Q;

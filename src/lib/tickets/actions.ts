@@ -285,11 +285,11 @@ export async function followTicket(
   const admin = createAdminClient();
   const { data: ticket } = await admin
     .from("tickets")
-    .select("id, ticket_no, reporter_id, module")
+    .select("id, ticket_no, reporter_id, module, teacher_complaint")
     .eq("id", ticketId)
     .maybeSingle();
   // Safety reports can't be joined (and must not reveal that they exist).
-  if (!ticket || ticket.module === "security") return { ok: false, error: "That ticket no longer exists." };
+  if (!ticket || ticket.module === "security" || ticket.teacher_complaint) return { ok: false, error: "That ticket no longer exists." };
   if (isFaculty(profile.role) && ticket.module !== "academic") return { ok: false, error: "That ticket no longer exists." };
   if (ticket.reporter_id === profile.id) return { ok: true, ticket_no: ticket.ticket_no };
 

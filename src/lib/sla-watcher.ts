@@ -2,6 +2,7 @@ import "server-only";
 import { SLA_REMINDER_FRACTION, SLA_WATCHER_THROTTLE_MS } from "@/config/assignment";
 import { computeSlaDueAt } from "@/config/routing";
 import { OPEN_STATUSES } from "@/config/statuses";
+import { escalateStaleConcerns } from "@/lib/concerns/escalate";
 import {
   adminRecipientIds,
   getAssignmentSettings,
@@ -10,6 +11,8 @@ import {
   SYSTEM_ACTOR,
   type AssignmentSettings,
 } from "@/lib/assignment";
+import { DOUBT_REMINDER_HOURS } from "@/config/subjects";
+import { notifyDoubtReminder } from "@/lib/email/doubt-notify";
 import { notifyStaffAlert, notifyTicketStatus } from "@/lib/email/notify";
 import { createSlaBreachEscalation } from "@/lib/escalations";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -27,6 +30,8 @@ import type { AssignmentHistoryEntry, Ticket } from "@/lib/types";
  *    confidential Safety tickets are never moved. A flagged ticket keeps its (overdue) deadline;
  *    `sla_reminded_at >= sla_due_at` marks that deadline as handled so it is only processed once.
  *  - Second missed deadline → an `sla_breach` escalation to the Dean (hostel) / HOD (academic).
+ *  - "Ask my teacher" doubts still waiting for a teacher after 48 hours → one reminder to the subject
+ *    teachers (re-armed by each new student message; claimed with a guarded UPDATE on `reminder_sent_at`).
  *  - Tickets paused with "Waiting for parts / external dependency" are skipped (timer stopped).
  *
  * TODO(pg_cron): the watcher currently runs when the staff board, escalations or insights pages
@@ -43,9 +48,11 @@ export interface SlaWatcherResult {
   reassigned: number;
   flagged: number;
   escalated: number;
+  /** "Ask my teacher" reminders sent. */
+  doubtReminders: number;
 }
 
-const EMPTY: SlaWatcherResult = { ran: false, reminders: 0, reassigned: 0, flagged: 0, escalated: 0 };
+const EMPTY: SlaWatcherResult = { ran: false, reminders: 0, reassigned: 0, flagged: 0, escalated: 0, doubtReminders: 0 };
 
 type Admin = ReturnType<typeof createAdminClient>;
 const g = globalThis as unknown as { __slaWatcher?: { last: number; running: Promise<SlaWatcherResult> | null } };
@@ -70,6 +77,17 @@ export async function runSlaWatcher(opts: { force?: boolean } = {}): Promise<Sla
 async function scan(): Promise<SlaWatcherResult> {
   const admin = createAdminClient();
   const result: SlaWatcherResult = { ...EMPTY, ran: true };
+  try {
+    result.doubtReminders = await remindUnansweredDoubts(admin);
+  } catch (err) {
+    console.error("[slaWatcher] doubts", err instanceof Error ? err.message : err);
+  }
+  try {
+    // Teacher concerns the HOD has not acknowledged within 72h go to the Dean.
+    result.escalated += await escalateStaleConcerns();
+  } catch (err) {
+    console.error("[slaWatcher] concerns", err instanceof Error ? err.message : err);
+  }
   const { data, error } = await admin
     .from("tickets")
     .select("*")
@@ -99,6 +117,29 @@ async function scan(): Promise<SlaWatcherResult> {
     }
   }
   return result;
+}
+
+/** One reminder per unanswered student message after DOUBT_REMINDER_HOURS. */
+async function remindUnansweredDoubts(admin: Admin): Promise<number> {
+  const cutoff = new Date(Date.now() - DOUBT_REMINDER_HOURS * 3_600_000).toISOString();
+  const { data } = await admin
+    .from("doubt_threads")
+    .select("id, subject, title, last_message_at, reminder_sent_at")
+    .eq("status", "open")
+    .lt("last_message_at", cutoff)
+    .limit(100);
+  let sent = 0;
+  for (const t of data ?? []) {
+    if (t.reminder_sent_at && t.reminder_sent_at >= t.last_message_at) continue;
+    // Claim it first so overlapping runs send one reminder.
+    let claim = admin.from("doubt_threads").update({ reminder_sent_at: new Date().toISOString() }).eq("id", t.id).eq("status", "open");
+    claim = t.reminder_sent_at ? claim.eq("reminder_sent_at", t.reminder_sent_at) : claim.is("reminder_sent_at", null);
+    const { data: won } = await claim.select("id");
+    if (!won?.length) continue;
+    notifyDoubtReminder({ id: t.id as string, subject: t.subject as string, title: t.title as string });
+    sent++;
+  }
+  return sent;
 }
 
 const nameOf = async (admin: Admin, id: string | null) => {

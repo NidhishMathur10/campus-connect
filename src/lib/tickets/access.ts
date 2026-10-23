@@ -7,7 +7,7 @@ import type { Profile, Ticket } from "@/lib/types";
  * can_view_ticket() / can_manage_ticket() in supabase/schema.sql — keep them in sync.
  */
 export type Viewer = Pick<Profile, "id" | "role" | "department">;
-type TicketScopeFields = Pick<Ticket, "department" | "assigned_to" | "module" | "is_confidential">;
+type TicketScopeFields = Pick<Ticket, "department" | "assigned_to" | "module" | "is_confidential"> & Partial<Pick<Ticket, "teacher_complaint">>;
 
 /** Department-bound roles: they work on their own department's tickets. */
 const DEPARTMENT_ROLES: Role[] = ["staff", "academic_office", "security_officer", "arc"];
@@ -38,6 +38,8 @@ export function canManageTicket(v: Viewer, t: TicketScopeFields): boolean {
 }
 
 export function canViewStaffTicket(v: Viewer, t: TicketScopeFields): boolean {
+  // Teacher concerns are never opened in the generic drawer (not even by the Dean): see /concerns.
+  if (t.teacher_complaint) return false;
   if (canManageTicket(v, t)) return true;
   if (v.role === "dean") return true;
   if (v.role === "hod") return t.module === "academic" && !t.is_confidential;
@@ -54,7 +56,8 @@ export function canEscalateManually(v: Viewer, t: TicketScopeFields): boolean {
 }
 
 /** "Hide my name" safety reports: only the Anti-Ragging Committee and the Dean see the reporter. */
-export function canSeeReporter(v: Viewer, t: Pick<Ticket, "hide_identity">): boolean {
+export function canSeeReporter(v: Viewer, t: Pick<Ticket, "hide_identity"> & Partial<Pick<Ticket, "teacher_complaint">>): boolean {
+  if (t.teacher_complaint) return false;
   return !t.hide_identity || v.role === "arc" || v.role === "dean";
 }
 
