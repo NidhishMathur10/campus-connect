@@ -8,7 +8,6 @@ import type { TrackedTicket } from "@/lib/tickets/queries";
 import type { Ticket, TicketEvent } from "@/lib/types";
 import { Confidence, PhotoAnalysisBox, SafetyBadge } from "./ai-bits";
 import { LiveRefresh } from "./live-refresh";
-import { PinChip } from "./pin-chip";
 import { ResolutionPanel } from "./resolution-panel";
 import { TicketTimeline } from "./ticket-timeline";
 
@@ -100,14 +99,11 @@ export function TicketDetail({
         }
       />
 
-      {isReporter &&
-        (ticket.module === "security" ? (
-          <p className="-mt-3 mb-6 flex items-center gap-1.5 text-sm font-semibold text-slate-500">
-            <Lock className="size-4" /> Safety reports can&apos;t be tracked publicly — only here, while logged in.
-          </p>
-        ) : (
-          <PinChip ticketNo={ticket.ticket_no} pin={ticket.tracking_pin} className="-mt-3 mb-6" />
-        ))}
+      {isReporter && ticket.module === "security" && (
+        <p className="-mt-3 mb-6 flex items-center gap-1.5 text-sm font-semibold text-slate-500">
+          <Lock className="size-4" /> Safety reports can&apos;t be tracked publicly — only here, while logged in.
+        </p>
+      )}
 
       <div className="grid gap-5 lg:grid-cols-[1fr_380px]">
         <div className="space-y-5">

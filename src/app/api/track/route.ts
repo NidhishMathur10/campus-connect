@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { normaliseTicketNo } from "@/lib/format";
-import { normalisePin, publicTrack, type PublicTrackResponse } from "@/lib/tickets/public-track";
+import { publicTrack, type PublicTrackResponse } from "@/lib/tickets/public-track";
 
-/** Same message for a wrong number, a wrong PIN and a Safety & Security ticket. */
-const NOT_FOUND = "Ticket not found. Check the ticket number and PIN.";
+/** Same message for a wrong number and a Safety & Security ticket. */
+const NOT_FOUND = "Ticket not found. Check the ticket number.";
 
 // Simple in-memory rate limit: 10 lookups per IP per 10 minutes (per server instance).
 const WINDOW_MS = 10 * 60_000;
@@ -30,9 +30,9 @@ function clientIp(request: Request): string {
   );
 }
 
-const BodySchema = z.object({ ticketNo: z.string().max(20), pin: z.string().max(10) });
+const BodySchema = z.object({ ticketNo: z.string().max(20) });
 
-/** POST /api/track — public tracking with ticket number + PIN (no login). */
+/** POST /api/track — public tracking by ticket number (no login). */
 export async function POST(request: Request) {
   const reply = (body: PublicTrackResponse, status = 200) => NextResponse.json(body, { status });
 
@@ -42,10 +42,9 @@ export async function POST(request: Request) {
 
   const parsed = BodySchema.safeParse(await request.json().catch(() => null));
   const ticketNo = parsed.success ? normaliseTicketNo(parsed.data.ticketNo) : null;
-  const pin = parsed.success ? normalisePin(parsed.data.pin) : null;
-  if (!ticketNo || !pin) return reply({ ok: false, error: NOT_FOUND }, 404);
+  if (!ticketNo) return reply({ ok: false, error: NOT_FOUND }, 404);
 
-  const found = await publicTrack(ticketNo, pin);
+  const found = await publicTrack(ticketNo);
   if (!found) return reply({ ok: false, error: NOT_FOUND }, 404);
   return reply({ ok: true, ...found });
 }

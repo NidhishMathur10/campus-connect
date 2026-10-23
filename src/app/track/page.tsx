@@ -7,7 +7,7 @@ import { COLLEGE_NAME } from "@/config/college";
 
 export const metadata: Metadata = { title: "Track a ticket" };
 
-/** Public tracking with ticket number + PIN — no login (CLAUDE.md §13). */
+/** Public tracking by ticket number — no login (CLAUDE.md §13). */
 export default function PublicTrackPage() {
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-2xl flex-col px-4 py-8 sm:py-12">

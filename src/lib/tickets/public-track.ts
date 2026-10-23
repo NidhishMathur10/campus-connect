@@ -4,7 +4,7 @@ import type { Priority, TicketModule } from "@/config/routing";
 import type { TicketStatus } from "@/config/statuses";
 import { createAdminClient } from "@/lib/supabase/admin";
 
-/** What public tracking (no login, ticket number + PIN) may reveal — nothing else (CLAUDE.md §13). */
+/** What public tracking (no login, ticket number only) may reveal — nothing else (CLAUDE.md §13). */
 export interface PublicTicket {
   ticket_no: string;
   module: TicketModule;
@@ -25,14 +25,6 @@ export interface PublicEvent {
 export type PublicTrackResponse =
   | { ok: true; ticket: PublicTicket; events: PublicEvent[] }
   | { ok: false; error: string };
-
-export const TRACKING_PIN_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-const PIN_RE = new RegExp(`^[${TRACKING_PIN_CHARS}]{4}$`);
-
-export function normalisePin(raw: string): string | null {
-  const pin = raw.trim().toUpperCase().replace(/\s+/g, "");
-  return PIN_RE.test(pin) ? pin : null;
-}
 
 const DEPARTMENT_SHORT: Record<string, string> = {
   "Estate / Maintenance": "Estate staff",
@@ -67,19 +59,17 @@ function genericActor(role: Role | null, department: string): string {
 }
 
 /**
- * Ticket + public timeline when the number AND PIN match. Safety & Security tickets are
- * never returned, so they look exactly like a wrong number or PIN.
+ * Ticket + public timeline for a ticket number. Safety & Security tickets are never
+ * returned, so they look exactly like a number that doesn't exist.
  */
 export async function publicTrack(
   ticketNo: string,
-  pin: string,
 ): Promise<{ ticket: PublicTicket; events: PublicEvent[] } | null> {
   const admin = createAdminClient();
   const { data } = await admin
     .from("tickets")
     .select("id, ticket_no, module, category, building, status, priority, created_at, department")
     .eq("ticket_no", ticketNo)
-    .eq("tracking_pin", pin)
     .neq("module", "security")
     .maybeSingle();
   if (!data) return null;

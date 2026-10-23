@@ -82,7 +82,7 @@ export type CreateTicketInput = z.input<typeof CreateTicketSchema>;
 
 export async function createTicket(
   input: CreateTicketInput,
-): Promise<ActionResult<{ id: string; ticket_no: string; tracking_pin: string }>> {
+): Promise<ActionResult<{ id: string; ticket_no: string }>> {
   const profile = await requireStudent();
   if (!profile) return { ok: false, error: "Only students can report issues. Please log in again." };
 
@@ -187,7 +187,7 @@ export async function createTicket(
       duplicate_status: dup ? "flagged" : "none",
       sla_due_at: computeSlaDueAt(t.module, t.category, priority).toISOString(),
     })
-    .select("id, ticket_no, tracking_pin")
+    .select("id, ticket_no")
     .single();
   if (error || !ticket) {
     console.error("[createTicket]", error?.message);
@@ -227,7 +227,7 @@ export async function createTicket(
   if (isSecurity && rule.escalateToDean) await createSafetyEscalation({ id: ticket.id, category: t.category, title: t.title });
   await checkEscalations({ ticketId: ticket.id });
   revalidatePath("/tickets");
-  return { ok: true, id: ticket.id, ticket_no: ticket.ticket_no, tracking_pin: ticket.tracking_pin };
+  return { ok: true, id: ticket.id, ticket_no: ticket.ticket_no };
 }
 
 // ---------------------------------------------------------------------------

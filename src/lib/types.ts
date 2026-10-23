@@ -40,8 +40,6 @@ export interface PhotoAnalysis {
 export interface Ticket {
   id: string;
   ticket_no: string;
-  /** 4-character PIN for public tracking without login. */
-  tracking_pin: string;
   module: TicketModule;
   /** Safety & Security: visible only to reporter, arc, assigned security officer and dean (RLS). */
   is_confidential: boolean;

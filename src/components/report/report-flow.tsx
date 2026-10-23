@@ -145,7 +145,7 @@ export function ReportFlow({
   const [checkingDup, setCheckingDup] = useState(false);
   const [match, setMatch] = useState<DuplicateMatch | null>(null);
   const [choiceBusy, setChoiceBusy] = useState<"metoo" | "new" | null>(null);
-  const [result, setResult] = useState<{ ticketNo: string; pin: string | null; followed: boolean } | null>(null);
+  const [result, setResult] = useState<{ ticketNo: string; followed: boolean } | null>(null);
   const busy = useRef(false); // hard guard against double submits
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -364,7 +364,7 @@ export function ReportFlow({
       return;
     }
     setMatch(null);
-    setResult({ ticketNo: res.ticket_no, pin: res.tracking_pin, followed: false });
+    setResult({ ticketNo: res.ticket_no, followed: false });
     setPhase("success");
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -392,7 +392,7 @@ export function ReportFlow({
         return;
       }
       setMatch(null);
-      setResult({ ticketNo: res.ticket_no, pin: null, followed: true });
+      setResult({ ticketNo: res.ticket_no, followed: true });
       setPhase("success");
       window.scrollTo({ top: 0, behavior: "smooth" });
     } finally {
@@ -405,7 +405,6 @@ export function ReportFlow({
     return (
       <SuccessCard
         ticketNo={result.ticketNo}
-        pin={result.pin}
         followed={result.followed}
         confidential={isSecurity}
         onReportAnother={reset}

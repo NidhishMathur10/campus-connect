@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Building2, CalendarDays, KeyRound, Loader2, Search, SearchX } from "lucide-react";
+import { Building2, CalendarDays, Loader2, Search, SearchX } from "lucide-react";
 import { CategoryBadge, PriorityBadge, StatusBadge } from "@/components/common/badges";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,10 +12,9 @@ import { formatDateTime } from "@/lib/format";
 import type { PublicTrackResponse } from "@/lib/tickets/public-track";
 import { cn } from "@/lib/utils";
 
-/** Track a ticket with its number + PIN, no login (login page card and the public /track page). */
+/** Track a ticket by its number, no login (login page card and the public /track page). */
 export function PublicTrackCard({ className, compact = false }: { className?: string; compact?: boolean }) {
   const [ticketNo, setTicketNo] = useState("");
-  const [pin, setPin] = useState("");
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<PublicTrackResponse | null>(null);
 
@@ -27,7 +26,7 @@ export function PublicTrackCard({ className, compact = false }: { className?: st
       const res = await fetch("/api/track", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ticketNo, pin }),
+        body: JSON.stringify({ ticketNo }),
       });
       setResult((await res.json()) as PublicTrackResponse);
     } catch {
@@ -42,28 +41,15 @@ export function PublicTrackCard({ className, compact = false }: { className?: st
       <div>
         <p className="eyebrow flex items-center gap-1.5"><Search className="size-3.5" /> Track a ticket</p>
         {!compact && <h2 className="mt-1 text-xl font-extrabold text-navy">No login needed</h2>}
-        <p className="text-sm text-slate-500">Enter the ticket number and the 4-character PIN from the confirmation screen.</p>
+        <p className="text-sm text-slate-500">Enter the ticket number from the confirmation screen, e.g. CC-1043.</p>
       </div>
-      <form onSubmit={submit} className="grid gap-3 sm:grid-cols-[1fr_120px_auto] sm:items-end">
+      <form onSubmit={submit} className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
         <div className="space-y-1.5">
           <Label htmlFor="track-no">Ticket number</Label>
           <Input id="track-no" value={ticketNo} onChange={(e) => setTicketNo(e.target.value)} placeholder="CC-1043" autoComplete="off" required />
         </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="track-pin">PIN</Label>
-          <Input
-            id="track-pin"
-            value={pin}
-            onChange={(e) => setPin(e.target.value.toUpperCase())}
-            placeholder="K7Q2"
-            maxLength={4}
-            autoComplete="off"
-            className="font-mono tracking-[0.3em] uppercase"
-            required
-          />
-        </div>
         <Button type="submit" disabled={busy} className="sm:mb-0">
-          {busy ? <Loader2 className="animate-spin" /> : <KeyRound />} Track
+          {busy ? <Loader2 className="animate-spin" /> : <Search />} Track
         </Button>
       </form>
 

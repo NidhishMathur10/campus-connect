@@ -81,7 +81,7 @@ Seeded demo accounts (password `demo1234` for all), shown as one-click quick-log
 
 ## 5. Data model (Supabase)
 - profiles: id (= auth.users.id), full_name, roll_no (unique, nullable for non-students), role, department (nullable), hostel, wing, room, created_at
-- tickets: id, ticket_no (text, `CC-1001`, from a sequence), tracking_pin, module ('hostel' | 'academic' | 'security'), is_confidential, hide_identity, reporter_id, original_text, language ('en'|'hi'|other), english_text, title, summary, category, department, priority, ai_meta jsonb (confidence + reason per field, extracted issue, model), photo_url, photo_analysis jsonb (observed, matches_complaint, notes), building, floor, spot, machine_id, status, details_incomplete bool, assigned_to (profile id), duplicate_of (ticket id), duplicate_score, duplicate_reason, duplicate_status ('none'|'flagged'|'merged'|'dismissed'), escalated bool, reopen_count int, rating int, feedback text, sla_due_at, resolved_at, created_at, updated_at
+- tickets: id, ticket_no (text, `CC-1001`, from a sequence), tracking_pin (legacy, unused), module ('hostel' | 'academic' | 'security'), is_confidential, hide_identity, reporter_id, original_text, language ('en'|'hi'|other), english_text, title, summary, category, department, priority, ai_meta jsonb (confidence + reason per field, extracted issue, model), photo_url, photo_analysis jsonb (observed, matches_complaint, notes), building, floor, spot, machine_id, status, details_incomplete bool, assigned_to (profile id), duplicate_of (ticket id), duplicate_score, duplicate_reason, duplicate_status ('none'|'flagged'|'merged'|'dismissed'), escalated bool, reopen_count int, rating int, feedback text, sla_due_at, resolved_at, created_at, updated_at
 - ticket_events: id, ticket_id, actor_id, actor_name, actor_role, type ('created'|'status_change'|'assigned'|'note'|'duplicate_flagged'|'merged'|'duplicate_dismissed'|'override'|'escalated'|'reopened'|'rating'|'me_too'), from_status, to_status, note, created_at — this is the student-visible progress history (internal-only types may be hidden from students).
 - ticket_followers: ticket_id, user_id (for "Me too")
 - escalations: id, module, ticket_id (nullable), hotspot_key (nullable, e.g. `hostel|Plumbing|New Hostel|2nd`), reason ('recurring'|'reopened'|'sla_breach'|'manual'|'safety'), target_role ('dean'|'hod'), brief, recommended_action, affected_count, status ('open'|'acknowledged'|'resolved'), directive, created_at
@@ -173,9 +173,9 @@ AI for this module (`src/lib/ai/analyze.ts`, separate system prompt): calm, supp
 Emergency panel (always on the Safety report page; red when `is_emergency`): Campus Security number from `src/config/safety.ts` (placeholder) or 112; National Anti-Ragging Helpline 1800-180-5522 (24x7, toll free), helpline@antiragging.in, www.antiragging.in; tel:/mailto: links.
 
 ## 13. Public ticket tracking (no login) — Phase 5A
-- `tickets.tracking_pin`: 4 chars from `ABCDEFGHJKLMNPQRSTUVWXYZ23456789` (no O/0/I/1), DB default on insert; backfilled. Shown on the success screen and the student's ticket page ("Ticket CC-1043 · PIN K7Q2" + copy).
-- "Track a ticket" card on /login (ticket number + PIN) and a public `/track` page; data from `POST /api/track`.
+- Tracking needs ONLY the ticket number (no PIN). The `tickets.tracking_pin` column still exists in the DB (filled by a default) but is unused — don't show or require it, and don't drop it.
+- "Track a ticket" card on /login (ticket number only) and a public `/track` page; data from `POST /api/track`.
 - Response contains ONLY: ticket no, module, category, building (no floor/spot), status, priority, created date, and public timeline events (status + time + generic actor role like "Estate staff"). No names, complaint text, photos or notes.
-- Security tickets, wrong numbers and wrong PINs all return the same "Ticket not found".
+- Security tickets and wrong/unknown numbers return the same "Ticket not found".
 - Rate limit: 10 lookups per IP per 10 minutes (in-memory, per server instance).
 - The logged-in "Track by ticket number" keeps working (it also never shows security tickets).
