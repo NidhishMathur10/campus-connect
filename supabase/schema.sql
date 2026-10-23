@@ -315,6 +315,20 @@ create table if not exists public.email_log (
 );
 create index if not exists email_log_created_idx on public.email_log (created_at desc);
 
+-- Complaint moderation: one row per rephrase / privacy / block outcome (never the complaint text).
+-- 3+ blocks in 24h put the person on the warden's dashboard flag list. No automatic bans.
+create table if not exists public.moderation_log (
+  id         uuid primary key default gen_random_uuid(),
+  user_id    uuid not null references public.profiles(id) on delete cascade,
+  roll_no    text,
+  module     text not null,
+  kind       text not null check (kind in ('text','photo')),
+  level      text not null,
+  reason     text,
+  created_at timestamptz not null default now()
+);
+create index if not exists moderation_log_user_idx on public.moderation_log (user_id, created_at desc);
+
 -- ---------------------------------------------------------------------
 -- Helper functions (SECURITY DEFINER so RLS policies can read the caller's role)
 -- ---------------------------------------------------------------------
@@ -495,6 +509,7 @@ alter table public.hotspot_insights enable row level security;
 alter table public.answer_votes     enable row level security;
 alter table public.notifications    enable row level security;
 alter table public.email_log        enable row level security;
+alter table public.moderation_log   enable row level security;
 
 -- profiles: everyone reads their own; non-students read all (to see roll numbers / staff lists).
 drop policy if exists "profiles_select_own"   on public.profiles;
@@ -623,6 +638,11 @@ create policy "notifications_update" on public.notifications for update to authe
 drop policy if exists "email_log_select" on public.email_log;
 create policy "email_log_select" on public.email_log for select to authenticated
   using (public.app_role()::text in ('warden','dean'));
+
+-- moderation_log: only the warden reads it; rows are written by the server (service role).
+drop policy if exists "moderation_log_select" on public.moderation_log;
+create policy "moderation_log_select" on public.moderation_log for select to authenticated
+  using (public.app_role()::text = 'warden');
 
 -- ---------------------------------------------------------------------
 -- Realtime (live ticket timelines). RLS still applies to subscribers.

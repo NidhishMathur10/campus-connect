@@ -85,6 +85,16 @@ async function facultyReporters(rows: Ticket[]): Promise<Map<string, FacultyRepo
   return map;
 }
 
+/**
+ * Safety reports whose photo shows people: only the Anti-Ragging Committee and the Dean may see the
+ * photo. The URL is removed here, on the server, so it never reaches other staff's browsers.
+ */
+export function redactPhoto<T extends Ticket>(t: T, viewer: Pick<Viewer, "role">): T {
+  if (t.module !== "security" || !t.ai_meta?.photo_has_people || !t.photo_url) return t;
+  if (viewer.role === "arc" || viewer.role === "dean") return t;
+  return { ...t, photo_url: null, photo_analysis: null };
+}
+
 async function withFollowers(rows: Ticket[]): Promise<BoardTicket[]> {
   const [counts, faculty] = await Promise.all([followerCounts(rows.map((t) => t.id)), facultyReporters(rows)]);
   return rows.map((t) => ({
@@ -149,7 +159,9 @@ export async function getBoardData(viewer: Viewer): Promise<BoardData> {
   if (activeRes.error) console.error("[getBoardData]", activeRes.error.message);
   if (closedRes.error) console.error("[getBoardData] closed", closedRes.error.message);
 
-  const tickets = await withFollowers([...((activeRes.data ?? []) as Ticket[]), ...((closedRes.data ?? []) as Ticket[])]);
+  const tickets = await withFollowers(
+    [...((activeRes.data ?? []) as Ticket[]), ...((closedRes.data ?? []) as Ticket[])].map((t) => redactPhoto(t, viewer)),
+  );
   const open = tickets.filter((t) => OPEN_STATUSES.includes(t.status));
 
   return {
@@ -213,7 +225,7 @@ export async function listTicketHistory(viewer: Viewer, f: HistoryFilters): Prom
   }
   const { data, error } = await q;
   if (error) console.error("[listTicketHistory]", error.message);
-  return withFollowers((data ?? []) as Ticket[]);
+  return withFollowers(((data ?? []) as Ticket[]).map((t) => redactPhoto(t, viewer)));
 }
 
 export interface ReporterInfo {
@@ -316,7 +328,7 @@ export async function getStaffTicketDetail(ticketNo: string, viewer: Viewer): Pr
   }
 
   return {
-    ticket: reporterHidden ? { ...ticket, reporter_id: "" } : ticket,
+    ticket: redactPhoto(reporterHidden ? { ...ticket, reporter_id: "" } : ticket, viewer),
     escalations: (escRes.data ?? []) as LinkedEscalation[],
     events,
     reporter: (reporterRes.data as ReporterInfo | null) ?? null,

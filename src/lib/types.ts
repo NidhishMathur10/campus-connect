@@ -31,6 +31,10 @@ export interface AiMeta {
   category?: FieldMeta;
   department?: FieldMeta;
   priority?: FieldMeta;
+  /** Complaint moderation: "unchecked" = the AI was unavailable (staff see "Not moderated"). */
+  moderation?: "passed" | "unchecked";
+  /** Safety & Security: the photo shows people; only arc / dean may see it. */
+  photo_has_people?: boolean;
   [key: string]: unknown;
 }
 

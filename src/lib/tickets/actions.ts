@@ -74,6 +74,10 @@ const CreateTicketSchema = z.object({
   /** Safety & Security: "Hide my name from the investigating staff" (confidential tickets only). */
   hide_identity: z.boolean().default(false),
   is_emergency: z.boolean().default(false),
+  /** "passed" = text (and photo) were moderated by the AI; "unchecked" = AI unavailable, staff see "Not moderated". */
+  moderation: z.enum(["passed", "unchecked"]).default("unchecked"),
+  /** Safety & Security: the photo shows people, so only arc / dean may view it. */
+  photo_has_people: z.boolean().default(false),
   /** Null when the AI was unavailable and the student filled the ticket by hand. */
   ai: z
     .object({
@@ -163,7 +167,9 @@ export async function createTicket(
           : {}),
       }
     : { model: "manual", is_safety_hazard: t.is_safety_hazard, manual_entry: true };
+  Object.assign(aiMeta, { moderation: t.ai ? t.moderation : "unchecked" });
   if (isSecurity) Object.assign(aiMeta, { is_emergency: t.is_emergency });
+  if (isSecurity && photoUrl && t.photo_has_people) Object.assign(aiMeta, { photo_has_people: true });
   if (t.duplicate_check) {
     Object.assign(aiMeta, {
       duplicate_check: { ...t.duplicate_check, matched: dup ? t.duplicate?.ticket_id : null },

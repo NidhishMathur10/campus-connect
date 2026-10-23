@@ -5,6 +5,7 @@ import { MapPin } from "lucide-react";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import { CLASS_DISRUPTION_REASON, mentionsUpcomingClass, type ReporterAudience } from "@/config/faculty";
+import { MODERATION_MESSAGES, type ModerationStatus } from "@/config/moderation";
 import { isHostelBuilding, normaliseRoom } from "@/config/locations";
 import { getRoutingRule, type TicketModule } from "@/config/routing";
 import { PHOTO_BUCKET } from "@/config/storage";
@@ -23,7 +24,7 @@ import { AiThinking, Bubble, ChatReply } from "./chat";
 import { SimilarTicketCard } from "./similar-ticket-card";
 import { PreviewCard, type TicketDraft } from "./preview-card";
 import { hostelDraft, type OwnRoom } from "./hostel-place";
-import { EMPTY_DRAFT, ReportForm, type ReportDraft } from "./report-form";
+import { EMPTY_DRAFT, ReportForm, type FormNotice, type ReportDraft } from "./report-form";
 import { SuccessCard } from "./success-card";
 
 type Phase = "form" | "chat" | "preview" | "success";
@@ -177,6 +178,12 @@ export function ReportFlow({
   const [reply, setReply] = useState<string | null>(null);
   const [ticket, setTicket] = useState<TicketDraft | null>(null);
   const [aiFailed, setAiFailed] = useState(false);
+  // Moderation (same AI call as the analysis): notices, and what gets saved on the ticket.
+  const [formNotice, setFormNotice] = useState<FormNotice | null>(null);
+  const [photoNotice, setPhotoNotice] = useState<string | null>(null);
+  const [replyNotice, setReplyNotice] = useState<string | null>(null);
+  const [modStatus, setModStatus] = useState<ModerationStatus>("passed");
+  const [photoHasPeople, setPhotoHasPeople] = useState(false);
   const [checkingDup, setCheckingDup] = useState(false);
   /** Result of the "already reported?" check for the ticket currently shown in the preview. */
   const [dup, setDup] = useState<{ key: string; checking: boolean; result: DupResult | null } | null>(null);
@@ -226,9 +233,42 @@ export function ReportFlow({
     if (isSecurity && a.is_emergency) onEmergencyChange?.(true);
   }
 
+  /** Photo moderation: drops a rejected photo (the server already deleted it) and returns the message to show. */
+  function applyPhotoModeration(a: ComplaintAnalysis, removed: boolean): string | null {
+    const p = a.moderation.photo;
+    if (!p) return null;
+    // Safety reports: people in a photo are evidence, kept but only visible to the committee / Dean.
+    if (isSecurity && p.contains_people && !removed) setPhotoHasPeople(true);
+    if (!removed) return null;
+    if (draft.photo) URL.revokeObjectURL(draft.photo.previewUrl);
+    setDraft((d) => ({ ...d, photo: null }));
+    setUploaded(null);
+    const lang = a.language === "hi" ? "hi" : "en";
+    if (p.level === "privacy") return MODERATION_MESSAGES.privacy[lang];
+    return p.reason ? `${p.reason} ${MODERATION_MESSAGES.photoRemoved[lang]}` : MODERATION_MESSAGES.photoBlock[lang];
+  }
+
+  /** Text moderation "block" / "rephrase": back to the form with a friendly message; text, photo and location are kept. */
+  function stopForText(a: ComplaintAnalysis, photoMsg: string | null): boolean {
+    const t = a.moderation.text;
+    if (t.level === "allow") return false;
+    const lang = a.language === "hi" ? "hi" : "en";
+    const messages =
+      t.level === "rephrase"
+        ? [MODERATION_MESSAGES.rephrase[lang], t.reason]
+        : [MODERATION_MESSAGES.block[lang], t.reason];
+    setFormNotice({ tone: t.level === "block" ? "error" : "warning", messages: [...messages, photoMsg ?? ""].filter(Boolean) });
+    editComplaint();
+    return true;
+  }
+
   async function submitComplaint() {
     if (busy.current) return;
     busy.current = true;
+    setFormNotice(null);
+    setPhotoNotice(null);
+    setReplyNotice(null);
+    setModStatus("passed");
     setPhase("chat");
     setRound1(null);
     setFinalAnalysis(null);
@@ -245,11 +285,16 @@ export function ReportFlow({
         photoPath: path,
       });
       if (!res?.ok) {
+        // AI unavailable: never trap a real issue. The ticket is saved as "Not moderated".
         setAiFailed(true);
+        setModStatus("unchecked");
         goPreview(manualDraft(draft, module, audience));
         return;
       }
       const a = res.analysis;
+      const photoMsg = applyPhotoModeration(a, !!res.photoRemoved);
+      if (stopForText(a, photoMsg)) return;
+      if (photoMsg) setPhotoNotice(photoMsg);
       noteEmergency(a);
       setRound1(a);
       if (a.missing_fields.length > 0 && a.follow_up_questions.length > 0) return; // wait for reply
@@ -276,10 +321,22 @@ export function ReportFlow({
         previousPhotoAnalysis: round1.photo_analysis,
       });
       if (res?.ok) {
+        const t = res.analysis.moderation.text;
+        if (t.level === "block") {
+          stopForText(res.analysis, null);
+          return;
+        }
+        if (t.level === "rephrase") {
+          // Stay in the chat: ask for a cleaner reply.
+          setReply(null);
+          setReplyNotice(MODERATION_MESSAGES.rephrase[lang]);
+          return;
+        }
         noteEmergency(res.analysis);
         setFinalAnalysis(res.analysis);
         goPreview(draftFromAnalysis(res.analysis));
       } else {
+        setModStatus("unchecked");
         // Keep round 1 and attach the answer so nothing the student typed is lost.
         toast.message("Couldn't re-check with AI — we added your answer to the ticket.");
         setFinalAnalysis(round1);
@@ -319,6 +376,8 @@ export function ReportFlow({
   }
 
   function editComplaint() {
+    setPhotoNotice(null);
+    setReplyNotice(null);
     setPhase("form");
     setTicket(null);
     setRound1(null);
@@ -329,6 +388,9 @@ export function ReportFlow({
   }
 
   function reset() {
+    setFormNotice(null);
+    setPhotoHasPeople(false);
+    setModStatus("passed");
     if (draft.photo) URL.revokeObjectURL(draft.photo.previewUrl);
     setDraft(freshDraft());
     setUploaded(null);
@@ -426,6 +488,8 @@ export function ReportFlow({
       confidential_choice: ticket.confidential_choice,
       hide_identity: ticket.hide_identity,
       is_emergency: ticket.is_emergency,
+      moderation: modStatus,
+      photo_has_people: photoHasPeople && !!photoPath,
       ai: finalAnalysis
         ? {
             model: finalAnalysis.model,
@@ -503,6 +567,7 @@ export function ReportFlow({
         onSubmit={submitComplaint}
         busy={false}
         textPlaceholder={textPlaceholder}
+        notice={formNotice}
         showMachines={module === "hostel"}
         ownRoom={module === "hostel" ? ownRoom : undefined}
         {...(module === "academic" ? ACADEMIC_FORM : {})}
@@ -541,6 +606,15 @@ export function ReportFlow({
           </Bubble>
         ))}
 
+      {photoNotice && (
+        <Bubble from="ai" tone="warning">
+          <p>{photoNotice}</p>
+          <button type="button" onClick={editComplaint} className="mt-2 text-xs font-bold underline">
+            Retake or choose another photo
+          </button>
+        </Bubble>
+      )}
+
       {questions.length > 0 && (
         <>
           <Bubble from="ai">{(isSecurity ? SAFETY_INTRO : QUESTIONS_INTRO)[lang]}</Bubble>
@@ -553,6 +627,11 @@ export function ReportFlow({
       )}
 
       {reply != null && <Bubble from="student">{reply}</Bubble>}
+      {replyNotice && reply == null && (
+        <Bubble from="ai" tone="warning">
+          {replyNotice}
+        </Bubble>
+      )}
       {thinking === 2 && <AiThinking round={2} hasPhoto={false} />}
 
       {awaitingReply && (

@@ -32,6 +32,8 @@ import {
   type Department,
   type TicketModule,
 } from "@/config/routing";
+import type { ModerationResult } from "@/config/moderation";
+import { photoBlockedBySafetyFilter } from "@/config/moderation";
 import type { PhotoAnalysis } from "@/lib/types";
 import { generateStructured, imagePart, textPart, type AiResult } from "./gemini";
 import {
@@ -137,8 +139,34 @@ HOSTEL LAYOUT: 4 students share each room; every room has its own attached washr
 `;
 }
 
+/** Content moderation rules for text_moderation / photo_moderation (CLAUDE.md §16). */
+function moderationRules(module: TicketModule, hasPhoto: boolean): string {
+  const security = module === "security";
+  const text = security
+    ? `TEXT MODERATION (text_moderation) - Safety reports may quote abusive words, slurs or threats that were said TO the student, so NEVER use "rephrase". Use "allow" for every genuine report, however raw. Use "block" ONLY for clear spam, gibberish or obvious nonsense. Keep a calm, supportive tone. reason is empty for allow.`
+    : `TEXT MODERATION (text_moderation) - judge the complaint (and the reply, if there is one):
+- "allow": normal complaints, including frustrated, angry or informal tone and mild slang or mild swearing in Hindi / Hinglish / English that is not aimed at a person.
+- "rephrase": insults, slurs or abuse aimed at a person (a staff member or another student). The complaint itself may be real.
+- "block": spam, gibberish, obvious jokes or fake complaints, threats, sexual content.
+- reason: one short friendly sentence for the student, in the SAME language and script as the complaint (empty for allow).
+- Whatever the level, title, summary, extracted_issue and english_text MUST be clean and professional: no abusive words, no insults; describe the problem neutrally.`;
+  const photo = !hasPhoto
+    ? ""
+    : security
+      ? `
+PHOTO MODERATION (photo_moderation) - a photo is attached. In Safety reports a photo with people is EVIDENCE: use "allow" and set contains_people = true (never "privacy"). Injuries or bruises shown as evidence are allowed. Use "block" ONLY for explicit sexual images, extreme gore, memes, or images unrelated to a safety concern. contains_people = true whenever a person's face or body is clearly visible. reason is empty for allow. In photo_analysis never identify or name people.`
+      : `
+PHOTO MODERATION (photo_moderation) - a photo is attached:
+- "allow": photos of the issue or the place (broken things, leaks, rooms, equipment, food, a document about the issue).
+- "privacy": identifiable faces of people (selfies, group photos). People only far away, from behind or unrecognisable are fine ("allow").
+- "block": explicit or sexual, gory or violent, offensive images, memes, or unrelated screenshots / pictures that have nothing to do with a campus issue.
+- contains_people = true whenever a person's face or body is clearly visible, whatever the level. reason: one short friendly sentence (empty for allow).
+- In photo_analysis never identify or describe people; describe only the issue.`;
+  return `${text}${photo}`;
+}
+
 /** Safety & Security: separate, supportive prompt (CLAUDE.md §12). */
-function securitySystemPrompt(): string {
+function securitySystemPrompt(hasPhoto: boolean): string {
   return `You are the confidential safety-report assistant of CampusConnect at ${COLLEGE_NAME}, an Indian college.
 A student is reporting something that made them feel unsafe: ragging, harassment, bullying, a threat or fight, theft, or a suspicious person. They may write in English, Hindi or Hinglish.
 Your job is to understand the report calmly and route it to the right people. The student may be scared or upset.
@@ -154,6 +182,8 @@ TONE (very important):
 - NEVER ask the student to justify themselves, prove anything, or explain why they did not report earlier.
 - NEVER ask for names of the people involved or of witnesses. If names were given, keep them only in english_text.
 - Do not give legal or medical advice.
+
+${moderationRules("security", hasPhoto)}
 
 RULES:
 1. language: "en" for English, "hi" for Hindi (Devanagari or romanised Hinglish), otherwise the ISO 639-1 code.
@@ -180,8 +210,8 @@ ALWAYS get the block AND the room (e.g. "Block C, room C-204") for any faculty r
 `;
 }
 
-function systemPrompt(module: TicketModule, audience: ReporterAudience): string {
-  if (module === "security") return securitySystemPrompt();
+function systemPrompt(module: TicketModule, audience: ReporterAudience, hasPhoto: boolean): string {
+  if (module === "security") return securitySystemPrompt(hasPhoto);
   const faculty = audience === "faculty";
   return `You are the complaint intake assistant of CampusConnect at ${COLLEGE_NAME}, an Indian college.
 ${faculty ? "Faculty members" : "Students"} describe problems informally in English, Hindi or Hinglish. Turn each complaint into a clear, structured ticket.
@@ -194,6 +224,8 @@ ${locationsPromptText()}
 ${hostelLayoutNote(module)}
 REQUIRED DETAILS:
 ${requiredDetailsText(module, audience)}
+
+${moderationRules(module, hasPhoto)}
 
 RULES:
 1. language: "en" for English, "hi" for Hindi (Devanagari or romanised Hinglish), otherwise the ISO 639-1 code.
@@ -240,6 +272,19 @@ function userPrompt(input: AnalyzeInput): string {
     parts.push(`Earlier photo analysis (photo not re-attached): ${input.previousPhotoAnalysis.observed}`);
   } else parts.push("No photo attached.");
   return parts.join("\n\n");
+}
+
+/** text_moderation / photo_moderation -> the result shown to the student (Safety reports never get "rephrase"). */
+function buildModeration(module: TicketModule, input: AnalyzeInput, raw: RawAnalysis): ModerationResult {
+  const security = module === "security";
+  const text = security && raw.text_moderation.level === "rephrase" ? { level: "allow" as const, reason: "" } : raw.text_moderation;
+  let photo: ModerationResult["photo"] = null;
+  if (input.photo) {
+    const p = raw.photo_moderation ?? { level: "allow" as const, reason: "", contains_people: false };
+    // In Safety reports a photo with people is evidence: allowed, but only arc / dean see it.
+    photo = security && p.level === "privacy" ? { ...p, level: "allow" } : p;
+  }
+  return { text, photo };
 }
 
 function pick<T extends string>(value: string | null | undefined, allowed: readonly T[]): T | null {
@@ -312,6 +357,7 @@ function normalise(
       location,
       missing_fields: [missingWhen && "when", missingWhere && "where"].filter((m): m is string => !!m),
       follow_up_questions: input.followUp || (!missingWhen && !missingWhere) ? [] : raw.follow_up_questions.slice(0, 2),
+      moderation: buildModeration(module, input, raw),
       model,
     };
   }
@@ -403,30 +449,44 @@ function normalise(
     location,
     missing_fields: filtered,
     follow_up_questions: questions,
+    moderation: buildModeration(module, input, raw),
     model,
   };
 }
 
-/** CLAUDE.md §6.1 — interpret a complaint (text + location + optional photo). Never throws. */
+/** CLAUDE.md §6.1 - interpret a complaint (text + location + optional photo) and moderate it in the same call. Never throws. */
 export async function analyzeComplaint(
   input: AnalyzeInput,
 ): Promise<AiResult<ComplaintAnalysis>> {
-  const prompt: Part[] = [textPart(userPrompt(input))];
-  if (input.photo) prompt.push(imagePart(input.photo.base64, input.photo.mimeType));
+  const audience = input.audience ?? "student";
+  const run = (i: AnalyzeInput) => {
+    const prompt: Part[] = [textPart(userPrompt(i))];
+    if (i.photo) prompt.push(imagePart(i.photo.base64, i.photo.mimeType));
+    return generateStructured({
+      schema: buildAnalysisSchema(i.module, audience, !!i.photo),
+      system: systemPrompt(i.module, audience, !!i.photo),
+      prompt,
+      timeoutMs: i.photo ? 35_000 : 25_000,
+      // Abusive text and unsuitable photos must be classified, not blocked by Gemini's own filters.
+      relaxedSafety: true,
+    });
+  };
 
-  const result = await generateStructured({
-    schema: buildAnalysisSchema(input.module, input.audience),
-    system: systemPrompt(input.module, input.audience ?? "student"),
-    prompt,
-    timeoutMs: input.photo ? 35_000 : 25_000,
-    relaxedSafety: input.module === "security",
-  });
+  let effective = input;
+  let result = await run(input);
+  // Gemini's own safety filter refused the request while a photo was attached: assume the photo is the
+  // problem, drop it, and analyse the text alone (a real complaint must never get stuck).
+  let photoFiltered = false;
+  if (!result.ok && input.photo && /blocked \(/i.test(result.error)) {
+    photoFiltered = true;
+    effective = { ...input, photo: null };
+    result = await run(effective);
+  }
 
   if (!result.ok) return { ok: false, error: result.error, model: result.model, ms: result.ms };
-  return {
-    ok: true,
-    data: normalise(input.module, input, result.data, result.model),
-    model: result.model,
-    ms: result.ms,
-  };
+  const data = normalise(input.module, effective, result.data, result.model);
+  if (photoFiltered) {
+    data.moderation.photo = { level: "block", reason: photoBlockedBySafetyFilter, contains_people: false };
+  }
+  return { ok: true, data, model: result.model, ms: result.ms };
 }

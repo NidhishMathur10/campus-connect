@@ -24,7 +24,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
-import { CategoryBadge, ConfidentialBadge, EscalatedBadge, FacultyBadge, PriorityBadge, ScopeBadge, StatusBadge } from "@/components/common/badges";
+import { CategoryBadge, ConfidentialBadge, EscalatedBadge, FacultyBadge, NotModeratedBadge, PriorityBadge, ScopeBadge, StatusBadge } from "@/components/common/badges";
 import { ROLE_LABELS } from "@/config/roles";
 import { SimpleSelect } from "@/components/common/simple-select";
 import { SafetyBadge } from "@/components/tickets/ai-bits";
@@ -612,6 +612,7 @@ function DrawerBody({
               <FacultyBadge reporter={detail.faculty_reporter} />
               {ai?.is_safety_hazard && <SafetyBadge />}
               {ticket.is_confidential && <ConfidentialBadge />}
+              {ai?.moderation === "unchecked" && <NotModeratedBadge />}
             </div>
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500">
               <span>Reported {formatDateTime(ticket.created_at)} ({timeAgo(ticket.created_at, now)})</span>
@@ -690,6 +691,11 @@ function DrawerBody({
           <ScopeBadge scope={ticket.scope} />
         </div>
         {ticket.photo_url && <Photo url={ticket.photo_url} alt="Complaint photo" className="h-56 w-full sm:w-80" />}
+        {!ticket.photo_url && ai?.photo_has_people && (
+          <p className="flex items-center gap-2 rounded-2xl bg-slate-50 p-3 text-xs font-semibold text-slate-600">
+            <Lock className="size-4 shrink-0" /> A photo showing people is attached. Only the Anti-Ragging Committee and the Dean can view it.
+          </p>
+        )}
       </Section>
 
       <Section title="Reporter" icon={User}>

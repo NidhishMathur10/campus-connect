@@ -1,7 +1,7 @@
 "use client";
 
 import { ArrowRight, Copy, Hourglass, MapPin, MoreHorizontal, RotateCcw, Users } from "lucide-react";
-import { CategoryBadge, ConfidentialBadge, EscalatedBadge, FacultyBadge, PriorityBadge, ScopeBadge } from "@/components/common/badges";
+import { CategoryBadge, ConfidentialBadge, EscalatedBadge, FacultyBadge, NotModeratedBadge, PriorityBadge, ScopeBadge } from "@/components/common/badges";
 import { initials } from "@/components/shell/user-menu";
 import { Stars } from "@/components/tickets/ticket-card";
 import { Button } from "@/components/ui/button";
@@ -70,6 +70,7 @@ export function TicketFlags({ ticket, showFaculty = true }: { ticket: BoardTicke
       <ScopeBadge scope={ticket.scope} className="px-2 text-[11px]" />
       {ticket.escalated && <EscalatedBadge className="px-2 text-[11px]" />}
       {ticket.is_confidential && <ConfidentialBadge className="px-2 text-[11px]" />}
+      {ticket.ai_meta?.moderation === "unchecked" && <NotModeratedBadge className="px-2 text-[11px]" />}
     </>
   );
 }

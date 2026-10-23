@@ -131,6 +131,7 @@ async function wipe() {
   must(await db.from("questions").delete().not("id", "is", null), "wipe questions");
   must(await db.from("notifications").delete().not("id", "is", null), "wipe notifications");
   must(await db.from("email_log").delete().not("id", "is", null), "wipe email log");
+  must(await db.from("moderation_log").delete().not("id", "is", null), "wipe moderation log");
   const { error } = await db.rpc("reset_ticket_seq");
   if (error) console.warn(`! Could not reset ticket numbers (${error.message}). Did you run schema.sql?`);
   console.log("✔ Cleared old tickets, escalations and Q&A");

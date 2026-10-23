@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Camera, ImagePlus, Loader2, MapPin, Sparkles, X } from "lucide-react";
+import { AlertCircle, Camera, ImagePlus, Loader2, MapPin, Sparkles, X } from "lucide-react";
 import { toast } from "sonner";
 import { SimpleSelect } from "@/components/common/simple-select";
 import { Button } from "@/components/ui/button";
@@ -24,6 +24,12 @@ export interface ReportDraft {
   room: string;
   area: string | null;
   photo: { blob: Blob; previewUrl: string } | null;
+}
+
+/** Message shown above the form after moderation sent the student back to edit. */
+export interface FormNotice {
+  tone: "warning" | "error";
+  messages: string[];
 }
 
 export const EMPTY_DRAFT: ReportDraft = {
@@ -50,7 +56,10 @@ export function ReportForm({
   buildingLabel = "Building",
   spotPlaceholder = "Classroom, lab, court 2, dining hall…",
   ownRoom,
+  notice,
 }: {
+  /** Moderation message (rephrase / blocked / photo removed). The student's text, photo and location are kept. */
+  notice?: FormNotice | null;
   draft: ReportDraft;
   onChange: (draft: ReportDraft) => void;
   buildings: readonly string[];
@@ -105,6 +114,22 @@ export function ReportForm({
 
   return (
     <form onSubmit={submit} className="animate-slide-up space-y-5 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
+      {notice && notice.messages.length > 0 && (
+        <div
+          role="alert"
+          className={`flex animate-fade-in items-start gap-2.5 rounded-2xl border p-4 text-sm font-semibold ${
+            notice.tone === "error" ? "border-rose-200 bg-rose-50 text-rose-900" : "border-amber-200 bg-amber-50 text-amber-900"
+          }`}
+        >
+          <AlertCircle className="mt-0.5 size-4 shrink-0" />
+          <div className="space-y-1">
+            {notice.messages.map((m, i) => (
+              <p key={i}>{m}</p>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="space-y-2">
         <Label htmlFor="complaint" className="eyebrow">Your complaint</Label>
         <Textarea

@@ -4,6 +4,7 @@ import { analyzeComplaint } from "@/lib/ai/analyze";
 import { AnalyzeRequestSchema, type AnalyzeResponse } from "@/lib/ai/complaint";
 import { audienceOf, isFaculty } from "@/config/faculty";
 import { getCurrentProfile } from "@/lib/auth";
+import { logModeration, deleteStoredPhoto } from "@/lib/moderation";
 import { downloadComplaintPhoto } from "@/lib/photos";
 
 /** POST /api/ai/analyze — CLAUDE.md §6.1 analyzeComplaint for the signed-in student or faculty member. */
@@ -33,6 +34,8 @@ export async function POST(request: Request) {
       return reply({ ok: false, error: "That photo doesn't belong to you." }, 403);
     }
     photo = await downloadComplaintPhoto(body.photoPath);
+    // Can't read the photo, so it can't be moderated: same as "AI unavailable" (the ticket is marked "Not moderated").
+    if (!photo) return reply({ ok: false, error: "Our AI assistant couldn't read this right now." });
   }
 
   const result = await analyzeComplaint({
@@ -50,5 +53,16 @@ export async function POST(request: Request) {
     // 200 on purpose: the UI treats this as "AI unavailable, continue manually".
     return reply({ ok: false, error: "Our AI assistant couldn't read this right now." });
   }
-  return reply({ ok: true, analysis: result.data });
+
+  // Moderation came back with the analysis (same Gemini call). Rejected photos are never kept.
+  const analysis = result.data;
+  const photoLevel = analysis.moderation.photo?.level;
+  const photoRemoved = photoLevel === "block" || photoLevel === "privacy";
+  if (photoRemoved) {
+    analysis.photo_analysis = null; // never keep a description of a rejected photo
+    if (body.photoPath) await deleteStoredPhoto(body.photoPath);
+  }
+  await logModeration(profile, body.module, analysis.moderation);
+
+  return reply({ ok: true, analysis, photoRemoved });
 }

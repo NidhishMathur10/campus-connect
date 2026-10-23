@@ -1,4 +1,4 @@
-import { Building, GraduationCap, Layers, Lock, ShieldAlert } from "lucide-react";
+import { Building, GraduationCap, Layers, Lock, ShieldAlert, ShieldQuestion } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getCategoryStyle, PRIORITY_STYLES, STATUS_STYLES } from "@/config/styles";
 import type { TicketScope } from "@/config/locations";
@@ -90,6 +90,19 @@ export function FacultyBadge({
       <span className="truncate">
         Reported by faculty{compact ? "" : ` · ${reporter.name} (${ROLE_LABELS[reporter.role]})`}
       </span>
+    </span>
+  );
+}
+
+/** The AI was unavailable when this was reported, so the text / photo were not moderated. */
+export function NotModeratedBadge({ className }: { className?: string }) {
+  return (
+    <span
+      className={cn(base, "border-slate-300 bg-slate-100 text-slate-600", className)}
+      title="The AI was unavailable, so this report's text and photo were not checked for abuse or unsuitable images"
+    >
+      <ShieldQuestion className="size-3" />
+      Not moderated
     </span>
   );
 }

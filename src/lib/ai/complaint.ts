@@ -10,6 +10,7 @@ import {
   type TicketModule,
 } from "@/config/routing";
 import type { ReporterAudience } from "@/config/faculty";
+import { PHOTO_LEVELS, TEXT_LEVELS, type ModerationResult } from "@/config/moderation";
 import type { PhotoAnalysis } from "@/lib/types";
 
 /**
@@ -60,7 +61,7 @@ export const AnalyzeRequestSchema = z.object({
 export type AnalyzeRequest = z.infer<typeof AnalyzeRequestSchema>;
 
 /** What Gemini must return (converted to a JSON response schema). */
-export function buildAnalysisSchema(module: TicketModule, audience: ReporterAudience = "student") {
+export function buildAnalysisSchema(module: TicketModule, audience: ReporterAudience = "student", hasPhoto = false) {
   const categories = categoriesFor(module, audience) as [string, ...string[]];
   const fieldScore = z.object({
     category: z.number().min(0).max(1),
@@ -73,7 +74,19 @@ export function buildAnalysisSchema(module: TicketModule, audience: ReporterAudi
     priority: z.string(),
   });
 
-  return z.object({
+  const textModeration = z.object({
+    level: z.enum(TEXT_LEVELS),
+    reason: z.string().describe("One short friendly sentence for the student, in the complaint's language; empty string when level is allow"),
+  });
+  const photoModeration = z.object({
+    level: z.enum(PHOTO_LEVELS),
+    reason: z.string().describe("One short friendly sentence for the student; empty string when level is allow"),
+    contains_people: z.boolean().describe("true whenever a person's face or body is clearly visible in the photo, whatever the level"),
+  });
+
+  const full = z.object({
+    text_moderation: textModeration,
+    photo_moderation: photoModeration.optional(),
     language: z
       .string()
       .describe('Language of the complaint: "en" for English, "hi" for Hindi (Devanagari or Hinglish), otherwise its ISO 639-1 code'),
@@ -117,6 +130,10 @@ export function buildAnalysisSchema(module: TicketModule, audience: ReporterAudi
       .max(3)
       .describe("Up to 3 friendly questions in the student's language, one per missing detail"),
   });
+  // photo_moderation exists only when a photo is attached (and is then required).
+  return (hasPhoto
+    ? full.extend({ photo_moderation: photoModeration })
+    : full.omit({ photo_moderation: true })) as unknown as typeof full;
 }
 export type RawAnalysis = z.infer<ReturnType<typeof buildAnalysisSchema>>;
 
@@ -142,11 +159,18 @@ export interface ComplaintAnalysis {
   location: ComplaintLocation;
   missing_fields: string[];
   follow_up_questions: string[];
+  /** Text + photo moderation from the same Gemini call. */
+  moderation: ModerationResult;
   model: string;
 }
 
 export type AnalyzeResponse =
-  | { ok: true; analysis: ComplaintAnalysis }
+  | {
+      ok: true;
+      analysis: ComplaintAnalysis;
+      /** The photo was rejected (privacy / blocked) and deleted from storage. */
+      photoRemoved?: boolean;
+    }
   | { ok: false; error: string };
 
 // ---------------------------------------------------------------------------
