@@ -142,7 +142,9 @@ export function assigneeOptions(staff: StaffMember[], viewer: Viewer, department
     .sort((a, b) => Number(b.department === department) - Number(a.department === department))
     .map((s) => ({
       id: s.id,
-      label: viewer.role === "warden" ? `${s.full_name} · ${s.department ?? "Staff"}` : `${s.full_name}${s.id === viewer.id ? " (me)" : ""}`,
+      label:
+        (viewer.role === "warden" ? `${s.full_name} · ${s.department ?? "Staff"}` : `${s.full_name}${s.id === viewer.id ? " (me)" : ""}`) +
+        (s.on_leave ? " (on leave)" : ""),
     }));
 }
 

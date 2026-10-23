@@ -14,7 +14,10 @@ import {
   Loader2,
   Lock,
   MapPin,
+  FastForward,
   MessageSquarePlus,
+  PauseCircle,
+  PlayCircle,
   RotateCcw,
   ShieldAlert,
   Sparkles,
@@ -24,7 +27,9 @@ import {
   XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
-import { CategoryBadge, ConfidentialBadge, EscalatedBadge, FacultyBadge, NotModeratedBadge, PriorityBadge, ScopeBadge, StatusBadge } from "@/components/common/badges";
+import { AutoAssignedBadge, CategoryBadge, ConfidentialBadge, EscalatedBadge, FacultyBadge, NotModeratedBadge, PriorityBadge, ReassignedBadge, ScopeBadge, StatusBadge, WaitingBadge } from "@/components/common/badges";
+import { DEMO_MODE } from "@/config/assignment";
+import { simulateDeadlinePassed } from "@/lib/assignment-actions";
 import { WhatsAppShareButton } from "@/components/common/whatsapp-share";
 import { ROLE_LABELS } from "@/config/roles";
 import { SimpleSelect } from "@/components/common/simple-select";
@@ -49,6 +54,8 @@ import {
   escalateTicket,
   mergeDuplicate,
   overrideTicketField,
+  pauseTicketSla,
+  resumeTicketSla,
   wardenReopenTicket,
 } from "@/lib/tickets/staff-actions";
 import type { DuplicateOriginal, StaffMember, StaffTicketDetail } from "@/lib/tickets/staff-queries";
@@ -234,6 +241,10 @@ function ActionsPanel({
   const [value, setValue] = useState<string | null>(null);
   const [reason, setReason] = useState("");
   const [reopenReason, setReopenReason] = useState("");
+  const [waitOpen, setWaitOpen] = useState(false);
+  const [waitNote, setWaitNote] = useState("");
+  const canHold = ticket.status === "In Progress" && !ticket.sla_paused_at;
+  const canSimulate = DEMO_MODE && (viewer.role === "warden" || viewer.role === "dean") && !ticket.sla_paused_at;
 
   const valueOptions: readonly string[] =
     field === "category"
@@ -309,6 +320,73 @@ function ActionsPanel({
               </div>
             </div>
           </div>
+
+          {ticket.sla_paused_at && (
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-neutral-fg/30 bg-neutral-bg p-3 text-sm text-neutral-fg">
+              <p className="flex min-w-0 items-start gap-2 font-semibold">
+                <PauseCircle className="mt-0.5 size-4 shrink-0" />
+                <span>Waiting for parts / external dependency{ticket.waiting_reason ? `: ${ticket.waiting_reason}` : ""}. The SLA timer is paused.</span>
+              </p>
+              <Button size="sm" variant="outline" className="bg-surface text-text" disabled={busy === "resume"} onClick={() => run("resume", () => resumeTicketSla(ticket.id), "Work resumed — SLA timer running")}>
+                {busy === "resume" ? <Loader2 className="animate-spin" /> : <PlayCircle />} Resume work
+              </Button>
+            </div>
+          )}
+          {(canHold || canSimulate) && (
+            <div className="flex flex-wrap gap-2">
+              {canHold && (
+                <Button size="sm" variant="outline" onClick={() => setWaitOpen(true)}>
+                  <PauseCircle /> Waiting for parts / external
+                </Button>
+              )}
+              {canSimulate && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  title="Demo only: moves the deadline to 1 minute ago. Then use “Run SLA check now”."
+                  disabled={busy === "simulate"}
+                  onClick={() => run("simulate", () => simulateDeadlinePassed(ticket.id), "Deadline moved to the past — now run the SLA check")}
+                >
+                  {busy === "simulate" ? <Loader2 className="animate-spin" /> : <FastForward />} ⏩ Simulate deadline passed
+                </Button>
+              )}
+            </div>
+          )}
+          <Dialog open={waitOpen} onOpenChange={setWaitOpen}>
+            <DialogContent className="rounded-3xl sm:max-w-md">
+              <DialogHeader className="text-left">
+                <DialogTitle className="text-lg font-extrabold text-text">Waiting for parts / external dependency</DialogTitle>
+                <DialogDescription>The SLA timer pauses until you resume work; the waiting time is added back to the deadline.</DialogDescription>
+              </DialogHeader>
+              <Textarea
+                value={waitNote}
+                onChange={(e) => setWaitNote(e.target.value)}
+                placeholder="What are you waiting for? e.g. New tap washer ordered, arrives tomorrow."
+                maxLength={500}
+                className="min-h-24"
+                autoFocus
+              />
+              <Button
+                disabled={waitNote.trim().length < 3 || busy === "hold"}
+                onClick={() =>
+                  run(
+                    "hold",
+                    async () => {
+                      const res = await pauseTicketSla(ticket.id, waitNote);
+                      if (res.ok) {
+                        setWaitOpen(false);
+                        setWaitNote("");
+                      }
+                      return res;
+                    },
+                    "Ticket on hold — SLA timer paused",
+                  )
+                }
+              >
+                {busy === "hold" ? <Loader2 className="animate-spin" /> : <PauseCircle />} Pause the timer
+              </Button>
+            </DialogContent>
+          </Dialog>
 
           <div className="space-y-2 rounded-2xl bg-surface-2 p-3">
             <Label htmlFor="drawer-note" className="flex items-center gap-1.5"><MessageSquarePlus className="size-4" /> Add a note</Label>
@@ -610,6 +688,9 @@ function DrawerBody({
                   <EscalatedBadge />
                 ))}
               <ScopeBadge scope={ticket.scope} />
+              {ticket.assigned_auto && ticket.assigned_to && <AutoAssignedBadge />}
+              <ReassignedBadge count={ticket.reassign_count} />
+              {ticket.sla_paused_at && <WaitingBadge reason={ticket.waiting_reason} />}
               <FacultyBadge reporter={detail.faculty_reporter} />
               {ai?.is_safety_hazard && <SafetyBadge />}
               {ticket.is_confidential && <ConfidentialBadge />}
@@ -617,7 +698,7 @@ function DrawerBody({
             </div>
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-text-muted">
               <span>Reported {formatDateTime(ticket.created_at)} ({timeAgo(ticket.created_at, now)})</span>
-              <SlaCountdown dueAt={ticket.sla_due_at} status={ticket.status} now={now} />
+              <SlaCountdown dueAt={ticket.sla_due_at} startAt={ticket.sla_started_at ?? ticket.created_at} pausedAt={ticket.sla_paused_at} status={ticket.status} now={now} />
               <span>{ticket.department}{assignee ? ` · ${assignee.full_name}` : " · Unassigned"}</span>
             </div>
           </div>

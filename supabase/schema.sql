@@ -274,6 +274,36 @@ create table if not exists public.notifications (
   created_at timestamptz not null default now()
 );
 
+-- Auto-assignment + SLA watcher.
+-- Staff availability: on_leave staff are skipped; preferred_buildings are tried first;
+-- last_assigned_at breaks ties ("least recently assigned").
+alter table public.profiles add column if not exists on_leave            boolean not null default false;
+alter table public.profiles add column if not exists preferred_buildings text[] not null default '{}';
+alter table public.profiles add column if not exists last_assigned_at    timestamptz;
+
+-- assigned_auto = the current assignee was picked by the system (false = picked by a person).
+-- assignment_history = [{from_id, from_name, to_id, to_name, reason, at}] — never reassign back to someone in it.
+-- sla_started_at = start of the current SLA window (null = created_at); a re-assignment starts a new one.
+-- sla_reminded_at = the 75% reminder was sent for the current window (cleared when the window restarts).
+-- sla_paused_at / waiting_reason = "Waiting for parts / external dependency": the SLA timer is paused.
+alter table public.tickets add column if not exists assigned_auto       boolean not null default false;
+alter table public.tickets add column if not exists reassign_count      int     not null default 0;
+alter table public.tickets add column if not exists assignment_history  jsonb   not null default '[]'::jsonb;
+alter table public.tickets add column if not exists sla_started_at      timestamptz;
+alter table public.tickets add column if not exists sla_reminded_at     timestamptz;
+alter table public.tickets add column if not exists sla_breach_count    int     not null default 0;
+alter table public.tickets add column if not exists sla_paused_at       timestamptz;
+alter table public.tickets add column if not exists sla_paused_seconds  int     not null default 0;
+alter table public.tickets add column if not exists waiting_reason      text;
+
+-- Warden settings (key/value). Keys: 'auto_assign_disabled' (json array of department names),
+-- 'reassign_manual' (json boolean). Missing key = default (auto-assign on, manual assignments left alone).
+create table if not exists public.app_settings (
+  key        text primary key,
+  value      jsonb not null,
+  updated_at timestamptz not null default now()
+);
+
 -- ---------------------------------------------------------------------
 -- Indexes
 -- ---------------------------------------------------------------------
@@ -518,6 +548,7 @@ alter table public.answer_votes     enable row level security;
 alter table public.notifications    enable row level security;
 alter table public.email_log        enable row level security;
 alter table public.moderation_log   enable row level security;
+alter table public.app_settings     enable row level security;
 
 -- profiles: everyone reads their own; non-students read all (to see roll numbers / staff lists).
 drop policy if exists "profiles_select_own"   on public.profiles;
@@ -651,6 +682,11 @@ create policy "email_log_select" on public.email_log for select to authenticated
 drop policy if exists "moderation_log_select" on public.moderation_log;
 create policy "moderation_log_select" on public.moderation_log for select to authenticated
   using (public.app_role()::text = 'warden');
+
+-- app_settings: the warden and the Dean read it; rows are written by the server (service role).
+drop policy if exists "app_settings_select" on public.app_settings;
+create policy "app_settings_select" on public.app_settings for select to authenticated
+  using (public.app_role()::text in ('warden','dean'));
 
 -- ---------------------------------------------------------------------
 -- Realtime (live ticket timelines). RLS still applies to subscribers.

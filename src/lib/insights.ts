@@ -38,8 +38,9 @@ type Row = Pick<
   | "resolved_at"
   | "created_at"
   | "duplicate_status"
+  | "reassign_count"
 >;
-const COLS = "id, ticket_no, module, title, category, department, building, floor, room_no, spot, status, priority, rating, sla_due_at, resolved_at, created_at, duplicate_status";
+const COLS = "id, ticket_no, module, title, category, department, building, floor, room_no, spot, status, priority, rating, sla_due_at, resolved_at, created_at, duplicate_status, reassign_count";
 
 export interface Hotspot {
   key: string;
@@ -60,6 +61,8 @@ export interface DepartmentRow {
   open: number;
   avgResolutionHours: number | null;
   slaBreaches: number;
+  /** Times the SLA watcher moved a ticket of this department to another staff member (deadline missed). */
+  reassignments: number;
   avgRating: number | null;
 }
 
@@ -196,6 +199,7 @@ export async function getInsights(module: TicketModule | null, days: InsightWind
         open: open.filter((t) => t.department === department).length,
         avgResolutionHours: avg(w.filter((t) => t.resolved_at).map(hours)),
         slaBreaches: w.filter((t) => breached(t, now)).length,
+        reassignments: w.reduce((sum, t) => sum + (t.reassign_count ?? 0), 0),
         avgRating: avg(w.filter((t) => t.rating != null).map((t) => t.rating!)),
       };
     })

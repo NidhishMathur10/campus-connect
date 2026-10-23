@@ -22,6 +22,7 @@ import {
   Kanban,
   List,
   Loader2,
+  PauseCircle,
   Search,
   ShieldAlert,
   SlidersHorizontal,
@@ -86,6 +87,8 @@ interface Filters {
   building: string | null;
   duplicatesOnly: boolean;
   escalatedOnly: boolean;
+  /** "Waiting for parts / external dependency" (SLA paused). */
+  pausedOnly: boolean;
 }
 const NO_FILTERS: Filters = {
   q: "",
@@ -96,6 +99,7 @@ const NO_FILTERS: Filters = {
   building: null,
   duplicatesOnly: false,
   escalatedOnly: false,
+  pausedOnly: false,
 };
 
 function matches(t: BoardTicket, f: Filters): boolean {
@@ -106,6 +110,7 @@ function matches(t: BoardTicket, f: Filters): boolean {
   if (f.building && t.building !== f.building) return false;
   if (f.duplicatesOnly && t.duplicate_status !== "flagged") return false;
   if (f.escalatedOnly && !t.escalated) return false;
+  if (f.pausedOnly && !t.sla_paused_at) return false;
   const q = f.q.trim().toLowerCase();
   if (q) {
     const hay = [t.ticket_no, t.title, t.summary, t.original_text, t.english_text, t.spot, t.room_no && `room ${t.room_no}`].join(" ").toLowerCase();
@@ -147,7 +152,7 @@ function FilterControls({
           ? SECURITY_CATEGORIES
           : ALL_CATEGORIES;
   const cls = stacked ? "w-full" : "w-40";
-  const toggle = (key: "duplicatesOnly" | "escalatedOnly", label: string, Icon: typeof Copy) => (
+  const toggle = (key: "duplicatesOnly" | "escalatedOnly" | "pausedOnly", label: string, Icon: typeof Copy) => (
     <button
       type="button"
       onClick={() => set({ [key]: !filters[key] })}
@@ -180,6 +185,7 @@ function FilterControls({
       <SimpleSelect value={filters.building} onChange={(v) => set({ building: v })} options={BUILDINGS} placeholder="Building" noneLabel="All buildings" className={cls} />
       {toggle("duplicatesOnly", "Duplicates only", Copy)}
       {toggle("escalatedOnly", "Escalated only", ShieldAlert)}
+      {toggle("pausedOnly", "Waiting on parts", PauseCircle)}
     </div>
   );
 }
@@ -300,7 +306,7 @@ export function ListView({
               <td className="px-3 py-2.5"><PriorityBadge priority={t.priority} /></td>
               <td className="px-3 py-2.5"><StatusBadge status={t.status} /></td>
               <td className="px-3 py-2.5 text-xs whitespace-nowrap text-text-muted"><Age iso={t.created_at} now={now} /></td>
-              <td className="px-3 py-2.5"><SlaCountdown dueAt={t.sla_due_at} status={t.status} now={now} /></td>
+              <td className="px-3 py-2.5"><SlaCountdown dueAt={t.sla_due_at} startAt={t.sla_started_at ?? t.created_at} pausedAt={t.sla_paused_at} status={t.status} now={now} /></td>
               <td className="max-w-48 truncate px-3 py-2.5 text-xs text-text-muted">{formatLocation(t)}</td>
               <td className="px-3 py-2.5">
                 <div className="flex items-center gap-2 text-xs text-text-muted">

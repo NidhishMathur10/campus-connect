@@ -12,6 +12,7 @@ import {
   type Priority,
 } from "@/config/routing";
 import { canTransition, NOTE_REQUIRED_STATUSES, TICKET_STATUSES, type TicketStatus } from "@/config/statuses";
+import { autoAssignTicket, freshSlaWindow, resumeSlaFields } from "@/lib/assignment";
 import { getCurrentProfile } from "@/lib/auth";
 import { notifyStaffAssigned, notifyTicketMerged, notifyTicketStatus } from "@/lib/email/notify";
 import { checkEscalations, createManualEscalation } from "@/lib/escalations";
@@ -91,7 +92,7 @@ export async function assignTicket(ticketId: string, assigneeId: string | null):
   const moveToAssigned = !!assignee && (ticket.status === "Submitted" || ticket.status === "Reopened");
   const { error } = await admin
     .from("tickets")
-    .update({ assigned_to: assignee?.id ?? null, ...(moveToAssigned ? { status: "Assigned" } : {}) })
+    .update({ assigned_to: assignee?.id ?? null, assigned_auto: false, ...(moveToAssigned ? { status: "Assigned" } : {}) })
     .eq("id", ticket.id);
   if (error) return { ok: false, error: "Could not assign the ticket. Please try again." };
 
@@ -107,6 +108,7 @@ export async function assignTicket(ticketId: string, assigneeId: string | null):
     events.push({ ticket_id: ticket.id, ...actor(profile), type: "status_change", from_status: ticket.status, to_status: "Assigned" });
   }
   await addEvents(admin, events);
+  if (assignee) await admin.from("profiles").update({ last_assigned_at: new Date().toISOString() }).eq("id", assignee.id);
   if (assignee) notifyStaffAssigned(ticket.id, assignee.id);
   if (moveToAssigned) notifyTicketStatus(ticket.id, "Assigned");
   return done(ticket.id, ticket.ticket_no);
@@ -156,7 +158,12 @@ export async function changeTicketStatus(
     resolved_at: resolving ? new Date().toISOString() : null,
   };
   // Starting work yourself on an unassigned ticket assigns it to you.
-  if (to.data === "In Progress" && !ticket.assigned_to && profile.role !== "warden") update.assigned_to = profile.id;
+  if (to.data === "In Progress" && !ticket.assigned_to && profile.role !== "warden") {
+    update.assigned_to = profile.id;
+    update.assigned_auto = false;
+  }
+  // Any move ends a "waiting for parts" pause: the deadline moves out by the time spent waiting.
+  Object.assign(update, resumeSlaFields(ticket));
 
   const { error } = await admin.from("tickets").update(update).eq("id", ticket.id).eq("status", ticket.status);
   if (error) return { ok: false, error: "Could not update the status. Please try again." };
@@ -250,6 +257,59 @@ export async function overrideTicketField(
   // Students can't see overrides, so tell them where their ticket went.
   if (publicNotes.length) events.push({ ticket_id: ticket.id, ...actor(profile), type: "note", note: publicNotes.join(" ") });
   await addEvents(admin, events);
+  // Rerouted to another team and released by the old assignee: pick someone there.
+  if (field === "department" && update.assigned_to === null) await autoAssignTicket(ticket.id, "rerouted");
+  return done(ticket.id, ticket.ticket_no);
+}
+
+// ---------------------------------------------------------------------------
+// "Waiting for parts / external dependency": pauses the SLA timer on an In Progress ticket
+// ---------------------------------------------------------------------------
+export async function pauseTicketSla(ticketId: string, note: string): Promise<ActionResult> {
+  const why = noteSchema.safeParse(note);
+  if (!why.success || why.data.length < 3) return { ok: false, error: "Say what you are waiting for (e.g. \"New tap washer ordered\")." };
+  const loaded = await loadManaged(ticketId);
+  if (!loaded.ok) return loaded;
+  const { profile, ticket, admin } = loaded;
+  if (ticket.status !== "In Progress") return { ok: false, error: "Only tickets that are In Progress can be put on hold." };
+  if (ticket.sla_paused_at) return { ok: false, error: "This ticket is already waiting." };
+
+  const { data, error } = await admin
+    .from("tickets")
+    .update({ sla_paused_at: new Date().toISOString(), waiting_reason: why.data })
+    .eq("id", ticket.id)
+    .eq("status", "In Progress")
+    .is("sla_paused_at", null)
+    .select("id");
+  if (error || !data?.length) return { ok: false, error: "Could not put the ticket on hold. Please try again." };
+  await addEvents(admin, [
+    {
+      ticket_id: ticket.id,
+      ...actor(profile),
+      type: "note",
+      note: `Waiting for parts / external dependency: ${why.data} — the deadline timer is paused until work resumes.`,
+    },
+  ]);
+  return done(ticket.id, ticket.ticket_no);
+}
+
+export async function resumeTicketSla(ticketId: string): Promise<ActionResult> {
+  const loaded = await loadManaged(ticketId);
+  if (!loaded.ok) return loaded;
+  const { profile, ticket, admin } = loaded;
+  if (!ticket.sla_paused_at) return { ok: false, error: "This ticket isn't waiting." };
+
+  const fields = resumeSlaFields(ticket);
+  const { data, error } = await admin
+    .from("tickets")
+    .update(fields)
+    .eq("id", ticket.id)
+    .eq("sla_paused_at", ticket.sla_paused_at)
+    .select("id");
+  if (error || !data?.length) return { ok: false, error: "Could not resume the ticket. Please try again." };
+  await addEvents(admin, [
+    { ticket_id: ticket.id, ...actor(profile), type: "note", note: "Work resumed — the deadline timer is running again (the waiting time was added back)." },
+  ]);
   return done(ticket.id, ticket.ticket_no);
 }
 
@@ -396,6 +456,7 @@ export async function wardenReopenTicket(ticketId: string, reason: string): Prom
       reopen_count: ticket.reopen_count + 1,
       resolved_at: null,
       sla_due_at: computeSlaDueAt(ticket.module, ticket.category, ticket.priority).toISOString(),
+      ...freshSlaWindow(),
     })
     .eq("id", ticket.id)
     .eq("status", ticket.status);
@@ -404,5 +465,6 @@ export async function wardenReopenTicket(ticketId: string, reason: string): Prom
   await addEvents(admin, [
     { ticket_id: ticket.id, ...actor(profile), type: "reopened", from_status: ticket.status, to_status: "Reopened", note: why.slice(0, 500) },
   ]);
+  await autoAssignTicket(ticket.id, "reopened");
   return done(ticket.id, ticket.ticket_no);
 }

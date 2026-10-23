@@ -8,6 +8,7 @@ import { Hotspots } from "@/components/insights/hotspots";
 import { MODULE_LABELS, type TicketModule } from "@/config/routing";
 import { requireProfile } from "@/lib/auth";
 import { checkEscalations } from "@/lib/escalations";
+import { runSlaWatcher } from "@/lib/sla-watcher";
 import { getInsights, getSecurityCounts, INSIGHT_WINDOWS, insightsModule, type InsightWindow } from "@/lib/insights";
 import { getQaStats } from "@/lib/qa/queries";
 import { cn } from "@/lib/utils";
@@ -66,6 +67,7 @@ export default async function InsightsPage({ searchParams }: { searchParams: Pro
   if (scopeModule === "forbidden") redirect("/");
   const days: InsightWindow = sp.days === "7" ? 7 : 30;
 
+  await runSlaWatcher();
   await checkEscalations();
   const [data, security, qa] = await Promise.all([
     getInsights(scopeModule, days),
@@ -206,10 +208,10 @@ export default async function InsightsPage({ searchParams }: { searchParams: Pro
 
       <Panel title="Department performance" subtitle={`Open = right now; other columns = tickets reported in the last ${days} days.`} className="mt-5">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[620px] text-sm">
+          <table className="w-full min-w-[720px] text-sm">
             <thead className="border-b border-border text-left">
               <tr>
-                {["Department", "Open", "Tickets", "Avg resolution", "SLA breaches", "Avg rating"].map((h) => (
+                {["Department", "Open", "Tickets", "Avg resolution", "SLA breaches", "Reassignments", "Avg rating"].map((h) => (
                   <th key={h} className="eyebrow px-3 py-2">{h}</th>
                 ))}
               </tr>
@@ -222,6 +224,7 @@ export default async function InsightsPage({ searchParams }: { searchParams: Pro
                   <td className="px-3 py-2.5">{d.total}</td>
                   <td className="px-3 py-2.5">{hoursLabel(d.avgResolutionHours)}</td>
                   <td className={cn("px-3 py-2.5", d.slaBreaches > 0 && "font-bold text-danger-fg")}>{d.slaBreaches}</td>
+                  <td className={cn("px-3 py-2.5", d.reassignments > 0 && "font-bold text-warning-fg")} title="Tickets moved to another staff member because the deadline was missed">{d.reassignments}</td>
                   <td className="px-3 py-2.5">{d.avgRating ? `★ ${d.avgRating.toFixed(1)}` : "—"}</td>
                 </tr>
               ))}

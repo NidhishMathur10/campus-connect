@@ -19,6 +19,10 @@ export interface DemoAccount {
   caption: string;
   /** Seeded as a real account (for realistic data) but not shown as a quick-login button. */
   hidden?: boolean;
+  /** Staff: buildings they cover — auto-assignment tries these first. */
+  preferredBuildings?: string[];
+  /** Staff: seeded as on leave (skipped by auto-assignment). */
+  onLeave?: boolean;
 }
 
 export const DEMO_ACCOUNTS: DemoAccount[] = [
@@ -33,14 +37,14 @@ export const DEMO_ACCOUNTS: DemoAccount[] = [
   { loginId: "2616400106", emailLocal: "2616400106", rollNo: "2616400106", fullName: "Ishaan Gupta", role: "student", hostel: "New Hostel", wing: "Boys Wing", room: "212", caption: "New Hostel · Room 212", hidden: true },
   { loginId: "2616400107", emailLocal: "2616400107", rollNo: "2616400107", fullName: "Dev Malhotra", role: "student", hostel: "New Hostel", wing: "Boys Wing", room: "219", caption: "New Hostel · Room 219", hidden: true },
   // Department staff
-  { loginId: "ramesh", emailLocal: "ramesh", fullName: "Ramesh", role: "staff", department: "Estate / Maintenance", caption: "Estate / Maintenance" },
-  { loginId: "mahesh", emailLocal: "mahesh", fullName: "Mahesh", role: "staff", department: "Estate / Maintenance", caption: "Estate / Maintenance" },
-  { loginId: "suresh", emailLocal: "suresh", fullName: "Suresh", role: "staff", department: "Electrical Maintenance", caption: "Electrical" },
-  { loginId: "dinesh", emailLocal: "dinesh", fullName: "Dinesh", role: "staff", department: "Electrical Maintenance", caption: "Electrical" },
-  { loginId: "kamla", emailLocal: "kamla", fullName: "Kamla", role: "staff", department: "Housekeeping", caption: "Housekeeping" },
-  { loginId: "sunita", emailLocal: "sunita", fullName: "Sunita", role: "staff", department: "Housekeeping", caption: "Housekeeping" },
-  { loginId: "rohit", emailLocal: "rohit", fullName: "Rohit", role: "staff", department: "IT Cell", caption: "IT Cell" },
-  { loginId: "ankit", emailLocal: "ankit", fullName: "Ankit", role: "staff", department: "IT Cell", caption: "IT Cell" },
+  { loginId: "ramesh", emailLocal: "ramesh", fullName: "Ramesh", role: "staff", department: "Estate / Maintenance", preferredBuildings: ["Old Hostel", "Block A"], caption: "Estate / Maintenance" },
+  { loginId: "mahesh", emailLocal: "mahesh", fullName: "Mahesh", role: "staff", department: "Estate / Maintenance", preferredBuildings: ["Block B", "Block C"], caption: "Estate / Maintenance" },
+  { loginId: "suresh", emailLocal: "suresh", fullName: "Suresh", role: "staff", department: "Electrical Maintenance", preferredBuildings: ["New Hostel", "Block A"], caption: "Electrical" },
+  { loginId: "dinesh", emailLocal: "dinesh", fullName: "Dinesh", role: "staff", department: "Electrical Maintenance", preferredBuildings: ["Old Hostel", "Block B", "Block C"], caption: "Electrical" },
+  { loginId: "kamla", emailLocal: "kamla", fullName: "Kamla", role: "staff", department: "Housekeeping", preferredBuildings: ["Old Hostel"], caption: "Housekeeping" },
+  { loginId: "sunita", emailLocal: "sunita", fullName: "Sunita", role: "staff", department: "Housekeeping", preferredBuildings: ["New Hostel"], onLeave: true, caption: "Housekeeping" },
+  { loginId: "rohit", emailLocal: "rohit", fullName: "Rohit", role: "staff", department: "IT Cell", preferredBuildings: ["Block A", "Block B"], caption: "IT Cell" },
+  { loginId: "ankit", emailLocal: "ankit", fullName: "Ankit", role: "staff", department: "IT Cell", preferredBuildings: ["New Hostel", "Old Hostel"], caption: "IT Cell" },
   { loginId: "sharma", emailLocal: "mr.sharma", fullName: "Mr. Sharma", role: "staff", department: "Mess Committee", caption: "Mess Committee" },
   { loginId: "gupta", emailLocal: "mr.gupta", fullName: "Mr. Gupta", role: "staff", department: "Lab In-charge", caption: "Lab In-charge" },
   { loginId: "nair", emailLocal: "ms.nair", fullName: "Ms. Nair", role: "staff", department: "Library Staff", caption: "Library Staff" },

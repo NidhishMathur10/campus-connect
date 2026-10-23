@@ -9,6 +9,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import type { Escalation, Ticket } from "@/lib/types";
 import { isDemoEmail } from "@/config/demo-accounts";
 import { collegeEmailDomain } from "@/config/email";
+import { notify, type NewNotification } from "@/lib/notifications";
 import { deliver, inBackground } from "./send";
 import { appUrl, renderEmail, type EmailContent } from "./templates";
 import { deliverWhatsApp } from "./whatsapp";
@@ -96,6 +97,15 @@ async function wa(person: Person, template: string, ticketId: string | null, bod
     ticketId,
     body: body.length > 440 ? `${body.slice(0, 437)}...` : body,
   });
+}
+
+/** In-app bell rows; a failure never affects the email/WhatsApp sends around it. */
+async function notifyInApp(rows: NewNotification[]) {
+  try {
+    await notify(rows);
+  } catch (err) {
+    console.error("[notify] in-app", err instanceof Error ? err.message : err);
+  }
 }
 
 const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
@@ -292,6 +302,64 @@ export function notifyStaffAssigned(ticketId: string, assigneeId: string): void 
       "staff_assigned",
       t.id,
       `CampusConnect: ${t.ticket_no} assigned to you. ${clip(t.title, 70)} (${t.priority}, ${t.category}). Open: ${staffLink(t.ticket_no)}`,
+    );
+    await notifyInApp([
+      {
+        user_id: staff.id,
+        kind: "ticket",
+        title: `New ticket assigned to you: ${t.ticket_no}`,
+        body: t.title,
+        link: `/staff?t=${t.ticket_no}`,
+      },
+    ]);
+  });
+}
+
+// ---------------------------------------------------------------------------
+// 4b. SLA reminders, re-assignments, "no staff available" → staff / warden / Dean (email + WhatsApp + in-app)
+// ---------------------------------------------------------------------------
+/**
+ * One alert for a handful of staff. Confidential Safety tickets: only the Anti-Ragging Committee
+ * (own department) and the Dean can be reached, and the text never says anything about the report.
+ */
+export function notifyStaffAlert(opts: {
+  ticketId: string;
+  recipientIds: string[];
+  /** email_log template name, e.g. "sla_reminder". */
+  template: string;
+  title: string;
+  message: string;
+}): void {
+  inBackground(async () => {
+    const t = await loadTicket(opts.ticketId);
+    if (!t) return;
+    let people = await peopleByIds(opts.recipientIds);
+    const confidential = t.is_confidential;
+    if (confidential) {
+      people = people.filter((p) => p.role === "dean" || (p.role === "arc" && p.department === t.department));
+    }
+    const title = confidential ? `Update on confidential report ${t.ticket_no}` : opts.title;
+    const message = confidential ? "For privacy, details are never sent by email. Please open the app to view." : opts.message;
+    const link = staffLink(t.ticket_no);
+    for (const person of people) {
+      await send(person, opts.template, t.id, title, {
+        preheader: message,
+        heading: title,
+        paragraphs: [`Hi ${person.full_name}, ${message}`],
+        rows: confidential
+          ? undefined
+          : [
+              ["Ticket", `${t.ticket_no} · ${t.title}`],
+              ["Priority", t.priority],
+              ["Department", t.department],
+              ["Where", formatLocation(t)],
+            ],
+        button: { label: "Open ticket", url: link },
+      });
+      await wa(person, opts.template, t.id, `CampusConnect: ${clip(title, 120)} ${confidential ? "Open the app to view" : clip(message, 160)}. ${link}`);
+    }
+    await notifyInApp(
+      people.map((p) => ({ user_id: p.id, kind: "ticket" as const, title, body: confidential ? null : message, link: `/staff?t=${t.ticket_no}` })),
     );
   });
 }

@@ -15,6 +15,7 @@ import {
 import { CONFIDENTIAL_REPORTER } from "@/config/safety";
 import { DUPLICATE_FLAG_THRESHOLD } from "@/config/statuses";
 import { isFaculty } from "@/config/faculty";
+import { autoAssignTicket, freshSlaWindow } from "@/lib/assignment";
 import { getCurrentProfile } from "@/lib/auth";
 import { notifyTicketCreated } from "@/lib/email/notify";
 import { checkEscalations, createSafetyEscalation } from "@/lib/escalations";
@@ -24,7 +25,7 @@ import type { Profile, Ticket } from "@/lib/types";
 
 export type ActionResult<T = object> = ({ ok: true } & T) | { ok: false; error: string };
 
-const AI_ACTOR = { actor_id: null, actor_name: "CampusConnect AI", actor_role: null };
+const AI_ACTOR ={ actor_id: null, actor_name: "CampusConnect AI", actor_role: null };
 
 /** Students and faculty (teacher / HOD / academic office) can report, follow and confirm tickets. */
 async function requireReporter(): Promise<Profile | null> {
@@ -262,6 +263,8 @@ export async function createTicket(
   if (evError) console.error("[createTicket] events", evError.message);
 
   if (isSecurity && rule.escalateToDean) await createSafetyEscalation({ id: ticket.id, category: t.category, title: t.title });
+  // Pick staff right away (safety reports and "Other" tickets are skipped inside).
+  await autoAssignTicket(ticket.id, "created");
   await checkEscalations({ ticketId: ticket.id });
   notifyTicketCreated(ticket.id);
   revalidatePath(myTicketsPath(profile));
@@ -381,6 +384,7 @@ export async function reopenTicket(ticketId: string, reason: string): Promise<Ac
       reopen_count: ticket.reopen_count + 1,
       resolved_at: null,
       sla_due_at: computeSlaDueAt(ticket.module, ticket.category, ticket.priority).toISOString(),
+      ...freshSlaWindow(),
     })
     .eq("id", ticket.id)
     .eq("status", "Resolved");
@@ -394,6 +398,7 @@ export async function reopenTicket(ticketId: string, reason: string): Promise<Ac
     to_status: "Reopened",
     note: why.slice(0, 500),
   });
+  await autoAssignTicket(ticket.id, "reopened");
 
   await checkEscalations({ ticketId: ticket.id });
   revalidatePath(`${myTicketsPath(profile)}/${ticket.ticket_no}`);
