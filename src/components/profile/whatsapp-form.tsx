@@ -59,7 +59,7 @@ export function WhatsappForm({ initialPhone, initialOptIn }: { initialPhone: str
           disabled={pending}
           className="size-4 accent-primary"
         />
-        Send me ticket updates on WhatsApp
+        Automated WhatsApp alerts — coming soon
       </label>
       <Button type="submit" disabled={pending || unchanged}>
         {pending ? <Loader2 className="animate-spin" /> : <MessageCircle />} Save WhatsApp settings

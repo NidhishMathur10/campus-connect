@@ -21,7 +21,7 @@ Optional extensions (we do both): Hindi complaint entry, recurring-issue analysi
 - Supabase: Postgres, Auth, Storage (bucket `complaint-photos`), Realtime
 - Gemini via `@google/genai` SDK, called ONLY from server code (route handlers / server actions). Model name from env `GEMINI_MODEL` (default: latest Gemini Flash model). Always use structured JSON output with a response schema; validate with zod.
 - Deploy: Vercel
-- Env vars: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `GEMINI_API_KEY`, `GEMINI_MODEL`, `NEXT_PUBLIC_COLLEGE_NAME`; email (§15): `COLLEGE_EMAIL_DOMAIN`, `APP_URL`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `EMAIL_FROM`, `DEMO_NOTIFY_EMAIL`; WhatsApp (§18): `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_WHATSAPP_FROM`, `DEMO_NOTIFY_WHATSAPP`
+- Env vars: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `GEMINI_API_KEY`, `GEMINI_MODEL`, `NEXT_PUBLIC_COLLEGE_NAME`; email (§15): `COLLEGE_EMAIL_DOMAIN`, `APP_URL`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `EMAIL_FROM`, `DEMO_NOTIFY_EMAIL`; WhatsApp (§18): `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_WHATSAPP_FROM`, `DEMO_NOTIFY_WHATSAPP`, `WHATSAPP_AUTOMATED_ENABLED`
 - Never expose service role key or Gemini key to the browser.
 
 ## 3. Config (keep in `src/config/*.ts`, single source of truth)
@@ -220,7 +220,11 @@ Faculty = `teacher`, `hod`, `academic_office` (`src/config/faculty.ts`: `FACULTY
 - **Rules:** use no raw palette colours (`bg-white`, `text-slate-500`, `border-amber-200`, hex/rgb) in `src/`; a `*-bg` / surface token is always used with its matching `*-fg` / text token. `npm run check:theme` enforces both and checks WCAG contrast of every pair in both modes; run it before committing UI changes.
 - Toggle: `src/components/theme/theme-toggle.tsx` (next-themes, class strategy, default System).
 
-## 18. WhatsApp notifications (Twilio WhatsApp Sandbox)
+## 18. WhatsApp (share buttons now; automated alerts behind a flag)
+- **Automated sending is OFF by default.** `WHATSAPP_AUTOMATED_ENABLED=true` turns on the Twilio code below; when unset/false `deliverWhatsApp()` returns immediately (no Twilio call, nothing logged). Reason: the Twilio trial sender only allows pre-approved templates without variables ("ContentSid Required"); production needs Meta-approved templates with variables.
+- **Share on WhatsApp buttons** (`src/components/common/whatsapp-share.tsx`, plain `https://wa.me/?text=` links, no API/accounts, WhatsApp-green `bg-whatsapp`/`text-whatsapp-fg` tokens): student `TicketDetail` (also faculty My Reports) and the report success screen share ticket no + title + status + `APP_URL/track?no=CC-xxxx`; the staff drawer's Reporter section has "Send update on WhatsApp" (ticket no, status, latest visible note, track link) that opens `wa.me/<digits>` directly when the reporter has a `profiles.phone`. Hidden for confidential/security tickets and hidden reporters. `/track?no=` pre-fills and auto-looks-up the ticket.
+- Profile: phone field kept; toggle reads "Automated WhatsApp alerts — coming soon".
+- Automated-flow details (only when the flag is on):
 - **Same events as email (§15):** ticket created, assigned, in progress, resolved ("Reply in the app to confirm it's fixed" + link), merged, escalation → Dean/HOD, teacher answered, staff assignment. Short plain-text messages (<500 chars) with ticket number, status and an `APP_URL` link. Code: `src/lib/email/whatsapp.ts` (Twilio REST via the `twilio` package, server-only, `deliverWhatsApp()`), called from `wa()` in `notify.ts` right next to each email send, inside `inBackground()` so a failure never blocks the user.
 - **Env:** `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` (secret, server-only), `TWILIO_WHATSAPP_FROM` (e.g. `whatsapp:+14155238886`), `DEMO_NOTIFY_WHATSAPP` (E.164). If any is missing nothing is sent and the attempt is logged as `skipped` ("X is not set").
 - **Opt-in:** `profiles.phone` (E.164) + `profiles.whatsapp_optin`, set on `/profile` ("WhatsApp updates"; note: in the sandbox each person must first send the join code to the Twilio number). Only opted-in people with a number are messaged.

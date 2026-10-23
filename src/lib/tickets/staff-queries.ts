@@ -235,6 +235,7 @@ export interface ReporterInfo {
   hostel: string | null;
   wing: string | null;
   room: string | null;
+  phone: string | null;
 }
 
 export interface DuplicateOriginal {
@@ -292,7 +293,7 @@ export async function getStaffTicketDetail(ticketNo: string, viewer: Viewer): Pr
       ? Promise.resolve({ data: null })
       : createAdminClient()
           .from("profiles")
-          .select("full_name, role, roll_no, hostel, wing, room")
+          .select("full_name, role, roll_no, hostel, wing, room, phone")
           .eq("id", ticket.reporter_id)
           .maybeSingle(),
     supabase.from("ticket_followers").select("user_id", { count: "exact", head: true }).eq("ticket_id", ticket.id),

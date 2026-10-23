@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowRight, Check, Copy, Lock, Plus, Users } from "lucide-react";
 import { toast } from "sonner";
 import { AnimatedCheck } from "@/components/common/celebrate";
+import { WhatsAppShareButton } from "@/components/common/whatsapp-share";
 import { Button } from "@/components/ui/button";
 
 export function SuccessCard({
@@ -12,6 +13,7 @@ export function SuccessCard({
   followed,
   confidential = false,
   trackBase = "/tickets",
+  title,
   onReportAnother,
 }: {
   ticketNo: string;
@@ -21,6 +23,8 @@ export function SuccessCard({
   confidential?: boolean;
   /** Where "Track this ticket" goes ("/tickets" for students, "/reports" for faculty). */
   trackBase?: string;
+  /** Ticket title for the WhatsApp message, when known. */
+  title?: string;
   onReportAnother: () => void;
 }) {
   const [copied, setCopied] = useState(false);
@@ -67,6 +71,11 @@ export function SuccessCard({
             Track this ticket <ArrowRight />
           </Link>
         </Button>
+        <WhatsAppShareButton
+          hidden={confidential}
+          className="h-11 px-6"
+          ticket={{ ticket_no: ticketNo, title, status: "Submitted" }}
+        />
       </div>
       <button
         type="button"

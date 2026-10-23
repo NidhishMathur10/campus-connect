@@ -67,7 +67,18 @@ async function log(row: {
   if (error) console.error("[whatsapp] could not write log:", error.message);
 }
 
+/**
+ * Automated sending is OFF unless WHATSAPP_AUTOMATED_ENABLED=true. Production WhatsApp Business
+ * needs Meta-approved message templates with variables (sent via ContentSid); until those exist,
+ * Twilio rejects free-form bodies, so we don't call Twilio or log anything. Users share manually
+ * through the "Share on WhatsApp" buttons instead.
+ */
+export function whatsappAutomatedEnabled(): boolean {
+  return process.env.WHATSAPP_AUTOMATED_ENABLED?.trim().toLowerCase() === "true";
+}
+
 export async function deliverWhatsApp(msg: OutgoingWhatsApp): Promise<void> {
+  if (!whatsappAutomatedEnabled()) return;
   const base = {
     to_email: msg.to ?? "-",
     original_to: null as string | null,

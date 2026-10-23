@@ -9,7 +9,8 @@ import { COLLEGE_NAME } from "@/config/college";
 export const metadata: Metadata = { title: "Track a ticket" };
 
 /** Public tracking by ticket number — no login (CLAUDE.md §13). */
-export default function PublicTrackPage() {
+export default async function PublicTrackPage({ searchParams }: { searchParams: Promise<{ no?: string }> }) {
+  const { no } = await searchParams;
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-2xl flex-col px-4 py-8 sm:py-12">
       <div className="mb-8 flex items-center justify-between gap-3">
@@ -25,7 +26,7 @@ export default function PublicTrackPage() {
       </div>
       <p className="eyebrow">{COLLEGE_NAME}</p>
       <h1 className="mt-1 mb-6 text-3xl font-extrabold tracking-tight text-text sm:text-4xl">Track a ticket</h1>
-      <PublicTrackCard className="animate-slide-up" />
+      <PublicTrackCard className="animate-slide-up" initialTicketNo={typeof no === "string" ? no.slice(0, 20) : undefined} />
       <p className="mt-4 text-center text-xs text-text-muted">
         Only the status and progress are shown here. Complaint details, photos and names stay private.
       </p>

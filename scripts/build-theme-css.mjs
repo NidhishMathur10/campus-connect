@@ -24,7 +24,7 @@ for (const n of [
   "primary", "primary-fg", "accent-fg", "accent-text",
   "input-bg", "input-border", "placeholder", "border", "ring", "star",
   "info-on-inverse", "warning-on-inverse",
-  "danger-solid", "danger-solid-fg", "warning-solid", "warning-solid-fg", "success-solid", "success-solid-fg", "scrim",
+  "danger-solid", "danger-solid-fg", "warning-solid", "warning-solid-fg", "success-solid", "success-solid-fg", "whatsapp", "whatsapp-fg", "scrim",
 ]) alias(n, n);
 theme.push(
   "  --color-page: var(--bg);",

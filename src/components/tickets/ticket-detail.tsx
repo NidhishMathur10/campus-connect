@@ -6,6 +6,7 @@ import { OPEN_STATUSES } from "@/config/statuses";
 import { formatDateTime, formatLocation, languageName, timeAgo } from "@/lib/format";
 import type { TrackedTicket } from "@/lib/tickets/queries";
 import type { Ticket, TicketEvent } from "@/lib/types";
+import { WhatsAppShareButton } from "@/components/common/whatsapp-share";
 import { Confidence, PhotoAnalysisBox, SafetyBadge } from "./ai-bits";
 import { LiveRefresh } from "./live-refresh";
 import { ResolutionPanel } from "./resolution-panel";
@@ -19,10 +20,12 @@ function Header({
   ticket,
   extra,
   live,
+  action,
 }: {
   ticket: Pick<Ticket, "ticket_no" | "title" | "status" | "category" | "priority" | "escalated" | "module" | "created_at">;
   extra?: React.ReactNode;
   live?: React.ReactNode;
+  action?: React.ReactNode;
 }) {
   return (
     <div className="mb-6 animate-slide-up space-y-3">
@@ -39,6 +42,7 @@ function Header({
         {ticket.escalated && <EscalatedBadge />}
         {extra}
       </div>
+      {action}
       <p className="text-xs text-text-muted">Reported {formatDateTime(ticket.created_at)} ({timeAgo(ticket.created_at)})</p>
     </div>
   );
@@ -84,6 +88,13 @@ export function TicketDetail({
       <Header
         ticket={ticket}
         live={<LiveRefresh ticketId={ticket.id} />}
+        action={
+          <WhatsAppShareButton
+            hidden={ticket.is_confidential || ticket.module === "security"}
+            ticket={ticket}
+            appUrl={process.env.APP_URL?.trim()}
+          />
+        }
         extra={
           <>
             {ai?.is_safety_hazard && <SafetyBadge />}
