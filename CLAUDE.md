@@ -21,7 +21,7 @@ Optional extensions (we do both): Hindi complaint entry, recurring-issue analysi
 - Supabase: Postgres, Auth, Storage (bucket `complaint-photos`), Realtime
 - Gemini via `@google/genai` SDK, called ONLY from server code (route handlers / server actions). Model name from env `GEMINI_MODEL` (default: latest Gemini Flash model). Always use structured JSON output with a response schema; validate with zod.
 - Deploy: Vercel
-- Env vars: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `GEMINI_API_KEY`, `GEMINI_MODEL`, `NEXT_PUBLIC_COLLEGE_NAME`; email (§15): `COLLEGE_EMAIL_DOMAIN`, `APP_URL`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `EMAIL_FROM`, `DEMO_NOTIFY_EMAIL`
+- Env vars: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `GEMINI_API_KEY`, `GEMINI_MODEL`, `NEXT_PUBLIC_COLLEGE_NAME`; email (§15): `COLLEGE_EMAIL_DOMAIN`, `APP_URL`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `EMAIL_FROM`, `DEMO_NOTIFY_EMAIL`; WhatsApp (§18): `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_WHATSAPP_FROM`, `DEMO_NOTIFY_WHATSAPP`
 - Never expose service role key or Gemini key to the browser.
 
 ## 3. Config (keep in `src/config/*.ts`, single source of truth)
@@ -83,7 +83,7 @@ Seeded demo accounts (password `demo1234` for all), shown as one-click quick-log
 - Warden: Mr. Rao · Dean: Dr. Iyer (Dean of Student Affairs) · HOD: Dr. Banerjee · Teachers: Prof. Das, Prof. Khan
 
 ## 5. Data model (Supabase)
-- profiles: id (= auth.users.id), full_name, roll_no (unique, nullable for non-students), role, department (nullable), hostel, wing, room, created_at
+- profiles: id (= auth.users.id), full_name, roll_no (unique, nullable for non-students), role, department (nullable), hostel, wing, room, email, phone (E.164, nullable), whatsapp_optin bool, created_at
 - tickets: id, ticket_no (text, `CC-1001`, from a sequence), tracking_pin (legacy, unused), module ('hostel' | 'academic' | 'security'), is_confidential, hide_identity, reporter_id, original_text, language ('en'|'hi'|other), english_text, title, summary, category, department, priority, ai_meta jsonb (confidence + reason per field, extracted issue, model), photo_url, photo_analysis jsonb (observed, matches_complaint, notes), building, floor, room_no (hostel room number), spot (common area / free-text spot), machine_id, scope ('room'|'floor'|'building', hostel only), status, details_incomplete bool, assigned_to (profile id), duplicate_of (ticket id), duplicate_score, duplicate_reason, duplicate_status ('none'|'flagged'|'merged'|'dismissed'), escalated bool, reopen_count int, rating int, feedback text, sla_due_at, resolved_at, created_at, updated_at
 - ticket_events: id, ticket_id, actor_id, actor_name, actor_role, type ('created'|'status_change'|'assigned'|'note'|'duplicate_flagged'|'merged'|'duplicate_dismissed'|'override'|'escalated'|'reopened'|'rating'|'me_too'), from_status, to_status, note, created_at — this is the student-visible progress history (internal-only types may be hidden from students).
 - ticket_followers: ticket_id, user_id (for "Me too")
@@ -202,7 +202,7 @@ Faculty = `teacher`, `hod`, `academic_office` (`src/config/faculty.ts`: `FACULTY
 - **Demo redirect:** if `DEMO_NOTIFY_EMAIL` is set, mail for seeded demo accounts (`isDemoEmail`) goes there with "[Demo: originally to x@zenithschool.ai]" on top; real users get mail at their own address. `npm run seed` gives every demo account an address (students `<rollno>@`, staff name-based like `ramesh@`, `dr.iyer@`, `prof.das@`).
 - **Emails:** ticket created → reporter; Assigned / In Progress / Resolved (staff note + "Please confirm it's fixed") → reporter + all followers ("Me too" and merged); Merged into CC-xxxx → duplicate's reporter + followers; assignment → assigned staff; escalation → Dean/HOD with AI brief + recommended action (sent once, after the brief is written; `escalations.emailed_at`); teacher answer → the student who asked.
 - **Confidential Safety tickets:** only the reporter, `arc` (own department) and `dean` are emailed, and the email only says "Update on your confidential report CC-xxxx — open the app to view". No details, never to the assigned security officer, warden or HOD.
-- **Email log:** `/email-log` (warden, dean) shows recent sends and failures; the warden never sees rows about Safety tickets.
+- **Notification log:** `/email-log` (warden, dean; nav label "Notification log") shows recent email AND WhatsApp sends, failures and skips with a channel column (see §18); the warden never sees rows about Safety tickets.
 - **Schema:** `profiles.email` (+ unique index), `escalations.emailed_at`, `email_log` table (RLS: warden/dean read). Re-run `schema.sql` after pulling.
 
 ## 16. Complaint moderation (text + photo, inside the analyze call)
@@ -220,3 +220,10 @@ Faculty = `teacher`, `hod`, `academic_office` (`src/config/faculty.ts`: `FACULTY
 - **Rules:** use no raw palette colours (`bg-white`, `text-slate-500`, `border-amber-200`, hex/rgb) in `src/`; a `*-bg` / surface token is always used with its matching `*-fg` / text token. `npm run check:theme` enforces both and checks WCAG contrast of every pair in both modes; run it before committing UI changes.
 - Toggle: `src/components/theme/theme-toggle.tsx` (next-themes, class strategy, default System).
 
+## 18. WhatsApp notifications (Twilio WhatsApp Sandbox)
+- **Same events as email (§15):** ticket created, assigned, in progress, resolved ("Reply in the app to confirm it's fixed" + link), merged, escalation → Dean/HOD, teacher answered, staff assignment. Short plain-text messages (<500 chars) with ticket number, status and an `APP_URL` link. Code: `src/lib/email/whatsapp.ts` (Twilio REST via the `twilio` package, server-only, `deliverWhatsApp()`), called from `wa()` in `notify.ts` right next to each email send, inside `inBackground()` so a failure never blocks the user.
+- **Env:** `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` (secret, server-only), `TWILIO_WHATSAPP_FROM` (e.g. `whatsapp:+14155238886`), `DEMO_NOTIFY_WHATSAPP` (E.164). If any is missing nothing is sent and the attempt is logged as `skipped` ("X is not set").
+- **Opt-in:** `profiles.phone` (E.164) + `profiles.whatsapp_optin`, set on `/profile` ("WhatsApp updates"; note: in the sandbox each person must first send the join code to the Twilio number). Only opted-in people with a number are messaged.
+- **Demo accounts:** messages for seeded demo accounts (no opt-in needed) go to `DEMO_NOTIFY_WHATSAPP`, prefixed "[Demo: for Aarav Mehta]".
+- **Confidential Safety tickets:** same recipients as email (reporter, `arc`, `dean`) and only "Update on your confidential report CC-xxxx — open the app to view", never details.
+- **Log:** `email_log` is shared by both channels: `channel` ('email'|'whatsapp'), `status` ('sent'|'failed'|'skipped'), `to_email` holds the address or phone number, `error` holds the failure/skip reason. Re-run `schema.sql` after pulling.

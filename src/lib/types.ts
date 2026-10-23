@@ -11,6 +11,9 @@ export interface Profile {
   roll_no: string | null;
   /** College email used for notifications (null until set). */
   email: string | null;
+  /** WhatsApp number in E.164 (+919876543210), null until set. */
+  phone: string | null;
+  whatsapp_optin: boolean;
   role: Role;
   department: string | null;
   hostel: string | null;

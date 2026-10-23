@@ -315,6 +315,14 @@ create table if not exists public.email_log (
 );
 create index if not exists email_log_created_idx on public.email_log (created_at desc);
 
+-- WhatsApp notifications (Twilio sandbox): phone + opt-in on the profile; the same log table
+-- now holds both channels (to_email = email address or phone number; status gains 'skipped').
+alter table public.profiles  add column if not exists phone text;
+alter table public.profiles  add column if not exists whatsapp_optin boolean not null default false;
+alter table public.email_log add column if not exists channel text not null default 'email';
+alter table public.email_log drop constraint if exists email_log_status_check;
+alter table public.email_log add constraint email_log_status_check check (status in ('sent','failed','skipped'));
+
 -- Complaint moderation: one row per rephrase / privacy / block outcome (never the complaint text).
 -- 3+ blocks in 24h put the person on the warden's dashboard flag list. No automatic bans.
 create table if not exists public.moderation_log (

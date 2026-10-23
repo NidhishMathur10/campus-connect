@@ -1,15 +1,16 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { AlertTriangle, CheckCircle2, Mail } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Mail, MessageCircle, MinusCircle } from "lucide-react";
 import { EmptyState } from "@/components/common/empty-state";
 import { PageHeader } from "@/components/common/page-header";
 import { requireProfile } from "@/lib/auth";
 import { emailEnabled } from "@/lib/email/send";
+import { whatsappConfigured } from "@/lib/email/whatsapp";
 import { formatDateTime } from "@/lib/format";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { cn } from "@/lib/utils";
 
-export const metadata: Metadata = { title: "Email log" };
+export const metadata: Metadata = { title: "Notification log" };
 
 interface LogRow {
   id: string;
@@ -17,7 +18,8 @@ interface LogRow {
   original_to: string | null;
   template: string;
   ticket_id: string | null;
-  status: "sent" | "failed";
+  channel: "email" | "whatsapp";
+  status: "sent" | "failed" | "skipped";
   error: string | null;
   created_at: string;
 }
@@ -39,7 +41,7 @@ const FILTERS = [
   { value: "failed", label: "Failed" },
 ] as const;
 
-export default async function EmailLogPage({ searchParams }: { searchParams: Promise<{ status?: string }> }) {
+export default async function NotificationLogPage({ searchParams }: { searchParams: Promise<{ status?: string }> }) {
   const profile = await requireProfile(["warden", "dean"]);
   const { status } = await searchParams;
   const failedOnly = status === "failed";
@@ -63,21 +65,28 @@ export default async function EmailLogPage({ searchParams }: { searchParams: Pro
   }
 
   const sent = rows.filter((r) => r.status === "sent").length;
-  const failed = rows.length - sent;
+  const failed = rows.filter((r) => r.status === "failed").length;
+  const skipped = rows.length - sent - failed;
   const shown = failedOnly ? rows.filter((r) => r.status === "failed") : rows;
 
   return (
     <>
       <PageHeader
         eyebrow="Notifications"
-        title="Email log"
-        description="Every email CampusConnect tried to send, newest first (last 300 attempts)."
+        title="Notification log"
+        description="Every email and WhatsApp message CampusConnect tried to send, newest first (last 300 attempts)."
       />
 
       {!emailEnabled() && (
         <p className="mb-6 flex items-start gap-2 rounded-3xl border border-warning-fg/30 bg-warning-bg p-4 text-sm font-semibold text-warning-fg">
           <AlertTriangle className="mt-0.5 size-4 shrink-0" />
           Email is switched off: SMTP_HOST is not set, so nothing is being sent.
+        </p>
+      )}
+      {!whatsappConfigured() && (
+        <p className="mb-6 flex items-start gap-2 rounded-3xl border border-warning-fg/30 bg-warning-bg p-4 text-sm font-semibold text-warning-fg">
+          <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+          WhatsApp is switched off: the Twilio variables are not all set, so messages are logged as skipped.
         </p>
       )}
 
@@ -93,7 +102,12 @@ export default async function EmailLogPage({ searchParams }: { searchParams: Pro
         >
           <AlertTriangle className="size-4" /> {failed} failed
         </span>
-        <nav className="ml-auto flex gap-1 rounded-full border border-border bg-surface p-1" aria-label="Filter emails">
+        {skipped > 0 && (
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1 text-sm font-bold text-text-muted">
+            <MinusCircle className="size-4" /> {skipped} skipped
+          </span>
+        )}
+        <nav className="ml-auto flex gap-1 rounded-full border border-border bg-surface p-1" aria-label="Filter notifications">
           {FILTERS.map((f) => (
             <Link
               key={f.value}
@@ -112,17 +126,18 @@ export default async function EmailLogPage({ searchParams }: { searchParams: Pro
       {shown.length === 0 ? (
         <EmptyState
           icon={Mail}
-          title={failedOnly ? "No failed emails" : "No emails yet"}
-          description="Emails show up here as soon as tickets are created, assigned or resolved."
+          title={failedOnly ? "No failed notifications" : "No notifications yet"}
+          description="Emails and WhatsApp messages show up here as soon as tickets are created, assigned or resolved."
         />
       ) : (
         <div className="overflow-x-auto rounded-3xl border border-border bg-surface shadow-sm">
-          <table className="w-full min-w-[720px] text-left text-sm">
+          <table className="w-full min-w-[820px] text-left text-sm">
             <thead className="border-b border-border bg-surface-2 text-xs font-bold tracking-wider text-text-muted uppercase">
               <tr>
                 <th className="px-4 py-3">When</th>
                 <th className="px-4 py-3">To</th>
-                <th className="px-4 py-3">Email</th>
+                <th className="px-4 py-3">Channel</th>
+                <th className="px-4 py-3">Message</th>
                 <th className="px-4 py-3">Ticket</th>
                 <th className="px-4 py-3">Status</th>
               </tr>
@@ -135,6 +150,12 @@ export default async function EmailLogPage({ searchParams }: { searchParams: Pro
                     <p className="font-semibold text-text">{r.to_email}</p>
                     {r.original_to && <p className="text-xs text-text-muted">Demo — meant for {r.original_to}</p>}
                   </td>
+                  <td className="px-4 py-3">
+                    <span className="inline-flex items-center gap-1 text-xs font-bold text-text-muted">
+                      {r.channel === "whatsapp" ? <MessageCircle className="size-3.5" /> : <Mail className="size-3.5" />}
+                      {r.channel === "whatsapp" ? "WhatsApp" : "Email"}
+                    </span>
+                  </td>
                   <td className="px-4 py-3 font-semibold text-text">{TEMPLATE_LABELS[r.template] ?? r.template}</td>
                   <td className="px-4 py-3 font-mono text-xs font-bold text-accent-text">
                     {r.ticket_id ? (tickets.get(r.ticket_id)?.ticket_no ?? "—") : "—"}
@@ -144,6 +165,13 @@ export default async function EmailLogPage({ searchParams }: { searchParams: Pro
                       <span className="inline-flex items-center gap-1 rounded-full bg-success-bg px-2.5 py-0.5 text-xs font-bold text-success-fg">
                         <CheckCircle2 className="size-3.5" /> Sent
                       </span>
+                    ) : r.status === "skipped" ? (
+                      <div className="space-y-0.5">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-neutral-bg px-2.5 py-0.5 text-xs font-bold text-neutral-fg">
+                          <MinusCircle className="size-3.5" /> Skipped
+                        </span>
+                        {r.error && <p className="max-w-xs text-xs break-words text-text-muted">{r.error}</p>}
+                      </div>
                     ) : (
                       <div className="space-y-0.5">
                         <span className="inline-flex items-center gap-1 rounded-full bg-danger-bg px-2.5 py-0.5 text-xs font-bold text-danger-fg">
