@@ -42,6 +42,8 @@ function genericActor(role: Role | null, department: string): string {
   switch (role) {
     case "student":
       return "Student";
+    case "teacher":
+      return "Faculty";
     case "staff":
     case "academic_office":
       return DEPARTMENT_SHORT[department] ?? "Staff";

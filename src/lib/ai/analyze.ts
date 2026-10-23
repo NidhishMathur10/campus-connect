@@ -17,6 +17,11 @@ import {
   type TicketScope,
 } from "@/config/locations";
 import {
+  CLASS_DISRUPTION_REASON,
+  mentionsUpcomingClass,
+  type ReporterAudience,
+} from "@/config/faculty";
+import {
   categoriesFor,
   getRoutingRule,
   NON_LOCATION_CATEGORIES,
@@ -45,6 +50,8 @@ export interface AnalyzeInput {
   /** Round 2 only: the AI's questions and the student's reply. */
   followUp?: FollowUpAnswer | null;
   previousPhotoAnalysis?: PhotoAnalysis | null;
+  /** Who is reporting. Faculty can use the faculty-only academic categories and get the class-disruption rule. */
+  audience?: ReporterAudience;
 }
 
 /** Floors don't matter for these buildings (single-hall messes, gym, courts). */
@@ -86,14 +93,35 @@ function hostelQuestions(module: TicketModule, ai: string[], missing: string[], 
   return out;
 }
 
-function requiredDetailsText(module: TicketModule): string {
+const PLACE_QUESTION_RE = /block|room|which class|कमरा|कमरे|ब्लॉक/i;
+const CLASS_TIME_RE = /time|when|what time|कब|कितने बजे/i;
+const FACULTY_QUESTIONS = {
+  en: { place: "Which block and room is this in? (e.g. Block C, room C-204)", time: "What time is your class?" },
+  hi: { place: "यह किस ब्लॉक और कमरे में है? (जैसे ब्लॉक C, कमरा C-204)", time: "आपकी क्लास कितने बजे है?" },
+};
+
+/** Faculty follow-ups: make sure the block/room and (when a class is affected) the class time are asked. */
+function facultyQuestions(ai: string[], missing: string[], hindi: boolean): string[] {
+  const out = [...ai];
+  const lang = hindi ? "hi" : "en";
+  const gaps = missing.map((m) => m.toLowerCase());
+  const placeMissing = gaps.some((m) => /block|floor|room|spot|location/.test(m));
+  if (placeMissing && !out.some((q) => PLACE_QUESTION_RE.test(q))) out.push(FACULTY_QUESTIONS[lang].place);
+  if (gaps.some((m) => m.includes("class time")) && !out.some((q) => CLASS_TIME_RE.test(q))) {
+    out.push(FACULTY_QUESTIONS[lang].time);
+  }
+  return out;
+}
+
+function requiredDetailsText(module: TicketModule, audience: ReporterAudience): string {
   const perCategory = ROUTING[module]
-    .filter((r) => r.requiredDetails)
+    .filter((r) => r.requiredDetails && (audience === "faculty" || !r.facultyOnly))
     .map((r) => `- ${r.category}: ${r.requiredDetails}`)
     .join("\n");
   const location =
     module === "academic"
-      ? "- Classroom Facilities / Lab Equipment / Library: the block (Block A–D), floor and room or lab number. Room codes like \"B-204\" mean Block B, 2nd floor (first digit = floor, 0 = Ground). The Library is in Block A.\n- Academic Admin (timetable, attendance, marks): NO physical location — never ask for block, floor or room."
+      ? `- Classroom Facilities / Lab Equipment / Library${audience === "faculty" ? " / Electricity / Internet / Cleanliness" : ""}: the block (Block A-D), floor and room or lab number. Room codes like "B-204" mean Block B, 2nd floor (first digit = floor, 0 = Ground). The Library is in Block A.${audience === "faculty" ? " For a faculty report ALWAYS get both the block and the room." : ""}
+- Academic Admin (timetable, attendance, marks): NO physical location - never ask for block, floor or room.`
       : `- Hostel (Old Hostel / New Hostel): building, floor, and EITHER the ROOM NUMBER OR, for a shared space, the common area (${HOSTEL_COMMON_AREAS.join(", ")}). Every room has its own attached washroom, bathroom and balcony and there are NO common washrooms, so NEVER ask which washroom or bathroom — the room number is enough (details go in the complaint text).
 - Water Supply (no water / low pressure), Electricity (power cut) and Internet (Wi-Fi outage / slow Wi-Fi): also the SCOPE — "Only your room, or other rooms on this floor too?" (scope_applies = true). For a single faulty item inside the room (a fan, a tap, a geyser, a LAN port) scope_applies = false and you must NOT ask.
 - Messes, Gym and Sports Complex: no room; floor is not needed, and for messes the meal is enough.`;
@@ -143,19 +171,29 @@ RULES:
    - English example: "Thank you for telling us. Roughly when did this happen?"`;
 }
 
-function systemPrompt(module: TicketModule): string {
+/** Faculty reports: same intake, plus the "a class is affected" priority rule. */
+function facultyNote(): string {
+  return `
+THE REPORTER IS A FACULTY MEMBER (teacher / HOD / academic office), not a student. They report problems in the academic blocks (Blocks A-D): classroom facilities, lab equipment, library, academic admin, and electricity, Wi-Fi/internet or cleanliness in a block. Be concise and professional.
+CLASS RULE: if they mention a class, lecture, lab or exam that is happening now or soon (e.g. "I have a class at 2", "lecture in 10 minutes", "students are waiting") and the problem affects it, set disrupts_class = true, set priority to at least "High" (keep "Urgent" for safety hazards), and make the priority reason exactly "${CLASS_DISRUPTION_REASON}". If they mention a class but not when, add "class time" to missing_fields and ask when the class is. Otherwise disrupts_class = false.
+ALWAYS get the block AND the room (e.g. "Block C, room C-204") for any faculty report about a physical place; ask for whatever is missing in one question.
+`;
+}
+
+function systemPrompt(module: TicketModule, audience: ReporterAudience): string {
   if (module === "security") return securitySystemPrompt();
+  const faculty = audience === "faculty";
   return `You are the complaint intake assistant of CampusConnect at ${COLLEGE_NAME}, an Indian college.
-Students describe problems informally in English, Hindi or Hinglish. Turn each complaint into a clear, structured ticket.
+${faculty ? "Faculty members" : "Students"} describe problems informally in English, Hindi or Hinglish. Turn each complaint into a clear, structured ticket.
 
 ROUTING GUIDE (${module === "hostel" ? "Hostel & Campus" : "Education / academic"} module):
-${routingGuidePromptText(module)}
-
+${routingGuidePromptText(module, audience)}
+${faculty ? facultyNote() : ""}
 CAMPUS LOCATIONS:
 ${locationsPromptText()}
 ${hostelLayoutNote(module)}
 REQUIRED DETAILS:
-${requiredDetailsText(module)}
+${requiredDetailsText(module, audience)}
 
 RULES:
 1. language: "en" for English, "hi" for Hindi (Devanagari or romanised Hinglish), otherwise the ISO 639-1 code.
@@ -217,7 +255,8 @@ function normalise(
   raw: RawAnalysis,
   model: string,
 ): ComplaintAnalysis {
-  const category = (pick(raw.category, categoriesFor(module)) ?? "Other") as Category;
+  const audience = input.audience ?? "student";
+  const category = (pick(raw.category, categoriesFor(module, audience)) ?? "Other") as Category;
   const rule = getRoutingRule(module, category);
   const department: Department = rule.departments.includes(raw.department)
     ? raw.department
@@ -232,6 +271,14 @@ function normalise(
       : raw.is_safety_hazard
         ? "Urgent"
         : raw.priority;
+
+  // Faculty: a class happening now or soon raises the priority to at least High.
+  const classAffected =
+    audience === "faculty" && !isSecurity && (raw.disrupts_class || mentionsUpcomingClass(`${input.text} ${input.followUp?.answer ?? ""}`));
+  const raisedForClass = classAffected && (priority === "Low" || priority === "Medium");
+  const finalPriority = raisedForClass ? "High" : priority;
+  // Urgent safety hazards keep the AI's own reason; otherwise the class is why this is High.
+  const reasons = classAffected && finalPriority !== "Urgent" ? { ...raw.reasons, priority: CLASS_DISRUPTION_REASON } : raw.reasons;
 
   const ex = raw.extracted_location;
   const location: ComplaintLocation = {
@@ -330,7 +377,9 @@ function normalise(
 
   const questions = input.followUp
     ? []
-    : hostelQuestions(module, raw.follow_up_questions, filtered, DEVANAGARI.test(input.text)).slice(0, 3);
+    : audience === "faculty"
+      ? facultyQuestions(raw.follow_up_questions, filtered, DEVANAGARI.test(input.text)).slice(0, 3)
+      : hostelQuestions(module, raw.follow_up_questions, filtered, DEVANAGARI.test(input.text)).slice(0, 3);
 
   const photo: PhotoAnalysis | null = input.photo
     ? raw.photo_analysis
@@ -344,12 +393,12 @@ function normalise(
     extracted_issue: raw.extracted_issue,
     category,
     department,
-    priority,
+    priority: finalPriority,
     is_safety_hazard: raw.is_safety_hazard,
     scope,
     is_emergency: false,
     confidence: raw.confidence,
-    reasons: raw.reasons,
+    reasons,
     photo_analysis: photo,
     location,
     missing_fields: filtered,
@@ -366,8 +415,8 @@ export async function analyzeComplaint(
   if (input.photo) prompt.push(imagePart(input.photo.base64, input.photo.mimeType));
 
   const result = await generateStructured({
-    schema: buildAnalysisSchema(input.module),
-    system: systemPrompt(input.module),
+    schema: buildAnalysisSchema(input.module, input.audience),
+    system: systemPrompt(input.module, input.audience ?? "student"),
     prompt,
     timeoutMs: input.photo ? 35_000 : 25_000,
     relaxedSafety: input.module === "security",

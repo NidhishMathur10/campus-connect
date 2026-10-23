@@ -1,7 +1,7 @@
 "use client";
 
 import { ArrowRight, Copy, Hourglass, MapPin, MoreHorizontal, RotateCcw, Users } from "lucide-react";
-import { CategoryBadge, ConfidentialBadge, EscalatedBadge, PriorityBadge, ScopeBadge } from "@/components/common/badges";
+import { CategoryBadge, ConfidentialBadge, EscalatedBadge, FacultyBadge, PriorityBadge, ScopeBadge } from "@/components/common/badges";
 import { initials } from "@/components/shell/user-menu";
 import { Stars } from "@/components/tickets/ticket-card";
 import { Button } from "@/components/ui/button";
@@ -50,9 +50,10 @@ export function AssigneeAvatar({ name, className }: { name: string | null; class
 }
 
 /** Small flag pills shared by the card and the list view. */
-export function TicketFlags({ ticket }: { ticket: BoardTicket }) {
+export function TicketFlags({ ticket, showFaculty = true }: { ticket: BoardTicket; showFaculty?: boolean }) {
   return (
     <>
+      {showFaculty && <FacultyBadge reporter={ticket.faculty_reporter} compact className="px-2 text-[11px]" />}
       {ticket.status === "Reopened" && (
         <span className="inline-flex items-center gap-1 rounded-full bg-rose-600 px-2 py-0.5 text-[11px] font-bold text-white">
           <RotateCcw className="size-3" /> Reopened
@@ -145,8 +146,9 @@ export function BoardCard({
       <div className="flex flex-wrap gap-1">
         <CategoryBadge category={ticket.category} className="px-2 text-[11px]" />
         <PriorityBadge priority={ticket.priority} className="px-2 text-[11px]" />
-        <TicketFlags ticket={ticket} />
+        <TicketFlags ticket={ticket} showFaculty={false} />
       </div>
+      <FacultyBadge reporter={ticket.faculty_reporter} className="px-2 text-[11px]" />
 
       {ticket.status === "Resolved" && (
         <p className="flex items-center gap-1.5 rounded-xl bg-emerald-50 px-2 py-1 text-[11px] font-bold text-emerald-800">

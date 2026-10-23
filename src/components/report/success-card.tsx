@@ -10,6 +10,7 @@ export function SuccessCard({
   ticketNo,
   followed,
   confidential = false,
+  trackBase = "/tickets",
   onReportAnother,
 }: {
   ticketNo: string;
@@ -17,6 +18,8 @@ export function SuccessCard({
   followed: boolean;
   /** Safety & Security report (no public tracking). */
   confidential?: boolean;
+  /** Where "Track this ticket" goes ("/tickets" for students, "/reports" for faculty). */
+  trackBase?: string;
   onReportAnother: () => void;
 }) {
   const [copied, setCopied] = useState(false);
@@ -40,7 +43,7 @@ export function SuccessCard({
       <p className="mt-2 font-mono text-5xl font-extrabold tracking-tight sm:text-6xl">{ticketNo}</p>
       <p className="mx-auto mt-3 max-w-md text-sm text-slate-300">
         {followed
-          ? "You've been added to this ticket. Every update will show up in My Tickets."
+          ? `You've been added to this ticket. Every update will show up in ${trackBase === "/reports" ? "My Reports" : "My Tickets"}.`
           : confidential
             ? "Your report has reached the right people. Only they and the Dean can see it — follow its progress in My Tickets."
             : "Your complaint has been sent to the right team. Keep this number — you can also track it from the login page without logging in."}
@@ -55,7 +58,7 @@ export function SuccessCard({
           {copied ? <Check /> : <Copy />} {copied ? "Copied" : "Copy number"}
         </Button>
         <Button size="lg" className="bg-white text-navy hover:bg-sky-tint" asChild>
-          <Link href={`/tickets/${ticketNo}`}>
+          <Link href={`${trackBase}/${ticketNo}`}>
             Track this ticket <ArrowRight />
           </Link>
         </Button>

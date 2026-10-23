@@ -14,7 +14,7 @@ export function Stars({ rating, className = "size-4" }: { rating: number; classN
   );
 }
 
-export function TicketCard({ ticket }: { ticket: MyTicket }) {
+export function TicketCard({ ticket, basePath = "/tickets" }: { ticket: MyTicket; basePath?: string }) {
   return (
     // The title link is stretched over the whole card, so the "Merged into" link can sit on top.
     <div className="group relative flex animate-slide-up flex-col gap-3 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-accent-blue hover:shadow-md">
@@ -22,7 +22,7 @@ export function TicketCard({ ticket }: { ticket: MyTicket }) {
         <div className="min-w-0 space-y-1">
           <p className="font-mono text-xs font-bold text-accent-blue">{ticket.ticket_no}</p>
           <h3 className="font-bold text-navy group-hover:text-accent-blue">
-            <Link href={`/tickets/${ticket.ticket_no}`} className="after:absolute after:inset-0 after:rounded-3xl">
+            <Link href={`${basePath}/${ticket.ticket_no}`} className="after:absolute after:inset-0 after:rounded-3xl">
               {ticket.title}
             </Link>
           </h3>
@@ -64,7 +64,7 @@ export function TicketCard({ ticket }: { ticket: MyTicket }) {
       )}
       {ticket.status === "Merged" && ticket.merged_into && (
         <Link
-          href={`/tickets/${ticket.merged_into}`}
+          href={`${basePath}/${ticket.merged_into}`}
           className="relative z-10 flex w-fit items-center gap-1.5 rounded-full bg-zinc-100 px-3 py-1 text-xs font-bold text-zinc-700 hover:bg-sky-tint hover:text-accent-blue"
         >
           <GitMerge className="size-3.5" /> Merged into {ticket.merged_into} →

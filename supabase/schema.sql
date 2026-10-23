@@ -425,12 +425,15 @@ begin
     else t.ticket_no || ' was escalated for priority attention'
   end;
   insert into public.notifications (user_id, kind, title, body, link)
-  select r.uid, 'ticket', msg, t.title, '/tickets/' || t.ticket_no
+  -- Students track in /tickets, faculty (teacher / HOD / academic office reporters) in /reports.
+  select r.uid, 'ticket', msg, t.title,
+         case when p.role::text in ('teacher','hod','academic_office') then '/reports/' else '/tickets/' end || t.ticket_no
   from (
     select t.reporter_id as uid
     union
     select f.user_id from public.ticket_followers f where f.ticket_id = t.id and not t.is_confidential
   ) r
+  left join public.profiles p on p.id = r.uid
   where r.uid is distinct from new.actor_id;
   return null;
 end $$;
@@ -490,7 +493,7 @@ drop policy if exists "tickets_update" on public.tickets;
 create policy "tickets_select" on public.tickets for select to authenticated
   using (public.can_view_ticket(id, reporter_id, department, assigned_to, module));
 create policy "tickets_insert" on public.tickets for insert to authenticated
-  with check (reporter_id = auth.uid() and public.app_role() = 'student');
+  with check (reporter_id = auth.uid() and public.app_role()::text in ('student','teacher','hod','academic_office'));
 create policy "tickets_update" on public.tickets for update to authenticated
   using (public.can_manage_ticket(department, assigned_to, module))
   with check (public.can_manage_ticket(department, assigned_to, module));
@@ -502,7 +505,9 @@ create policy "events_select" on public.ticket_events for select to authenticate
   using (
     exists (select 1 from public.tickets t where t.id = ticket_id and public.can_view_ticket(t.id, t.reporter_id, t.department, t.assigned_to, t.module))
     and (
-      public.app_role() <> 'student'
+      -- Staff see everything, except on tickets they reported themselves (faculty reporters).
+      (public.app_role()::text not in ('student','teacher')
+        and not exists (select 1 from public.tickets t where t.id = ticket_id and t.reporter_id = auth.uid()))
       or (type not in ('override','duplicate_flagged','duplicate_dismissed') and not is_internal)
     )
   );
@@ -517,7 +522,7 @@ drop policy if exists "followers_select" on public.ticket_followers;
 drop policy if exists "followers_insert" on public.ticket_followers;
 drop policy if exists "followers_delete" on public.ticket_followers;
 create policy "followers_select" on public.ticket_followers for select to authenticated
-  using (user_id = auth.uid() or public.app_role() <> 'student');
+  using (user_id = auth.uid() or public.app_role()::text not in ('student','teacher'));
 create policy "followers_insert" on public.ticket_followers for insert to authenticated
   with check (user_id = auth.uid());
 create policy "followers_delete" on public.ticket_followers for delete to authenticated

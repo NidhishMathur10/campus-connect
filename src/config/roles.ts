@@ -37,7 +37,7 @@ export const ROLE_HOME: Record<Role, string> = {
   warden: "/staff",
   dean: "/escalations",
   hod: "/escalations",
-  teacher: "/qa",
+  teacher: "/faculty",
 };
 
 /**
@@ -49,6 +49,10 @@ export const ROUTE_ACCESS: { prefix: string; roles: Role[] }[] = [
   { prefix: "/insights", roles: ["warden", "dean", "hod"] },
   { prefix: "/escalations", roles: ["warden", "dean", "hod"] },
   { prefix: "/qa", roles: ["teacher", "academic_office", "hod", "dean"] },
+  { prefix: "/faculty", roles: ["teacher"] },
+  { prefix: "/answers", roles: ["teacher"] },
+  { prefix: "/report", roles: ["teacher", "academic_office", "hod"] },
+  { prefix: "/reports", roles: ["teacher", "academic_office", "hod"] },
   { prefix: "/hostel", roles: ["student"] },
   { prefix: "/education", roles: ["student"] },
   { prefix: "/safety", roles: ["student"] },

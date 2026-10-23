@@ -9,6 +9,7 @@ import {
   type Priority,
   type TicketModule,
 } from "@/config/routing";
+import type { ReporterAudience } from "@/config/faculty";
 import type { PhotoAnalysis } from "@/lib/types";
 
 /**
@@ -59,8 +60,8 @@ export const AnalyzeRequestSchema = z.object({
 export type AnalyzeRequest = z.infer<typeof AnalyzeRequestSchema>;
 
 /** What Gemini must return (converted to a JSON response schema). */
-export function buildAnalysisSchema(module: TicketModule) {
-  const categories = categoriesFor(module) as [string, ...string[]];
+export function buildAnalysisSchema(module: TicketModule, audience: ReporterAudience = "student") {
+  const categories = categoriesFor(module, audience) as [string, ...string[]];
   const fieldScore = z.object({
     category: z.number().min(0).max(1),
     department: z.number().min(0).max(1),
@@ -90,6 +91,9 @@ export function buildAnalysisSchema(module: TicketModule) {
     department: z.enum(DEPARTMENTS),
     priority: z.enum(PRIORITIES),
     is_safety_hazard: z.boolean(),
+    disrupts_class: z
+      .boolean()
+      .describe("Faculty reports only: true if the reporter says a class/lecture/lab is happening now or soon and this problem affects it. Always false otherwise"),
     is_emergency: z
       .boolean()
       .describe("true ONLY if the student seems to be in immediate danger right now (being attacked, followed, trapped, threatened at this moment)"),

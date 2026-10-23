@@ -4,7 +4,7 @@ import { Search } from "lucide-react";
 import { PageHeader } from "@/components/common/page-header";
 import { HistoryView } from "@/components/staff/history-view";
 import { Button } from "@/components/ui/button";
-import { ACADEMIC_CATEGORIES, HOSTEL_CATEGORIES, SECURITY_CATEGORIES } from "@/config/routing";
+import { ACADEMIC_CATEGORIES, categoriesFor, HOSTEL_CATEGORIES, SECURITY_CATEGORIES } from "@/config/routing";
 import { TICKET_STATUSES } from "@/config/statuses";
 import { requireProfile } from "@/lib/auth";
 import { normaliseTicketNo } from "@/lib/format";
@@ -46,7 +46,7 @@ export default async function HistoryPage({ searchParams }: { searchParams: Prom
     profile.role === "warden"
       ? HOSTEL_CATEGORIES
       : profile.role === "hod"
-        ? ACADEMIC_CATEGORIES
+        ? categoriesFor("academic")
         : profile.role === "security_officer" || profile.role === "arc"
           ? SECURITY_CATEGORIES
           : [...new Set<string>([...HOSTEL_CATEGORIES, ...ACADEMIC_CATEGORIES, ...(profile.role === "dean" ? SECURITY_CATEGORIES : [])])];

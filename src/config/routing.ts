@@ -60,6 +60,12 @@ export const ACADEMIC_CATEGORIES = [
 ] as const;
 export type AcademicCategory = (typeof ACADEMIC_CATEGORIES)[number];
 
+/** Campus-wide categories that only faculty can report (in Blocks A–D); they route to the hostel-style teams. */
+export const FACULTY_EXTRA_CATEGORIES = ["Electricity", "Internet", "Cleanliness"] as const;
+
+/** Who is reporting: students never see the faculty-only categories. */
+export type CategoryAudience = "student" | "faculty";
+
 export const SECURITY_CATEGORIES = [
   "Ragging",
   "Harassment / Bullying",
@@ -86,6 +92,8 @@ export interface RoutingRule {
   confidential?: "always" | "never" | "choose";
   /** Safety & Security only: escalate to the Dean as soon as it is created. */
   escalateToDean?: boolean;
+  /** Academic only: reportable by faculty, not offered to students. */
+  facultyOnly?: boolean;
 }
 
 export const HOSTEL_ROUTING: RoutingRule[] = [
@@ -107,6 +115,9 @@ export const ACADEMIC_ROUTING: RoutingRule[] = [
   { category: "Lab Equipment", typicalIssues: "computers, software missing", departments: ["Lab In-charge"], defaultPriority: "Medium", slaHours: 24, requiredDetails: "the lab name/number and which computers or software are affected" },
   { category: "Academic Admin", typicalIssues: "timetable clash, attendance error, exam/marks issue", departments: ["Academic Office"], defaultPriority: "Medium", slaHours: 48, requiredDetails: "the course/subject, section or semester, and what exactly is wrong (attendance %, marks, timetable slot). NO building, floor or room is needed. Never ask for a teacher's or faculty member's name" },
   { category: "Library", typicalIssues: "book unavailable, seating, library facilities (Library is in Block A)", departments: ["Library Staff"], defaultPriority: "Low", slaHours: 72, requiredDetails: "the book title, or which library facility (seating, AC, Wi-Fi…)" },
+  { category: "Electricity", typicalIssues: "lights, fans, sockets, switches, power cut, AC in Blocks A–D (faculty reports)", departments: ["Electrical Maintenance"], defaultPriority: "Medium", slaHours: 24, facultyOnly: true, requiredDetails: "which item is faulty and whether there is any sparking, plus the block, floor and room" },
+  { category: "Internet", typicalIssues: "Wi-Fi down/slow, LAN port in Blocks A–D (faculty reports)", departments: ["IT Cell"], defaultPriority: "Medium", slaHours: 24, facultyOnly: true, requiredDetails: "Wi-Fi or LAN, plus the block, floor and room" },
+  { category: "Cleanliness", typicalIssues: "classroom, corridor or washroom cleanliness, garbage, pests in Blocks A–D (faculty reports)", departments: ["Housekeeping"], defaultPriority: "Medium", slaHours: 24, facultyOnly: true, requiredDetails: "what needs cleaning, plus the block, floor and room" },
   { category: "Other", typicalIssues: "—", departments: ["Academic Office"], defaultPriority: "Low", slaHours: 72 },
 ];
 
@@ -141,8 +152,17 @@ export const NON_LOCATION_CATEGORIES: string[] = ["Academic Admin"];
 export const SAFETY_HAZARDS =
   "sparking, exposed wires, flooding near electricals, gas smell, fire risk, injury risk";
 
-export function categoriesFor(module: TicketModule): readonly Category[] {
-  return module === "hostel" ? HOSTEL_CATEGORIES : module === "academic" ? ACADEMIC_CATEGORIES : SECURITY_CATEGORIES;
+/** Every academic category in guide order (faculty-only ones sit before "Other"). */
+const ALL_ACADEMIC_CATEGORIES: readonly Category[] = ACADEMIC_ROUTING.map((r) => r.category);
+
+/**
+ * Categories a reporter can pick. Without an audience (staff boards, overrides) you get all of them;
+ * for students the faculty-only academic categories are left out.
+ */
+export function categoriesFor(module: TicketModule, audience?: CategoryAudience): readonly Category[] {
+  if (module === "hostel") return HOSTEL_CATEGORIES;
+  if (module === "security") return SECURITY_CATEGORIES;
+  return audience === "student" ? ACADEMIC_CATEGORIES : ALL_ACADEMIC_CATEGORIES;
 }
 
 export function getRoutingRule(module: TicketModule, category: string): RoutingRule {
@@ -165,8 +185,9 @@ export function computeSlaDueAt(
 }
 
 /** Routing guide as a markdown table for AI prompts. */
-export function routingGuidePromptText(module: TicketModule): string {
+export function routingGuidePromptText(module: TicketModule, audience?: CategoryAudience): string {
   const rows = ROUTING[module]
+    .filter((r) => audience !== "student" || !r.facultyOnly)
     .map(
       (r) =>
         `| ${r.category} | ${r.typicalIssues} | ${r.departmentNote ?? r.departments.join(" / ")} | ${r.defaultPriority} | ${r.slaHours}h |`,

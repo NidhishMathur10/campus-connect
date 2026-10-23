@@ -145,6 +145,8 @@ interface SeedTicket {
   category: string;
   department?: string;
   priority?: Priority;
+  /** Why the priority differs from the guide's default (shown in the AI panel). */
+  priorityReason?: string;
   hazard?: boolean;
   /** Omitted for records issues (attendance, timetable, marks). */
   building?: string;
@@ -426,6 +428,15 @@ const TICKETS: SeedTicket[] = [
     issue: "Faulty classroom microphone", category: "Classroom Facilities", department: "Electrical Maintenance",
     building: "Block A", floor: "3rd", spot: "Lecture hall A-301", status: "Resolved", assignee: "suresh",
   },
+  // --- Reported by faculty (CLAUDE.md §14): Prof. Khan, class about to start -> High
+  {
+    key: "facproj", module: "academic", reporter: "khan", ago: 3 * H,
+    text: "Projector in C-204 is not turning on at all, I have my Programming lecture there at 2 pm and 70 students are coming.",
+    title: "Projector not turning on in C-204", summary: "The projector in classroom C-204 (Block C, 2nd floor) does not switch on. The faculty member has a Programming lecture there at 2 pm, so a scheduled class is affected.",
+    issue: "Projector not powering on before a scheduled lecture", category: "Classroom Facilities", department: "Electrical Maintenance",
+    priority: "High", priorityReason: "Disrupts a scheduled class",
+    building: "Block C", floor: "2nd", spot: "Classroom C-204", status: "In Progress", assignee: "suresh",
+  },
   // --- Safety & Security (CLAUDE.md §12)
   {
     key: "ragging", module: "security", reporter: "2616400103", ago: 20 * H, confidential: true, hideIdentity: true, escalated: true,
@@ -509,7 +520,7 @@ async function seedTickets() {
             ? "Safety hazard (sparking / burning smell) — Urgent overrides the category default."
             : priority === rule.defaultPriority
               ? `Default priority for ${t.category}.`
-              : `Raised to ${priority} because it affects many students or hygiene/safety.`,
+              : t.priorityReason ?? `Raised to ${priority} because it affects many students or hygiene/safety.`,
         },
       },
       photo_analysis: t.photo
@@ -567,7 +578,7 @@ async function seedTickets() {
         created_at: when,
       });
 
-    ev("created", reporter, created.toISOString(), null, "Submitted", `Reported via ${MODULE_LABELS[t.module]}${t.confidential ? " (confidential)" : ""}`);
+    ev("created", reporter, created.toISOString(), null, "Submitted", `Reported via ${MODULE_LABELS[t.module]}${reporter.role === "teacher" ? " by faculty" : ""}${t.confidential ? " (confidential)" : ""}`);
     if (t.duplicateOf) {
       ev("duplicate_flagged", null, at(0.01), null, null, `Possible duplicate (${Math.round((t.duplicateScore ?? 0) * 100)}% similar). ${t.duplicateReason ?? ""}`);
     }

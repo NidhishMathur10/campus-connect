@@ -7,6 +7,7 @@ import { Confidence, PhotoAnalysisBox, SafetyBadge } from "@/components/tickets/
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import type { ReporterAudience } from "@/config/faculty";
 import { categoriesFor, getRoutingRule, isConfidentialCategory, type Priority, type TicketModule } from "@/config/routing";
 import type { TicketScope } from "@/config/locations";
 import type { ComplaintLocation } from "@/lib/ai/complaint";
@@ -45,6 +46,7 @@ export interface TicketDraft {
 
 export function PreviewCard({
   module,
+  audience = "student",
   draft,
   originalText,
   photoUrl,
@@ -58,6 +60,8 @@ export function PreviewCard({
   confirmBlocked,
 }: {
   module: TicketModule;
+  /** Faculty also see the faculty-only categories (Electricity, Internet, Cleanliness). */
+  audience?: ReporterAudience;
   draft: TicketDraft;
   originalText: string;
   photoUrl: string | null;
@@ -126,7 +130,7 @@ export function PreviewCard({
               id="category"
               value={draft.category}
               onChange={(c) => c && onCategoryChange(c)}
-              options={categoriesFor(module)}
+              options={categoriesFor(module, audience)}
               placeholder="Choose a category"
               invalid={!draft.category}
               disabled={busy}

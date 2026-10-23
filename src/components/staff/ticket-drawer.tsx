@@ -24,7 +24,8 @@ import {
   XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
-import { CategoryBadge, ConfidentialBadge, EscalatedBadge, PriorityBadge, ScopeBadge, StatusBadge } from "@/components/common/badges";
+import { CategoryBadge, ConfidentialBadge, EscalatedBadge, FacultyBadge, PriorityBadge, ScopeBadge, StatusBadge } from "@/components/common/badges";
+import { ROLE_LABELS } from "@/config/roles";
 import { SimpleSelect } from "@/components/common/simple-select";
 import { SafetyBadge } from "@/components/tickets/ai-bits";
 import { TicketTimeline } from "@/components/tickets/ticket-timeline";
@@ -608,6 +609,7 @@ function DrawerBody({
                   <EscalatedBadge />
                 ))}
               <ScopeBadge scope={ticket.scope} />
+              <FacultyBadge reporter={detail.faculty_reporter} />
               {ai?.is_safety_hazard && <SafetyBadge />}
               {ticket.is_confidential && <ConfidentialBadge />}
             </div>
@@ -697,7 +699,9 @@ function DrawerBody({
             <p className="text-slate-500">
               {reporterHidden
                 ? "The student asked to hide their name. Only the Anti-Ragging Committee and the Dean can see who reported this."
-                : [reporter?.roll_no && `Roll ${reporter.roll_no}`, reporter?.hostel, reporter?.wing, reporter?.room && `Room ${reporter.room}`]
+                : detail.faculty_reporter
+                  ? `${ROLE_LABELS[detail.faculty_reporter.role]} (faculty)`
+                  : [reporter?.roll_no && `Roll ${reporter.roll_no}`, reporter?.hostel, reporter?.wing, reporter?.room && `Room ${reporter.room}`]
                     .filter(Boolean)
                     .join(" · ") || "No profile details"}
             </p>
@@ -706,7 +710,7 @@ function DrawerBody({
             )}
           </div>
           <span className="inline-flex items-center gap-1.5 rounded-full bg-sky-tint px-3 py-1 text-xs font-bold text-blue-700">
-            <Users className="size-3.5" /> {affected} student{affected === 1 ? "" : "s"} affected
+            <Users className="size-3.5" /> {affected} {detail.faculty_reporter ? "reporter" : "student"}{affected === 1 ? "" : "s"} affected
           </span>
         </div>
       </Section>

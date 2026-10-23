@@ -2,10 +2,11 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { analyzeComplaint } from "@/lib/ai/analyze";
 import { AnalyzeRequestSchema, type AnalyzeResponse } from "@/lib/ai/complaint";
+import { audienceOf, isFaculty } from "@/config/faculty";
 import { getCurrentProfile } from "@/lib/auth";
 import { downloadComplaintPhoto } from "@/lib/photos";
 
-/** POST /api/ai/analyze — CLAUDE.md §6.1 analyzeComplaint for the signed-in student. */
+/** POST /api/ai/analyze — CLAUDE.md §6.1 analyzeComplaint for the signed-in student or faculty member. */
 export async function POST(request: Request) {
   const reply = (body: AnalyzeResponse, status = 200) => NextResponse.json(body, { status });
 
@@ -17,6 +18,13 @@ export async function POST(request: Request) {
     return reply({ ok: false, error: z.prettifyError(parsed.error) }, 400);
   }
   const body = parsed.data;
+  // Faculty report Academic issues only; Hostel and Safety stay student-only.
+  if (isFaculty(profile.role) && body.module !== "academic") {
+    return reply({ ok: false, error: "Faculty can report academic and campus issues only." }, 403);
+  }
+  if (profile.role !== "student" && !isFaculty(profile.role)) {
+    return reply({ ok: false, error: "Only students and faculty can report issues." }, 403);
+  }
 
   // Only the first round looks at the photo; round 2 reuses that analysis.
   let photo: { base64: string; mimeType: string } | null = null;
@@ -34,6 +42,7 @@ export async function POST(request: Request) {
     photo,
     followUp: body.followUp ?? null,
     previousPhotoAnalysis: body.previousPhotoAnalysis ?? null,
+    audience: audienceOf(profile.role),
   });
 
   if (!result.ok) {

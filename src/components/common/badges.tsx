@@ -1,7 +1,8 @@
-import { Building, Layers, Lock, ShieldAlert } from "lucide-react";
+import { Building, GraduationCap, Layers, Lock, ShieldAlert } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getCategoryStyle, PRIORITY_STYLES, STATUS_STYLES } from "@/config/styles";
 import type { TicketScope } from "@/config/locations";
+import { ROLE_LABELS, type Role } from "@/config/roles";
 import type { Priority } from "@/config/routing";
 import type { TicketStatus } from "@/config/statuses";
 
@@ -64,6 +65,31 @@ export function ScopeBadge({ scope, className }: { scope: TicketScope | null | u
     <span className={cn(base, "border-indigo-200 bg-indigo-50 text-indigo-700", className)}>
       <Icon className="size-3" />
       {scope === "floor" ? "Affects whole floor" : "Affects whole building"}
+    </span>
+  );
+}
+
+/** "Reported by faculty": shown to staff on tickets raised by a teacher / HOD / academic office. */
+export function FacultyBadge({
+  reporter,
+  compact = false,
+  className,
+}: {
+  reporter: { name: string; role: Role } | null | undefined;
+  /** Compact = just "Reported by faculty" (list rows); otherwise with name and role. */
+  compact?: boolean;
+  className?: string;
+}) {
+  if (!reporter) return null;
+  return (
+    <span
+      className={cn(base, "max-w-full border-violet-200 bg-violet-50 text-violet-700", className)}
+      title={`${reporter.name} (${ROLE_LABELS[reporter.role]})`}
+    >
+      <GraduationCap className="size-3 shrink-0" />
+      <span className="truncate">
+        Reported by faculty{compact ? "" : ` · ${reporter.name} (${ROLE_LABELS[reporter.role]})`}
+      </span>
     </span>
   );
 }

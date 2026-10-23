@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { MapPin } from "lucide-react";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
+import { CLASS_DISRUPTION_REASON, mentionsUpcomingClass, type ReporterAudience } from "@/config/faculty";
 import { isHostelBuilding, normaliseRoom } from "@/config/locations";
 import { getRoutingRule, type TicketModule } from "@/config/routing";
 import { PHOTO_BUCKET } from "@/config/storage";
@@ -92,11 +93,13 @@ function draftFromAnalysis(a: ComplaintAnalysis): TicketDraft {
   };
 }
 
-/** Used when the AI is unavailable: the student picks the category by hand. */
-function manualDraft(d: ReportDraft, module: TicketModule): TicketDraft {
+/** Used when the AI is unavailable: the reporter picks the category by hand. */
+function manualDraft(d: ReportDraft, module: TicketModule, audience: ReporterAudience): TicketDraft {
   const text = d.text.trim();
   const location = locationOf(d, module);
   const hazard = module !== "security" && HAZARD_WORDS.test(text);
+  // Faculty with a class happening now or soon: at least High, same as the AI rule.
+  const classSoon = audience === "faculty" && mentionsUpcomingClass(text);
   return {
     is_emergency: false,
     confidential_choice: true,
@@ -108,7 +111,7 @@ function manualDraft(d: ReportDraft, module: TicketModule): TicketDraft {
     language: DEVANAGARI.test(text) ? "hi" : "en",
     category: null,
     department: "",
-    priority: hazard ? "Urgent" : "Medium",
+    priority: hazard ? "Urgent" : classSoon ? "High" : "Medium",
     is_safety_hazard: hazard,
     photo_analysis: null,
     location,
@@ -150,8 +153,11 @@ export function ReportFlow({
   onEmergencyChange,
   textPlaceholder,
   ownRoom,
+  audience = "student",
 }: {
   module: TicketModule;
+  /** Faculty get the faculty-only categories and the "class soon → High" rule; results go to My Reports. */
+  audience?: ReporterAudience;
   userId: string;
   buildings: readonly string[];
   /** Hostel module: the student's own hostel + room, pre-filled in the form. */
@@ -240,7 +246,7 @@ export function ReportFlow({
       });
       if (!res?.ok) {
         setAiFailed(true);
-        goPreview(manualDraft(draft, module));
+        goPreview(manualDraft(draft, module, audience));
         return;
       }
       const a = res.analysis;
@@ -300,11 +306,15 @@ export function ReportFlow({
     }
     const rule = getRoutingRule(module, category);
     const urgent = isSecurity ? ticket.is_emergency : ticket.is_safety_hazard;
+    const classAffected =
+      audience === "faculty" &&
+      (finalAnalysis?.reasons.priority === CLASS_DISRUPTION_REASON || mentionsUpcomingClass(draft.text));
+    const atLeastHigh = classAffected && (rule.defaultPriority === "Low" || rule.defaultPriority === "Medium");
     setTicket({
       ...ticket,
       category,
       department: rule.departments[0],
-      priority: urgent ? "Urgent" : rule.defaultPriority,
+      priority: urgent ? "Urgent" : atLeastHigh ? "High" : rule.defaultPriority,
     });
   }
 
@@ -478,6 +488,7 @@ export function ReportFlow({
         ticketNo={result.ticketNo}
         followed={result.followed}
         confidential={isSecurity}
+        trackBase={audience === "faculty" ? "/reports" : "/tickets"}
         onReportAnother={reset}
       />
     );
@@ -561,6 +572,7 @@ export function ReportFlow({
           )}
           <PreviewCard
             module={module}
+            audience={audience}
             draft={ticket}
             originalText={draft.text}
             photoUrl={draft.photo?.previewUrl ?? null}

@@ -1,4 +1,6 @@
 import "server-only";
+import { FACULTY_ROLES } from "@/config/faculty";
+import type { Role } from "@/config/roles";
 import { CONFIDENTIAL_REPORTER } from "@/config/safety";
 import { CLOSED_ON_BOARD_DAYS, OPEN_STATUSES, TICKET_STATUSES, type TicketStatus } from "@/config/statuses";
 import { hotspotKeys } from "@/lib/hotspots";
@@ -7,9 +9,17 @@ import { createClient } from "@/lib/supabase/server";
 import type { EscalationReason, EscalationStatus, Profile, Ticket, TicketEvent } from "@/lib/types";
 import { ASSIGNABLE_ROLES, boardScope, canSeeReporter, canViewStaffTicket, type Viewer } from "./access";
 
+/** Set when a faculty member (teacher / HOD / academic office) reported the ticket. */
+export interface FacultyReporter {
+  name: string;
+  role: Role;
+}
+
 export interface BoardTicket extends Ticket {
   /** Students who joined with "Me too" (not counting the reporter). */
   follower_count: number;
+  /** Faculty reporter, or null for student reports. */
+  faculty_reporter: FacultyReporter | null;
 }
 
 export interface StaffMember {
@@ -65,9 +75,23 @@ async function followerCounts(ticketIds: string[]): Promise<Map<string, number>>
   return counts;
 }
 
+/** Who reported each academic ticket, when it was a faculty member (service role: staff can't always read profiles). */
+async function facultyReporters(rows: Ticket[]): Promise<Map<string, FacultyReporter>> {
+  const map = new Map<string, FacultyReporter>();
+  const ids = [...new Set(rows.filter((t) => t.module === "academic").map((t) => t.reporter_id))];
+  if (ids.length === 0) return map;
+  const { data } = await createAdminClient().from("profiles").select("id, full_name, role").in("id", ids).in("role", FACULTY_ROLES);
+  for (const p of data ?? []) map.set(p.id, { name: p.full_name, role: p.role as Role });
+  return map;
+}
+
 async function withFollowers(rows: Ticket[]): Promise<BoardTicket[]> {
-  const counts = await followerCounts(rows.map((t) => t.id));
-  return rows.map((t) => ({ ...t, follower_count: counts.get(t.id) ?? 0 }));
+  const [counts, faculty] = await Promise.all([followerCounts(rows.map((t) => t.id)), facultyReporters(rows)]);
+  return rows.map((t) => ({
+    ...t,
+    follower_count: counts.get(t.id) ?? 0,
+    faculty_reporter: faculty.get(t.reporter_id) ?? null,
+  }));
 }
 
 export async function listAssignableStaff(): Promise<StaffMember[]> {
@@ -193,6 +217,7 @@ export async function listTicketHistory(viewer: Viewer, f: HistoryFilters): Prom
 }
 
 export interface ReporterInfo {
+  role: Role;
   full_name: string;
   roll_no: string | null;
   hostel: string | null;
@@ -231,6 +256,8 @@ export interface StaffTicketDetail {
   reporter: ReporterInfo | null;
   /** True when the reporter asked to hide their name and this viewer may not see it. */
   reporterHidden: boolean;
+  /** Set when a faculty member reported this ticket. */
+  faculty_reporter: FacultyReporter | null;
   followerCount: number;
   /** Set when duplicate_of points somewhere (flagged or merged). */
   original: DuplicateOriginal | null;
@@ -253,7 +280,7 @@ export async function getStaffTicketDetail(ticketNo: string, viewer: Viewer): Pr
       ? Promise.resolve({ data: null })
       : createAdminClient()
           .from("profiles")
-          .select("full_name, roll_no, hostel, wing, room")
+          .select("full_name, role, roll_no, hostel, wing, room")
           .eq("id", ticket.reporter_id)
           .maybeSingle(),
     supabase.from("ticket_followers").select("user_id", { count: "exact", head: true }).eq("ticket_id", ticket.id),
@@ -294,6 +321,10 @@ export async function getStaffTicketDetail(ticketNo: string, viewer: Viewer): Pr
     events,
     reporter: (reporterRes.data as ReporterInfo | null) ?? null,
     reporterHidden,
+    faculty_reporter:
+      reporterRes.data && FACULTY_ROLES.includes((reporterRes.data as ReporterInfo).role)
+        ? { name: (reporterRes.data as ReporterInfo).full_name, role: (reporterRes.data as ReporterInfo).role }
+        : null,
     followerCount: followersRes.count ?? 0,
     original,
   };

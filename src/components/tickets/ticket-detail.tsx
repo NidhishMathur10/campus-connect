@@ -66,11 +66,14 @@ export function TicketDetail({
   events,
   viewerId,
   mergedInto,
+  basePath = "/tickets",
 }: {
   ticket: Ticket;
   events: TicketEvent[];
   viewerId: string;
   mergedInto: string | null;
+  /** "/tickets" for students, "/reports" for faculty. */
+  basePath?: string;
 }) {
   const isReporter = ticket.reporter_id === viewerId;
   const ai = ticket.ai_meta;
@@ -109,7 +112,7 @@ export function TicketDetail({
         <div className="space-y-5">
           {mergedInto && (
             <Link
-              href={`/tickets/${mergedInto}`}
+              href={`${basePath}/${mergedInto}`}
               className="flex items-center gap-3 rounded-3xl border border-zinc-200 bg-zinc-50 p-4 text-sm font-semibold text-zinc-700 hover:border-accent-blue"
             >
               <GitMerge className="size-5" /> Merged into {mergedInto} — the same problem was already reported. Follow progress there →
@@ -121,7 +124,7 @@ export function TicketDetail({
               <ResolutionPanel ticketId={ticket.id} />
             ) : (
               <Card className="border-emerald-200 bg-emerald-50 text-sm font-semibold text-emerald-800">
-                Staff marked this resolved. Waiting for the student who reported it to confirm.
+                Staff marked this resolved. Waiting for the person who reported it to confirm.
               </Card>
             ))}
 

@@ -41,6 +41,7 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTr
 import { BUILDINGS } from "@/config/locations";
 import {
   ACADEMIC_CATEGORIES,
+  categoriesFor,
   DEPARTMENTS,
   HOSTEL_CATEGORIES,
   SECURITY_CATEGORIES,
@@ -141,7 +142,7 @@ function FilterControls({
     filters.module === "hostel"
       ? HOSTEL_CATEGORIES
       : filters.module === "academic"
-        ? ACADEMIC_CATEGORIES
+        ? categoriesFor("academic")
         : filters.module === "security"
           ? SECURITY_CATEGORIES
           : ALL_CATEGORIES;

@@ -13,13 +13,28 @@ export interface MyTicket extends Ticket {
   merged_into: string | null;
 }
 
+/** Ids of the tickets a user joined with "Me too". */
+export async function followedTicketIds(userId: string): Promise<string[]> {
+  const supabase = await createClient();
+  const { data } = await supabase.from("ticket_followers").select("ticket_id").eq("user_id", userId);
+  return (data ?? []).map((r) => r.ticket_id as string);
+}
+
 /**
- * Tickets the student reported or follows. RLS limits students to exactly those.
+ * Tickets the user reported or follows. Students are limited to exactly those by RLS; the
+ * explicit filter also keeps HOD / Academic Office users (who can see their department's
+ * tickets) to their own reports.
  * Active = still being worked on (incl. Resolved awaiting confirmation); Completed = Closed + Merged.
  */
 export async function listMyTickets(userId: string, filter: TicketFilter): Promise<MyTicket[]> {
   const supabase = await createClient();
-  let query = supabase.from("tickets").select("*").order("updated_at", { ascending: false }).limit(100);
+  const followed = await followedTicketIds(userId);
+  let query = supabase
+    .from("tickets")
+    .select("*")
+    .or(followed.length ? `reporter_id.eq.${userId},id.in.(${followed.join(",")})` : `reporter_id.eq.${userId}`)
+    .order("updated_at", { ascending: false })
+    .limit(100);
   query =
     filter === "completed"
       ? query.in("status", DONE_STATUSES)
@@ -55,6 +70,11 @@ export async function getVisibleTicket(
     .select("*")
     .eq("ticket_id", ticket.id)
     .order("created_at", { ascending: true });
+  // Reporters never see internal-only events (RLS hides them from students and teachers;
+  // HOD / Academic Office users could otherwise read them as staff).
+  const visibleEvents = ((events ?? []) as TicketEvent[]).filter(
+    (e) => !e.is_internal && !INTERNAL_EVENT_TYPES.includes(e.type),
+  );
 
   let mergedInto: string | null = null;
   if (ticket.duplicate_of && ticket.duplicate_status === "merged") {
@@ -65,7 +85,21 @@ export async function getVisibleTicket(
       .maybeSingle();
     mergedInto = orig?.ticket_no ?? null;
   }
-  return { ticket, events: (events ?? []) as TicketEvent[], mergedInto };
+  return { ticket, events: visibleEvents, mergedInto };
+}
+
+/**
+ * A ticket the user reported or follows, with its timeline (faculty "My Reports" detail).
+ * Returns null for anyone else's ticket, even if their staff role could read it.
+ */
+export async function getMyTicket(
+  ticketNo: string,
+  userId: string,
+): Promise<{ ticket: Ticket; events: TicketEvent[]; mergedInto: string | null } | null> {
+  const full = await getVisibleTicket(ticketNo);
+  if (!full) return null;
+  if (full.ticket.reporter_id === userId) return full;
+  return (await followedTicketIds(userId)).includes(full.ticket.id) ? full : null;
 }
 
 /** Public-safe subset for "Track by ticket number" (any signed-in user). */
@@ -114,7 +148,7 @@ export async function trackTicket(
     actor_id: null,
     note: null,
     is_internal: false,
-    actor_name: e.actor_role === "student" ? "A student" : e.actor_name,
+    actor_name: e.actor_role === "student" ? "A student" : e.actor_role === "teacher" ? "A faculty member" : e.actor_name,
   }));
   return { ticket, events: safe };
 }

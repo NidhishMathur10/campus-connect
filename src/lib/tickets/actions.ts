@@ -14,6 +14,7 @@ import {
 } from "@/config/routing";
 import { CONFIDENTIAL_REPORTER } from "@/config/safety";
 import { DUPLICATE_FLAG_THRESHOLD } from "@/config/statuses";
+import { isFaculty } from "@/config/faculty";
 import { getCurrentProfile } from "@/lib/auth";
 import { checkEscalations, createSafetyEscalation } from "@/lib/escalations";
 import { photoPublicUrl } from "@/lib/photos";
@@ -24,9 +25,15 @@ export type ActionResult<T = object> = ({ ok: true } & T) | { ok: false; error: 
 
 const AI_ACTOR = { actor_id: null, actor_name: "CampusConnect AI", actor_role: null };
 
-async function requireStudent(): Promise<Profile | null> {
+/** Students and faculty (teacher / HOD / academic office) can report, follow and confirm tickets. */
+async function requireReporter(): Promise<Profile | null> {
   const { profile } = await getCurrentProfile();
-  return profile?.role === "student" ? profile : null;
+  return profile && (profile.role === "student" || isFaculty(profile.role)) ? profile : null;
+}
+
+/** Where the reporter tracks their tickets. */
+function myTicketsPath(p: Pick<Profile, "role">): string {
+  return isFaculty(p.role) ? "/reports" : "/tickets";
 }
 
 function actor(p: Profile, hideName = false) {
@@ -92,14 +99,19 @@ export type CreateTicketInput = z.input<typeof CreateTicketSchema>;
 export async function createTicket(
   input: CreateTicketInput,
 ): Promise<ActionResult<{ id: string; ticket_no: string }>> {
-  const profile = await requireStudent();
-  if (!profile) return { ok: false, error: "Only students can report issues. Please log in again." };
+  const profile = await requireReporter();
+  if (!profile) return { ok: false, error: "Only students and faculty can report issues. Please log in again." };
 
   const parsed = CreateTicketSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: z.prettifyError(parsed.error) };
   const t = parsed.data;
 
-  if (!(categoriesFor(t.module) as readonly string[]).includes(t.category)) {
+  const faculty = isFaculty(profile.role);
+  // Hostel and Safety & Security reports stay student-only.
+  if (faculty && t.module !== "academic") {
+    return { ok: false, error: "Faculty can report academic and campus issues only." };
+  }
+  if (!(categoriesFor(t.module, faculty ? "faculty" : "student") as readonly string[]).includes(t.category)) {
     return { ok: false, error: "Please choose a valid category." };
   }
   const rule = getRoutingRule(t.module, t.category);
@@ -219,7 +231,7 @@ export async function createTicket(
       type: "created",
       to_status: "Submitted",
       note:
-        `Reported via ${MODULE_LABELS[t.module]}` +
+        `Reported via ${MODULE_LABELS[t.module]}${faculty ? " by faculty" : ""}` +
         (isConfidential ? " (confidential)" : "") +
         (t.details_incomplete ? " — some details were missing, staff may contact you." : "."),
     },
@@ -244,7 +256,7 @@ export async function createTicket(
 
   if (isSecurity && rule.escalateToDean) await createSafetyEscalation({ id: ticket.id, category: t.category, title: t.title });
   await checkEscalations({ ticketId: ticket.id });
-  revalidatePath("/tickets");
+  revalidatePath(myTicketsPath(profile));
   return { ok: true, id: ticket.id, ticket_no: ticket.ticket_no };
 }
 
@@ -255,7 +267,7 @@ export async function followTicket(
   ticketId: string,
   myDescription?: string,
 ): Promise<ActionResult<{ ticket_no: string }>> {
-  const profile = await requireStudent();
+  const profile = await requireReporter();
   if (!profile) return { ok: false, error: "Please log in again." };
   if (!z.uuid().safeParse(ticketId).success) return { ok: false, error: "Unknown ticket." };
 
@@ -267,6 +279,7 @@ export async function followTicket(
     .maybeSingle();
   // Safety reports can't be joined (and must not reveal that they exist).
   if (!ticket || ticket.module === "security") return { ok: false, error: "That ticket no longer exists." };
+  if (isFaculty(profile.role) && ticket.module !== "academic") return { ok: false, error: "That ticket no longer exists." };
   if (ticket.reporter_id === profile.id) return { ok: true, ticket_no: ticket.ticket_no };
 
   const { data: existing } = await admin
@@ -289,7 +302,7 @@ export async function followTicket(
   });
 
   await checkEscalations({ ticketId });
-  revalidatePath("/tickets");
+  revalidatePath(myTicketsPath(profile));
   return { ok: true, ticket_no: ticket.ticket_no };
 }
 
@@ -297,7 +310,7 @@ export async function followTicket(
 // After "Resolved": student confirms the fix or reopens
 // ---------------------------------------------------------------------------
 async function loadOwnResolvedTicket(ticketId: string) {
-  const profile = await requireStudent();
+  const profile = await requireReporter();
   if (!profile) return { error: "Please log in again." } as const;
   if (!z.uuid().safeParse(ticketId).success) return { error: "Unknown ticket." } as const;
 
@@ -306,7 +319,7 @@ async function loadOwnResolvedTicket(ticketId: string) {
   const ticket = data as Ticket | null;
   if (!ticket) return { error: "Unknown ticket." } as const;
   if (ticket.reporter_id !== profile.id) {
-    return { error: "Only the student who reported this can confirm or reopen it." } as const;
+    return { error: "Only the person who reported this can confirm or reopen it." } as const;
   }
   if (ticket.status !== "Resolved") return { error: "This ticket is not waiting for confirmation." } as const;
   return { profile, ticket, admin } as const;
@@ -336,13 +349,13 @@ export async function confirmFixed(
   if (error) return { ok: false, error: "Could not close the ticket. Please try again." };
 
   await admin.from("ticket_events").insert([
-    { ticket_id: ticket.id, ...actor(profile, ticket.hide_identity), type: "status_change", from_status: "Resolved", to_status: "Closed", note: "Student confirmed the fix." },
+    { ticket_id: ticket.id, ...actor(profile, ticket.hide_identity), type: "status_change", from_status: "Resolved", to_status: "Closed", note: `${isFaculty(profile.role) ? "Reporter" : "Student"} confirmed the fix.` },
     { ticket_id: ticket.id, ...actor(profile, ticket.hide_identity), type: "rating", note: `Rated ${rating}/5${feedback ? ` — "${feedback}"` : ""}` },
   ]);
 
   await checkEscalations({ ticketId: ticket.id });
-  revalidatePath(`/tickets/${ticket.ticket_no}`);
-  revalidatePath("/tickets");
+  revalidatePath(`${myTicketsPath(profile)}/${ticket.ticket_no}`);
+  revalidatePath(myTicketsPath(profile));
   return { ok: true };
 }
 
@@ -375,7 +388,7 @@ export async function reopenTicket(ticketId: string, reason: string): Promise<Ac
   });
 
   await checkEscalations({ ticketId: ticket.id });
-  revalidatePath(`/tickets/${ticket.ticket_no}`);
-  revalidatePath("/tickets");
+  revalidatePath(`${myTicketsPath(profile)}/${ticket.ticket_no}`);
+  revalidatePath(myTicketsPath(profile));
   return { ok: true };
 }

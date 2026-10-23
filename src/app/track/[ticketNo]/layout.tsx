@@ -17,6 +17,7 @@ export default async function TrackLayout({ children }: { children: React.ReactN
   return (
     <StaffShell
       role={role}
+      userId={profile.id}
       user={{ fullName: profile.full_name, roleLabel: ROLE_LABELS[role], subtitle: profile.department ?? ROLE_LABELS[role] }}
     >
       {children}

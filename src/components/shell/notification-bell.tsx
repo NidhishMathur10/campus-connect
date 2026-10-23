@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 const ICONS = { answer: MessageSquare, comment: MessageSquare, best_answer: BadgeCheck, ticket: Ticket } as const;
 
 /** In-app bell: latest 20 notifications, live via Realtime (RLS: own rows only). */
-export function NotificationBell({ userId }: { userId: string }) {
+export function NotificationBell({ userId, align = "end" }: { userId: string; align?: "start" | "end" }) {
   const [items, setItems] = useState<AppNotification[]>([]);
   const unread = items.filter((n) => !n.read_at).length;
 
@@ -61,7 +61,7 @@ export function NotificationBell({ userId }: { userId: string }) {
         )}
         <span className="sr-only">Notifications{unread ? ` (${unread} unread)` : ""}</span>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-[min(22rem,calc(100vw-2rem))] rounded-2xl p-2">
+      <DropdownMenuContent align={align} className="w-[min(22rem,calc(100vw-2rem))] rounded-2xl p-2">
         <DropdownMenuLabel className="px-2 py-1.5 text-sm font-bold text-navy">Notifications</DropdownMenuLabel>
         <DropdownMenuSeparator />
         {items.length === 0 ? (

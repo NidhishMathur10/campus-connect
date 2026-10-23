@@ -8,9 +8,11 @@ import { Logo } from "@/components/brand/logo";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { COLLEGE_NAME } from "@/config/college";
+import { isFaculty } from "@/config/faculty";
 import { cn } from "@/lib/utils";
 import type { Role } from "@/config/roles";
 import { isActive, STAFF_NAV, type NavItem } from "./nav-items";
+import { NotificationBell } from "./notification-bell";
 import { UserAvatar, UserMenu, type ShellUser } from "./user-menu";
 
 function NavLinks({ items, pathname, onNavigate }: { items: NavItem[]; pathname: string; onNavigate?: () => void }) {
@@ -43,13 +45,17 @@ function NavLinks({ items, pathname, onNavigate }: { items: NavItem[]; pathname:
 export function StaffShell({
   user,
   role,
+  userId,
   children,
 }: {
   user: ShellUser;
+  /** Faculty (who report issues) get the notification bell. */
+  userId: string;
   role: Exclude<Role, "student">;
   children: ReactNode;
 }) {
   const items = STAFF_NAV[role];
+  const showBell = isFaculty(role);
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
 
@@ -72,6 +78,7 @@ export function StaffShell({
               <p className="truncate text-sm font-bold text-navy">{user.fullName}</p>
               <p className="truncate text-xs text-slate-500">{user.subtitle ?? user.roleLabel}</p>
             </div>
+            {showBell && <NotificationBell userId={userId} align="start" />}
             <UserMenu user={user} align="start" />
           </div>
         </div>
@@ -98,7 +105,10 @@ export function StaffShell({
             </SheetContent>
           </Sheet>
           <Logo showText={false} />
-          <UserMenu user={user} />
+          <div className="flex items-center gap-1">
+            {showBell && <NotificationBell userId={userId} />}
+            <UserMenu user={user} />
+          </div>
         </nav>
       </header>
 

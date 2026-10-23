@@ -72,8 +72,8 @@ General Studies, Mathematics, Programming, Physics, Basic Electrical, Introducti
 - security_officer / arc — Safety & Security module staff (see §12).
 - dean — Dean of Student Affairs; sees Hostel escalations + everything read-only.
 - hod — Head of Department; sees Academic escalations + academic tickets read-only.
-- teacher — answers Q&A; sees author roll numbers.
-- academic_office — staff for academic tickets.
+- teacher — answers Q&A; sees author roll numbers; also a faculty reporter (§14).
+- academic_office — staff for academic tickets; also a faculty reporter (§14).
 Staff/admin accounts are seeded only (no staff sign-up).
 Q&A: students see other authors' NAME only; teachers/staff/admins also see ROLL NUMBER.
 
@@ -123,6 +123,7 @@ Hostel → dean, Academic → hod. Escalated tickets show a red "Escalated" badg
 - Insights (warden/dean/hod): charts by category, by building, avg resolution time, rating avg; Hotspots list with Gemini recommendations.
 - Escalations (dean/hod): list + detail with brief, linked tickets, acknowledge, directive.
 - Teacher view: Q&A board focused on unanswered questions.
+- Faculty workspace (teacher / hod / academic_office): see §14.
 
 ## 9. Design system
 Inspired by a modern SaaS look (do NOT copy any other site's logo — make our own simple logo: two overlapping rounded rings or a chat-bubble + check mark).
@@ -184,3 +185,13 @@ Emergency panel (always on the Safety report page; red when `is_emergency`): Cam
 - Security tickets and wrong/unknown numbers return the same "Ticket not found".
 - Rate limit: 10 lookups per IP per 10 minutes (in-memory, per server instance).
 - The logged-in "Track by ticket number" keeps working (it also never shows security tickets).
+
+## 14. Faculty workspace — report issues, My Reports, My Answers
+Faculty = `teacher`, `hod`, `academic_office` (`src/config/faculty.ts`: `FACULTY_ROLES`, `isFaculty`, class-disruption helpers).
+- **Sidebar:** teacher = Home (`/faculty` dashboard: unanswered questions by subject, my open reports with status, my recent answers), Q&A Board, Report an issue (`/report`), My Reports (`/reports`, `/reports/[ticketNo]`), My Answers (`/answers`, teacher only) + notification bell. hod / academic_office keep their existing items and get Report an issue + My Reports + bell.
+- **Reporting:** reuses `ReportFlow` (`audience="faculty"`) → same AI chat → preview → duplicate check → `createTicket`. Faculty can only report the **Academic module**: Classroom Facilities, Lab Equipment, Library, Academic Admin, plus the faculty-only categories **Electricity, Internet, Cleanliness** in Blocks A–D (flagged `facultyOnly` in `ACADEMIC_ROUTING`, routed to Electrical Maintenance / IT Cell / Housekeeping). `categoriesFor(module, audience)` hides faculty-only categories from students. Hostel and Safety & Security stay student-only (enforced in `/api/ai/analyze`, `createTicket`, `followTicket`).
+- **AI class rule:** if the faculty member mentions a class now or soon, priority is raised to at least High with reason "Disrupts a scheduled class" (`disrupts_class` from Gemini, backed by a regex; also applied in manual-entry fallback). The AI always asks for block + room, and the class time if a class is mentioned without one. Urgent safety hazards still win.
+- **My Reports:** same `MyTicketsView` / `TicketPage` components as students' My Tickets (`basePath` `/reports`); live timeline; confirm fixed + rating / reopen use the same `confirmFixed` / `reopenTicket`. Only the reporter (or "Me too" followers) see a ticket there; internal events are hidden from reporters.
+- **Staff side:** board cards, list rows and the drawer show a violet "Reported by faculty · name (role)" badge (`FacultyBadge`, `BoardTicket.faculty_reporter`). Duplicates and "Me too" work across student and faculty reports (same module + category + building).
+- **RLS (schema.sql):** `tickets_insert` allows student/teacher/hod/academic_office reporters; `events_select` hides internal events from teachers and from staff on tickets they reported; `followers_select` excludes teachers; the notification trigger links faculty to `/reports/<no>`.
+- **Seed:** Prof. Khan's "Projector not turning on in C-204" (Block C, 2nd floor, High, In Progress, Suresh).

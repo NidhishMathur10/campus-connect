@@ -2,7 +2,9 @@ import {
   BarChart3,
   GraduationCap,
   House,
+  ClipboardPlus,
   LayoutDashboard,
+  MessageSquareReply,
   MessagesSquare,
   ShieldCheck,
   Siren,
@@ -33,16 +35,21 @@ const INSIGHTS: NavItem = { href: "/insights", label: "Insights", icon: BarChart
 const ESCALATIONS: NavItem = { href: "/escalations", label: "Escalations", icon: Siren };
 const QA: NavItem = { href: "/qa", label: "Q&A Board", icon: MessagesSquare };
 
+const FACULTY_HOME: NavItem = { href: "/faculty", label: "Home", icon: House };
+const REPORT: NavItem = { href: "/report", label: "Report an issue", icon: ClipboardPlus };
+const MY_REPORTS: NavItem = { href: "/reports", label: "My Reports", icon: Ticket };
+const MY_ANSWERS: NavItem = { href: "/answers", label: "My Answers", icon: MessageSquareReply };
+
 /** Sidebar items for every non-student role (must agree with ROUTE_ACCESS in config/roles). */
 export const STAFF_NAV: Record<Exclude<Role, "student">, NavItem[]> = {
   staff: [BOARD, HISTORY],
-  academic_office: [BOARD, HISTORY, QA],
+  academic_office: [BOARD, HISTORY, QA, REPORT, MY_REPORTS],
   security_officer: [BOARD, HISTORY],
   arc: [BOARD, HISTORY],
   warden: [BOARD, HISTORY, INSIGHTS, ESCALATIONS],
   dean: [ESCALATIONS, INSIGHTS, BOARD, HISTORY, QA],
-  hod: [ESCALATIONS, INSIGHTS, BOARD, HISTORY, QA],
-  teacher: [QA],
+  hod: [ESCALATIONS, INSIGHTS, BOARD, HISTORY, QA, REPORT, MY_REPORTS],
+  teacher: [FACULTY_HOME, QA, REPORT, MY_REPORTS, MY_ANSWERS],
 };
 
 export function isActive(pathname: string, href: string, items?: NavItem[]): boolean {
