@@ -1,0 +1,63 @@
+export const ROLES = [
+  "student",
+  "staff",
+  "warden",
+  "dean",
+  "hod",
+  "teacher",
+  "academic_office",
+] as const;
+export type Role = (typeof ROLES)[number];
+
+export const ROLE_LABELS: Record<Role, string> = {
+  student: "Student",
+  staff: "Staff",
+  warden: "Warden",
+  dean: "Dean of Student Affairs",
+  hod: "Head of Department",
+  teacher: "Teacher",
+  academic_office: "Academic Office",
+};
+
+export function isRole(value: unknown): value is Role {
+  return typeof value === "string" && (ROLES as readonly string[]).includes(value);
+}
+
+/** Where each role lands after login. */
+export const ROLE_HOME: Record<Role, string> = {
+  student: "/",
+  staff: "/staff",
+  academic_office: "/staff",
+  warden: "/staff",
+  dean: "/escalations",
+  hod: "/escalations",
+  teacher: "/qa",
+};
+
+/**
+ * Which roles may open which route prefixes. First match wins (longest prefixes first).
+ * Routes not listed here are open to every signed-in user.
+ */
+export const ROUTE_ACCESS: { prefix: string; roles: Role[] }[] = [
+  { prefix: "/staff", roles: ["staff", "academic_office", "warden", "dean", "hod"] },
+  { prefix: "/insights", roles: ["warden", "dean", "hod"] },
+  { prefix: "/escalations", roles: ["warden", "dean", "hod"] },
+  { prefix: "/qa", roles: ["teacher", "academic_office", "hod", "dean"] },
+  { prefix: "/hostel", roles: ["student"] },
+  { prefix: "/education", roles: ["student"] },
+  { prefix: "/tickets", roles: ["student"] },
+];
+
+export function canAccess(role: Role, pathname: string): boolean {
+  if (pathname === "/") return role === "student";
+  const rule = ROUTE_ACCESS.find(
+    (r) => pathname === r.prefix || pathname.startsWith(`${r.prefix}/`),
+  );
+  return rule ? rule.roles.includes(role) : true;
+}
+
+/** Routes for signed-out users (signed-in users get sent to their home). */
+export const PUBLIC_ROUTES = ["/login", "/signup"];
+
+/** Routes anyone can open, signed in or not. */
+export const OPEN_ROUTES = ["/account-issue"];
