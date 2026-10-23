@@ -10,7 +10,7 @@ const REASON_STYLES: Record<EscalationReason, { icon: LucideIcon; className: str
   recurring: { icon: Repeat, className: "bg-violet-100 text-violet-800 border-violet-200" },
   reopened: { icon: RotateCcw, className: "bg-rose-100 text-rose-800 border-rose-200" },
   sla_breach: { icon: Timer, className: "bg-red-600 text-white border-red-600" },
-  manual: { icon: ShieldAlert, className: "bg-slate-800 text-white border-slate-800" },
+  manual: { icon: ShieldAlert, className: "bg-ink text-white border-ink" },
   safety: { icon: Lock, className: "bg-rose-600 text-white border-rose-600" },
 };
 
@@ -40,21 +40,21 @@ export function EscalationCard({ e }: { e: EscalationListItem }) {
     <Link
       href={`/escalations/${e.id}`}
       className={cn(
-        "group flex animate-slide-up flex-col gap-3 rounded-3xl border bg-white p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-accent-blue hover:shadow-md",
-        e.status === "open" ? "border-red-200" : "border-slate-200",
+        "group flex animate-slide-up flex-col gap-3 rounded-3xl border bg-card p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-accent-blue hover:shadow-md",
+        e.status === "open" ? "border-red-200" : "border-border",
       )}
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <ReasonBadge reason={e.reason} />
         <EscalationStatusBadge status={e.status} />
       </div>
-      <h3 className="text-lg leading-snug font-extrabold text-navy group-hover:text-accent-blue">
+      <h3 className="text-lg leading-snug font-extrabold text-foreground group-hover:text-accent-text">
         {e.headline ?? e.where}
       </h3>
       {e.brief && e.brief_model ? (
         <p className="line-clamp-2 text-sm text-slate-600">{e.brief}</p>
       ) : (
-        <p className="flex items-center gap-1.5 text-sm text-slate-400"><Siren className="size-4 animate-pulse" /> AI brief being written…</p>
+        <p className="flex items-center gap-1.5 text-sm text-slate-500"><Siren className="size-4 animate-pulse" /> AI brief being written…</p>
       )}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs font-semibold text-slate-500">
         <span className="flex items-center gap-1"><MapPin className="size-3.5" /> {e.where}</span>

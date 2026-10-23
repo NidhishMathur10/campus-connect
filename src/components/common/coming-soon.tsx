@@ -15,17 +15,17 @@ export function ComingSoon({
   return (
     <div className="animate-slide-up space-y-6">
       <div className="flex items-start gap-4 rounded-3xl border border-sky-tint-2 bg-sky-tint p-5">
-        <div className="grid size-11 shrink-0 place-items-center rounded-2xl bg-navy text-white">
+        <div className="grid size-11 shrink-0 place-items-center rounded-2xl bg-primary text-primary-foreground">
           <Icon className="size-5" />
         </div>
         <div>
-          <p className="eyebrow text-accent-blue">Built in phase {phase}</p>
+          <p className="eyebrow text-accent-text">Built in phase {phase}</p>
           <p className="mt-1 text-sm font-medium text-slate-700">{what}</p>
         </div>
       </div>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {Array.from({ length: 3 }).map((_, i) => (
-          <div key={i} className="space-y-3 rounded-3xl border border-slate-200 bg-white p-5">
+          <div key={i} className="space-y-3 rounded-3xl border border-border bg-card p-5">
             <Skeleton className="h-4 w-24 rounded-full" />
             <Skeleton className="h-6 w-3/4" />
             <Skeleton className="h-4 w-full" />

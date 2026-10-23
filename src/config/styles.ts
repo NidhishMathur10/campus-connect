@@ -54,8 +54,8 @@ export const CATEGORY_STYLES: Record<Category, CategoryStyle> = {
   "Threat / Fight / Violence": { icon: HandMetal, className: "bg-red-50 text-red-700 border-red-200" },
   "Theft / Lost item": { icon: PackageSearch, className: "bg-stone-50 text-stone-700 border-stone-200" },
   "Unauthorized entry / Suspicious person": { icon: Eye, className: "bg-orange-50 text-orange-700 border-orange-200" },
-  "Other safety concern": { icon: ShieldQuestion, className: "bg-slate-50 text-slate-700 border-slate-200" },
-  Other: { icon: CircleHelp, className: "bg-slate-50 text-slate-700 border-slate-200" },
+  "Other safety concern": { icon: ShieldQuestion, className: "bg-slate-50 text-slate-700 border-border" },
+  Other: { icon: CircleHelp, className: "bg-slate-50 text-slate-700 border-border" },
 };
 
 export function getCategoryStyle(category: string): CategoryStyle {
@@ -66,15 +66,15 @@ export const PRIORITY_STYLES: Record<Priority, BadgeStyle> = {
   Urgent: { className: "bg-red-100 text-red-700 border-red-200" },
   High: { className: "bg-orange-100 text-orange-700 border-orange-200" },
   Medium: { className: "bg-amber-100 text-amber-800 border-amber-200" },
-  Low: { className: "bg-slate-100 text-slate-600 border-slate-200" },
+  Low: { className: "bg-slate-100 text-slate-600 border-border" },
 };
 
 export const STATUS_STYLES: Record<TicketStatus, BadgeStyle & { dot: string }> = {
-  Submitted: { className: "bg-slate-100 text-slate-700 border-slate-200", dot: "bg-slate-400" },
+  Submitted: { className: "bg-slate-100 text-slate-700 border-border", dot: "bg-slate-400" },
   Assigned: { className: "bg-blue-50 text-blue-700 border-blue-200", dot: "bg-blue-500" },
   "In Progress": { className: "bg-violet-50 text-violet-700 border-violet-200", dot: "bg-violet-500" },
   Resolved: { className: "bg-emerald-50 text-emerald-700 border-emerald-200", dot: "bg-emerald-500" },
-  Closed: { className: "bg-slate-800 text-white border-slate-800", dot: "bg-slate-800" },
+  Closed: { className: "bg-ink text-white border-ink", dot: "bg-ink" },
   Reopened: { className: "bg-rose-50 text-rose-700 border-rose-200", dot: "bg-rose-500" },
   Merged: { className: "bg-zinc-100 text-zinc-500 border-zinc-200", dot: "bg-zinc-400" },
 };

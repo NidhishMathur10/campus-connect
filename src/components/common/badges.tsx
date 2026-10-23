@@ -41,7 +41,7 @@ export function StatusBadge({ status, className }: { status: TicketStatus; class
 
 export function ConfidentialBadge({ className }: { className?: string }) {
   return (
-    <span className={cn(base, "border-slate-800 bg-slate-900 text-white", className)} title="Confidential safety report">
+    <span className={cn(base, "border-ink bg-ink text-white", className)} title="Confidential safety report">
       <Lock className="size-3" />
       Confidential
     </span>
@@ -98,7 +98,7 @@ export function FacultyBadge({
 export function NotModeratedBadge({ className }: { className?: string }) {
   return (
     <span
-      className={cn(base, "border-slate-300 bg-slate-100 text-slate-600", className)}
+      className={cn(base, "border-border bg-slate-100 text-slate-600", className)}
       title="The AI was unavailable, so this report's text and photo were not checked for abuse or unsuitable images"
     >
       <ShieldQuestion className="size-3" />

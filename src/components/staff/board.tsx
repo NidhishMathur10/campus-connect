@@ -153,7 +153,7 @@ function FilterControls({
       onClick={() => set({ [key]: !filters[key] })}
       className={cn(
         "inline-flex h-10 items-center gap-1.5 rounded-full border px-3.5 text-sm font-semibold transition-colors",
-        filters[key] ? "border-navy bg-navy text-white" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50",
+        filters[key] ? "border-navy bg-primary text-primary-foreground" : "border-border bg-card text-slate-600 hover:bg-slate-50",
       )}
       aria-pressed={filters[key]}
     >
@@ -213,17 +213,17 @@ function Column({
       ref={setNodeRef}
       className={cn(
         "flex min-h-[420px] flex-col rounded-3xl border bg-slate-50/80 p-2.5 transition-colors",
-        dropState === "valid" ? "border-accent-blue border-dashed bg-sky-tint/60" : "border-slate-200",
+        dropState === "valid" ? "border-accent-blue border-dashed bg-sky-tint/60" : "border-border",
         dropState === "valid" && isOver && "bg-sky-tint-2/70 ring-2 ring-accent-blue",
         dropState === "invalid" && "opacity-60",
       )}
     >
       <div className="flex items-center justify-between px-2 pt-1 pb-3">
-        <p className="flex items-center gap-2 text-sm font-extrabold text-navy">
+        <p className="flex items-center gap-2 text-sm font-extrabold text-foreground">
           <span className={cn("size-2 rounded-full", STATUS_STYLES[status].dot)} /> {status}
-          {status === "Closed" && <span className="text-xs font-semibold text-slate-400">last {CLOSED_ON_BOARD_DAYS} days</span>}
+          {status === "Closed" && <span className="text-xs font-semibold text-slate-500">last {CLOSED_ON_BOARD_DAYS} days</span>}
         </p>
-        <span className="rounded-full bg-white px-2 py-0.5 text-xs font-bold text-slate-500 shadow-sm">{count}</span>
+        <span className="rounded-full bg-card px-2 py-0.5 text-xs font-bold text-slate-500 shadow-sm">{count}</span>
       </div>
       <div className="flex flex-1 flex-col gap-2.5">{children}</div>
     </div>
@@ -267,15 +267,15 @@ export function ListView({
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: "created_at", dir: -1 });
   const rows = useMemo(() => [...tickets].sort((a, b) => compare(a, b, sort.key) * sort.dir), [tickets, sort]);
   return (
-    <div className="overflow-x-auto rounded-3xl border border-slate-200 bg-white shadow-sm">
+    <div className="overflow-x-auto rounded-3xl border border-border bg-card shadow-sm">
       <table className="w-full min-w-[900px] text-sm">
-        <thead className="border-b border-slate-200 bg-slate-50 text-left">
+        <thead className="border-b border-border bg-slate-50 text-left">
           <tr>
             {SORT_COLUMNS.map((c) => (
               <th key={c.key} className="px-3 py-2.5">
                 <button
                   type="button"
-                  className="eyebrow inline-flex items-center gap-1 hover:text-navy"
+                  className="eyebrow inline-flex items-center gap-1 hover:text-foreground"
                   onClick={() => setSort((s) => ({ key: c.key, dir: s.key === c.key ? (s.dir === 1 ? -1 : 1) : 1 }))}
                 >
                   {c.label}
@@ -290,10 +290,10 @@ export function ListView({
         </thead>
         <tbody>
           {rows.map((t) => (
-            <tr key={t.id} onClick={() => onOpen(t.ticket_no)} className="cursor-pointer border-b border-slate-100 last:border-0 hover:bg-sky-tint/60">
-              <td className="px-3 py-2.5 font-mono text-xs font-bold text-accent-blue">{t.ticket_no}</td>
+            <tr key={t.id} onClick={() => onOpen(t.ticket_no)} className="cursor-pointer border-b border-border/60 last:border-0 hover:bg-sky-tint/60">
+              <td className="px-3 py-2.5 font-mono text-xs font-bold text-accent-text">{t.ticket_no}</td>
               <td className="max-w-64 px-3 py-2.5">
-                <p className="truncate font-semibold text-navy">{t.title}</p>
+                <p className="truncate font-semibold text-foreground">{t.title}</p>
                 <div className="mt-1 flex flex-wrap gap-1"><TicketFlags ticket={t} /></div>
               </td>
               <td className="px-3 py-2.5"><CategoryBadge category={t.category} /></td>
@@ -309,7 +309,7 @@ export function ListView({
                 </div>
               </td>
               {showRating && (
-                <td className="px-3 py-2.5">{t.rating ? <Stars rating={t.rating} className="size-3.5" /> : <span className="text-xs text-slate-400">—</span>}</td>
+                <td className="px-3 py-2.5">{t.rating ? <Stars rating={t.rating} className="size-3.5" /> : <span className="text-xs text-slate-500">—</span>}</td>
               )}
             </tr>
           ))}
@@ -360,10 +360,10 @@ function TriageLane({
       </div>
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
         {tickets.map((t) => (
-          <div key={t.id} className="space-y-2 rounded-2xl border border-violet-200 bg-white p-3.5 shadow-sm">
+          <div key={t.id} className="space-y-2 rounded-2xl border border-violet-200 bg-card p-3.5 shadow-sm">
             <button type="button" onClick={() => onOpen(t.ticket_no)} className="block w-full text-left">
-              <p className="font-mono text-[11px] font-bold text-accent-blue">{t.ticket_no}</p>
-              <p className="text-sm font-bold text-navy hover:text-accent-blue">{t.title}</p>
+              <p className="font-mono text-[11px] font-bold text-accent-text">{t.ticket_no}</p>
+              <p className="text-sm font-bold text-foreground hover:text-accent-text">{t.title}</p>
               <p className="mt-0.5 line-clamp-2 text-xs text-slate-500">{t.summary}</p>
             </button>
             <div className="flex flex-wrap gap-1"><PriorityBadge priority={t.priority} /><TicketFlags ticket={t} /></div>
@@ -464,10 +464,10 @@ export function StaffBoard({
   }
 
   const stats = [
-    { label: "Open", value: data.stats.open, icon: Inbox, tone: "text-navy", onClick: () => setFilters(NO_FILTERS) },
-    { label: "Urgent", value: data.stats.urgent, icon: ShieldAlert, tone: "text-red-600", onClick: () => setFilter({ priority: filters.priority === "Urgent" ? null : "Urgent" }) },
-    { label: "Possible duplicates", value: data.stats.duplicates, icon: Copy, tone: "text-amber-600", onClick: () => setFilter({ duplicatesOnly: !filters.duplicatesOnly }) },
-    { label: "Resolved today", value: data.stats.resolvedToday, icon: CircleCheck, tone: "text-emerald-600" },
+    { label: "Open", value: data.stats.open, icon: Inbox, tone: "text-foreground", onClick: () => setFilters(NO_FILTERS) },
+    { label: "Urgent", value: data.stats.urgent, icon: ShieldAlert, tone: "text-red-700", onClick: () => setFilter({ priority: filters.priority === "Urgent" ? null : "Urgent" }) },
+    { label: "Possible duplicates", value: data.stats.duplicates, icon: Copy, tone: "text-amber-700", onClick: () => setFilter({ duplicatesOnly: !filters.duplicatesOnly }) },
+    { label: "Resolved today", value: data.stats.resolvedToday, icon: CircleCheck, tone: "text-emerald-700" },
   ];
   const mine = data.stats.mine;
 
@@ -493,7 +493,7 @@ export function StaffBoard({
             type="button"
             onClick={onClick}
             disabled={!onClick}
-            className="animate-slide-up rounded-3xl border border-slate-200 bg-white p-4 text-left shadow-sm transition-all enabled:hover:-translate-y-0.5 enabled:hover:shadow-md sm:p-5"
+            className="animate-slide-up rounded-3xl border border-border bg-card p-4 text-left shadow-sm transition-all enabled:hover:-translate-y-0.5 enabled:hover:shadow-md sm:p-5"
           >
             <div className="flex items-center justify-between">
               <p className="eyebrow">{label}</p>
@@ -522,12 +522,12 @@ export function StaffBoard({
       <div className="mb-5 space-y-3">
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative min-w-0 flex-1 sm:max-w-sm">
-            <Search className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-slate-400" />
+            <Search className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-slate-500" />
             <Input
               value={filters.q}
               onChange={(e) => setFilter({ q: e.target.value })}
               placeholder="Search CC-1004 or text…"
-              className="h-10 rounded-full bg-white pl-10"
+              className="h-10 rounded-full bg-card pl-10"
             />
           </div>
           {/* Mobile: filters in a bottom sheet */}
@@ -539,7 +539,7 @@ export function StaffBoard({
             </SheetTrigger>
             <SheetContent side="bottom" className="max-h-[85dvh] overflow-y-auto rounded-t-3xl p-5">
               <SheetHeader className="p-0">
-                <SheetTitle className="text-lg font-extrabold text-navy">Filters</SheetTitle>
+                <SheetTitle className="text-lg font-extrabold text-foreground">Filters</SheetTitle>
                 <SheetDescription>Narrow down the tickets list.</SheetDescription>
               </SheetHeader>
               <FilterControls filters={filters} set={setFilter} showModule={showModule} showDepartment={showDepartment} stacked />
@@ -548,7 +548,7 @@ export function StaffBoard({
           </Sheet>
           <div className="ml-auto flex items-center gap-2">
             <LiveBadge live={live} />
-            <div className="hidden rounded-full border border-slate-200 bg-white p-1 lg:flex" role="group" aria-label="View">
+            <div className="hidden rounded-full border border-border bg-card p-1 lg:flex" role="group" aria-label="View">
               {([
                 ["board", Kanban, "Board"],
                 ["list", List, "List"],
@@ -560,7 +560,7 @@ export function StaffBoard({
                   aria-pressed={view === v}
                   className={cn(
                     "inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-semibold",
-                    view === v ? "bg-navy text-white" : "text-slate-600 hover:bg-slate-100",
+                    view === v ? "bg-primary text-primary-foreground" : "text-slate-600 hover:bg-slate-100",
                   )}
                 >
                   <Icon className="size-4" /> {label}
@@ -621,14 +621,14 @@ export function StaffBoard({
                             {cardFor(t)}
                           </DraggableCard>
                         ))}
-                        {items.length === 0 && <p className="px-2 py-6 text-center text-xs text-slate-400">Nothing here</p>}
+                        {items.length === 0 && <p className="px-2 py-6 text-center text-xs text-slate-500">Nothing here</p>}
                       </Column>
                     );
                   })}
                 </div>
                 <DragOverlay dropAnimation={null}>{activeTicket ? <div className="w-72">{cardFor(activeTicket, true)}</div> : null}</DragOverlay>
               </DndContext>
-              <p className="mt-2 text-xs text-slate-400">Tip: drag a card to another column, or use the ••• menu on a card.</p>
+              <p className="mt-2 text-xs text-slate-500">Tip: drag a card to another column, or use the ••• menu on a card.</p>
             </div>
           )}
 

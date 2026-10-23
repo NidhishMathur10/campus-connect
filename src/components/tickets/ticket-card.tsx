@@ -8,7 +8,7 @@ export function Stars({ rating, className = "size-4" }: { rating: number; classN
   return (
     <span className="inline-flex" aria-label={`${rating} out of 5 stars`}>
       {[1, 2, 3, 4, 5].map((n) => (
-        <Star key={n} className={`${className} ${n <= rating ? "fill-amber-400 text-amber-400" : "text-slate-300"}`} />
+        <Star key={n} className={`${className} ${n <= rating ? "fill-amber-400 text-amber-400" : "text-muted-foreground/40"}`} />
       ))}
     </span>
   );
@@ -17,11 +17,11 @@ export function Stars({ rating, className = "size-4" }: { rating: number; classN
 export function TicketCard({ ticket, basePath = "/tickets" }: { ticket: MyTicket; basePath?: string }) {
   return (
     // The title link is stretched over the whole card, so the "Merged into" link can sit on top.
-    <div className="group relative flex animate-slide-up flex-col gap-3 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-accent-blue hover:shadow-md">
+    <div className="group relative flex animate-slide-up flex-col gap-3 rounded-3xl border border-border bg-card p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-accent-blue hover:shadow-md">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 space-y-1">
-          <p className="font-mono text-xs font-bold text-accent-blue">{ticket.ticket_no}</p>
-          <h3 className="font-bold text-navy group-hover:text-accent-blue">
+          <p className="font-mono text-xs font-bold text-accent-text">{ticket.ticket_no}</p>
+          <h3 className="font-bold text-foreground group-hover:text-accent-text">
             <Link href={`${basePath}/${ticket.ticket_no}`} className="after:absolute after:inset-0 after:rounded-3xl">
               {ticket.title}
             </Link>
@@ -65,7 +65,7 @@ export function TicketCard({ ticket, basePath = "/tickets" }: { ticket: MyTicket
       {ticket.status === "Merged" && ticket.merged_into && (
         <Link
           href={`${basePath}/${ticket.merged_into}`}
-          className="relative z-10 flex w-fit items-center gap-1.5 rounded-full bg-zinc-100 px-3 py-1 text-xs font-bold text-zinc-700 hover:bg-sky-tint hover:text-accent-blue"
+          className="relative z-10 flex w-fit items-center gap-1.5 rounded-full bg-zinc-100 px-3 py-1 text-xs font-bold text-zinc-700 hover:bg-sky-tint hover:text-accent-text"
         >
           <GitMerge className="size-3.5" /> Merged into {ticket.merged_into} →
         </Link>
@@ -77,7 +77,7 @@ export function TicketCard({ ticket, basePath = "/tickets" }: { ticket: MyTicket
         </span>
         <span className="flex shrink-0 items-center gap-1">
           <Clock className="size-3.5" /> {timeAgo(ticket.created_at)}
-          <ChevronRight className="size-4 text-slate-300 group-hover:text-accent-blue" />
+          <ChevronRight className="size-4 text-muted-foreground/50 group-hover:text-accent-text" />
         </span>
       </div>
     </div>

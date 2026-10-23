@@ -95,7 +95,7 @@ export function AskQuestionForm({ basePath }: { basePath: string }) {
 
   return (
     <div className="grid gap-5 lg:grid-cols-[1fr_340px]">
-      <form onSubmit={submit} className="animate-slide-up space-y-5 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
+      <form onSubmit={submit} className="animate-slide-up space-y-5 rounded-3xl border border-border bg-card p-5 shadow-sm sm:p-7">
         <div className="space-y-2">
           <Label htmlFor="q-title" className="eyebrow">Your question</Label>
           <Input
@@ -124,7 +124,7 @@ export function AskQuestionForm({ basePath }: { basePath: string }) {
 
         <div className="space-y-2">
           <Label htmlFor="q-subject" className="eyebrow flex items-center gap-1.5">
-            Subject {aiSubject && subject === aiSubject && <span className="inline-flex items-center gap-1 normal-case tracking-normal text-accent-violet"><Sparkles className="size-3" /> suggested by AI</span>}
+            Subject {aiSubject && subject === aiSubject && <span className="inline-flex items-center gap-1 normal-case tracking-normal text-accent-violet-text"><Sparkles className="size-3" /> suggested by AI</span>}
           </Label>
           <SimpleSelect
             id="q-subject"
@@ -148,7 +148,7 @@ export function AskQuestionForm({ basePath }: { basePath: string }) {
             </div>
           </div>
         )}
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        {error && <p className="text-sm text-red-700">{error}</p>}
 
         <div className="flex flex-wrap items-center gap-3">
           <Button type="submit" size="lg" disabled={!!posting}>
@@ -168,7 +168,7 @@ export function AskQuestionForm({ basePath }: { basePath: string }) {
           <p className="text-sm text-slate-600">Start typing your question — we&apos;ll check if someone already asked it.</p>
         ) : similar.length === 0 ? (
           <p className="flex items-center gap-2 text-sm text-slate-600">
-            <CheckCircle2 className="size-4 text-emerald-600" /> Nothing similar yet — go ahead and ask!
+            <CheckCircle2 className="size-4 text-emerald-700" /> Nothing similar yet — go ahead and ask!
           </p>
         ) : (
           <ul className="space-y-2">
@@ -177,9 +177,9 @@ export function AskQuestionForm({ basePath }: { basePath: string }) {
                 <Link
                   href={`${basePath}/${s.id}`}
                   target="_blank"
-                  className="group block space-y-1.5 rounded-2xl border border-white bg-white p-3 transition-colors hover:border-accent-blue"
+                  className="group block space-y-1.5 rounded-2xl border border-card bg-card p-3 transition-colors hover:border-accent-blue"
                 >
-                  <span className="flex items-start justify-between gap-2 text-sm font-bold text-navy group-hover:text-accent-blue">
+                  <span className="flex items-start justify-between gap-2 text-sm font-bold text-foreground group-hover:text-accent-text">
                     {s.title}
                     <ArrowUpRight className="size-4 shrink-0" />
                   </span>

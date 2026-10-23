@@ -15,7 +15,7 @@ import { formatDateTime, formatLocation, timeAgo } from "@/lib/format";
 export const metadata: Metadata = { title: "Escalation" };
 
 function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return <section className={`rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6 ${className}`}>{children}</section>;
+  return <section className={`rounded-3xl border border-border bg-card p-5 shadow-sm sm:p-6 ${className}`}>{children}</section>;
 }
 
 export default async function EscalationPage({ params }: { params: Promise<{ id: string }> }) {
@@ -32,7 +32,7 @@ export default async function EscalationPage({ params }: { params: Promise<{ id:
 
   return (
     <>
-      <Link href="/escalations" className="mb-4 inline-flex items-center gap-1 text-sm font-semibold text-slate-500 hover:text-navy">
+      <Link href="/escalations" className="mb-4 inline-flex items-center gap-1 text-sm font-semibold text-slate-500 hover:text-foreground">
         <ArrowLeft className="size-4" /> All escalations
       </Link>
 
@@ -43,19 +43,19 @@ export default async function EscalationPage({ params }: { params: Promise<{ id:
           <span className="eyebrow">To the {targetLabel}</span>
           <LiveRefresh />
         </div>
-        <h1 className="text-2xl font-extrabold tracking-tight text-navy sm:text-4xl">{e.headline ?? where}</h1>
+        <h1 className="text-2xl font-extrabold tracking-tight text-foreground sm:text-4xl">{e.headline ?? where}</h1>
         <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm font-semibold text-slate-600">
-          <span className="flex items-center gap-1.5"><MapPin className="size-4 text-slate-400" /> {where}</span>
-          <span className="flex items-center gap-1.5"><Users className="size-4 text-slate-400" /> {e.affected_count} student{e.affected_count === 1 ? "" : "s"} affected</span>
-          <span className="flex items-center gap-1.5"><Clock className="size-4 text-slate-400" /> Escalated {timeAgo(e.created_at)}</span>
+          <span className="flex items-center gap-1.5"><MapPin className="size-4 text-slate-500" /> {where}</span>
+          <span className="flex items-center gap-1.5"><Users className="size-4 text-slate-500" /> {e.affected_count} student{e.affected_count === 1 ? "" : "s"} affected</span>
+          <span className="flex items-center gap-1.5"><Clock className="size-4 text-slate-500" /> Escalated {timeAgo(e.created_at)}</span>
         </div>
       </div>
 
       <div className="grid gap-5 lg:grid-cols-[1fr_360px]">
         <div className="space-y-5">
-          <Card className="space-y-4 border-sky-tint-2 bg-gradient-to-br from-white to-sky-tint">
+          <Card className="space-y-4 border-sky-tint-2 bg-gradient-to-br from-card to-sky-tint">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="eyebrow flex items-center gap-1.5 text-accent-blue"><Sparkles className="size-3.5" /> AI brief</p>
+              <p className="eyebrow flex items-center gap-1.5 text-accent-text"><Sparkles className="size-3.5" /> AI brief</p>
               {canAct || profile.role === "warden" ? <RegenerateBriefButton escalationId={e.id} /> : null}
             </div>
             {e.brief_model ? (
@@ -68,7 +68,7 @@ export default async function EscalationPage({ params }: { params: Promise<{ id:
                   <p className="eyebrow flex items-center gap-1.5 text-sky-200"><Lightbulb className="size-3.5" /> Recommended action</p>
                   <p className="mt-1 font-semibold">{e.recommended_action}</p>
                 </div>
-                <p className="flex items-center gap-1.5 text-xs text-slate-400">
+                <p className="flex items-center gap-1.5 text-xs text-slate-500">
                   <Bot className="size-3.5" />
                   {e.brief_model === "template" ? "Basic summary (Gemini was unavailable)" : `Written by ${e.brief_model}`}
                   {stale && " · more students affected since — refreshing"}
@@ -82,7 +82,7 @@ export default async function EscalationPage({ params }: { params: Promise<{ id:
           {e.directive && (
             <Card className="border-violet-200 bg-violet-50">
               <p className="eyebrow flex items-center gap-1.5 text-violet-700"><Gavel className="size-3.5" /> Directive from the {targetLabel}</p>
-              <p className="mt-1 font-semibold text-navy">{e.directive}</p>
+              <p className="mt-1 font-semibold text-foreground">{e.directive}</p>
               {e.acknowledged_at && <p className="mt-1 text-xs text-slate-500">Acknowledged {formatDateTime(e.acknowledged_at)}</p>}
             </Card>
           )}
@@ -95,11 +95,11 @@ export default async function EscalationPage({ params }: { params: Promise<{ id:
                   <div className="space-y-1">
                     <Link
                       href={`/staff/history?t=${t.ticket_no}`}
-                      className="inline-flex items-center gap-1 font-mono text-xs font-bold text-accent-blue hover:underline"
+                      className="inline-flex items-center gap-1 font-mono text-xs font-bold text-accent-text hover:underline"
                     >
                       {t.ticket_no} <ExternalLink className="size-3" />
                     </Link>
-                    <p className="font-bold text-navy">{t.title}</p>
+                    <p className="font-bold text-foreground">{t.title}</p>
                     <p className="text-xs text-slate-500">{formatLocation(t)} · reported {formatDateTime(t.created_at)}</p>
                   </div>
                   <div className="flex flex-wrap gap-1.5">
@@ -111,16 +111,16 @@ export default async function EscalationPage({ params }: { params: Promise<{ id:
                 {t.summary && <p className="text-sm text-slate-700">{t.summary}</p>}
                 <div className="flex flex-wrap gap-2 text-xs font-semibold text-slate-500">
                   <span>{1 + t.follower_count} student{t.follower_count ? "s" : ""}</span>
-                  {t.reopen_count > 0 && <span className="text-rose-600">Reopened {t.reopen_count}×</span>}
+                  {t.reopen_count > 0 && <span className="text-rose-700">Reopened {t.reopen_count}×</span>}
                 </div>
                 {t.photo_url && (
                   <a href={t.photo_url} target="_blank" rel="noreferrer" className="block w-fit">
                     {/* eslint-disable-next-line @next/next/no-img-element -- Supabase storage URL */}
-                    <img src={t.photo_url} alt={`Photo for ${t.ticket_no}`} className="h-40 rounded-2xl border border-slate-200 object-cover" />
+                    <img src={t.photo_url} alt={`Photo for ${t.ticket_no}`} className="h-40 rounded-2xl border border-border object-cover" />
                   </a>
                 )}
                 <details className="rounded-2xl bg-slate-50 p-3">
-                  <summary className="cursor-pointer text-sm font-semibold text-navy">Timeline ({t.events.length} updates)</summary>
+                  <summary className="cursor-pointer text-sm font-semibold text-foreground">Timeline ({t.events.length} updates)</summary>
                   <div className="mt-4"><TicketTimeline events={t.events} /></div>
                 </details>
               </Card>

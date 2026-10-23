@@ -113,7 +113,7 @@ export function ReportForm({
   }
 
   return (
-    <form onSubmit={submit} className="animate-slide-up space-y-5 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
+    <form onSubmit={submit} className="animate-slide-up space-y-5 rounded-3xl border border-border bg-card p-5 shadow-sm sm:p-7">
       {notice && notice.messages.length > 0 && (
         <div
           role="alert"
@@ -145,7 +145,7 @@ export function ReportForm({
           aria-invalid={!!errors.text || undefined}
           disabled={busy}
         />
-        {errors.text && <p className="text-sm text-red-600">{errors.text}</p>}
+        {errors.text && <p className="text-sm text-red-700">{errors.text}</p>}
       </div>
 
       <div className="space-y-3">
@@ -163,7 +163,7 @@ export function ReportForm({
               invalid={!!errors.building}
               disabled={busy}
             />
-            {errors.building && <p className="text-sm text-red-600">{errors.building}</p>}
+            {errors.building && <p className="text-sm text-red-700">{errors.building}</p>}
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="floor">Floor</Label>
@@ -177,7 +177,7 @@ export function ReportForm({
               invalid={!!errors.floor}
               disabled={busy}
             />
-            {errors.floor && <p className="text-sm text-red-600">{errors.floor}</p>}
+            {errors.floor && <p className="text-sm text-red-700">{errors.floor}</p>}
           </div>
         </div>
         {hostelMode ? (
@@ -227,15 +227,15 @@ export function ReportForm({
         {draft.photo ? (
           <div className="relative w-fit">
             {/* eslint-disable-next-line @next/next/no-img-element -- local blob preview */}
-            <img src={draft.photo.previewUrl} alt="Your photo" className="max-h-56 rounded-2xl border border-slate-200 object-cover" />
-            <span className="absolute bottom-2 left-2 rounded-full bg-navy/80 px-2 py-0.5 text-xs font-semibold text-white">
+            <img src={draft.photo.previewUrl} alt="Your photo" className="max-h-56 rounded-2xl border border-border object-cover" />
+            <span className="absolute bottom-2 left-2 rounded-full bg-black/70 px-2 py-0.5 text-xs font-semibold text-white">
               {(draft.photo.blob.size / 1024).toFixed(0)} KB
             </span>
             <Button
               type="button"
               size="icon-sm"
               variant="secondary"
-              className="absolute top-2 right-2 rounded-full bg-white shadow"
+              className="absolute top-2 right-2 rounded-full bg-card shadow"
               onClick={() => {
                 URL.revokeObjectURL(draft.photo!.previewUrl);
                 set({ photo: null });
@@ -251,7 +251,7 @@ export function ReportForm({
             type="button"
             onClick={() => fileRef.current?.click()}
             disabled={busy || compressing}
-            className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-sm font-semibold text-slate-600 transition-colors hover:border-accent-blue hover:text-accent-blue disabled:opacity-60"
+            className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-border bg-slate-50 px-4 py-6 text-sm font-semibold text-slate-600 transition-colors hover:border-accent-blue hover:text-accent-text disabled:opacity-60"
           >
             {compressing ? <Loader2 className="size-5 animate-spin" /> : <ImagePlus className="size-5" />}
             {compressing ? "Preparing photo…" : "Add a photo — it helps staff see the problem"}

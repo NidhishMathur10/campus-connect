@@ -29,7 +29,7 @@ export function AssigneeAvatar({ name, className }: { name: string | null; class
   if (!name) {
     return (
       <span
-        className={cn("grid size-7 place-items-center rounded-full border border-dashed border-slate-300 text-[10px] text-slate-400", className)}
+        className={cn("grid size-7 place-items-center rounded-full border border-dashed border-border text-[10px] text-slate-500", className)}
         title="Unassigned"
       >
         —
@@ -107,7 +107,7 @@ export function BoardCard({
         }
       }}
       className={cn(
-        "group relative w-full animate-fade-in space-y-2.5 rounded-2xl border border-l-4 border-slate-200 bg-white p-3.5 text-left shadow-sm transition-all hover:border-accent-blue hover:shadow-md focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none",
+        "group relative w-full animate-fade-in space-y-2.5 rounded-2xl border border-l-4 border-border bg-card p-3.5 text-left shadow-sm transition-all hover:border-accent-blue hover:shadow-md focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none",
         PRIORITY_EDGE[ticket.priority],
         overdue && "bg-red-50/40",
         dragging && "rotate-1 shadow-xl ring-2 ring-accent-blue",
@@ -115,8 +115,8 @@ export function BoardCard({
     >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <p className="font-mono text-[11px] font-bold text-accent-blue">{ticket.ticket_no}</p>
-          <p className="line-clamp-2 text-sm leading-snug font-bold text-navy">{ticket.title}</p>
+          <p className="font-mono text-[11px] font-bold text-accent-text">{ticket.ticket_no}</p>
+          <p className="line-clamp-2 text-sm leading-snug font-bold text-foreground">{ticket.title}</p>
         </div>
         {canManage && moves.length > 0 && (
           <DropdownMenu>
@@ -125,7 +125,7 @@ export function BoardCard({
                 variant="ghost"
                 size="icon-xs"
                 aria-label="Move ticket"
-                className="-mt-1 -mr-1 shrink-0 text-slate-400"
+                className="-mt-1 -mr-1 shrink-0 text-slate-500"
                 onClick={(e) => e.stopPropagation()}
                 onPointerDown={(e) => e.stopPropagation()}
               >
@@ -165,7 +165,7 @@ export function BoardCard({
       <p className="flex min-w-0 items-center gap-1 text-xs text-slate-500">
         <MapPin className="size-3.5 shrink-0" />
         <span className="truncate">
-          {formatPlace(ticket) && <strong className="font-bold text-navy">{formatPlace(ticket)} · </strong>}
+          {formatPlace(ticket) && <strong className="font-bold text-foreground">{formatPlace(ticket)} · </strong>}
           {formatLocation({ building: ticket.building, floor: ticket.floor })}
         </span>
       </p>

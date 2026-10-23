@@ -88,19 +88,19 @@ export default async function EmailLogPage({ searchParams }: { searchParams: Pro
         <span
           className={cn(
             "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm font-bold",
-            failed ? "border-red-200 bg-red-50 text-red-700" : "border-slate-200 bg-white text-slate-500",
+            failed ? "border-red-200 bg-red-50 text-red-700" : "border-border bg-card text-slate-500",
           )}
         >
           <AlertTriangle className="size-4" /> {failed} failed
         </span>
-        <nav className="ml-auto flex gap-1 rounded-full border border-slate-200 bg-white p-1" aria-label="Filter emails">
+        <nav className="ml-auto flex gap-1 rounded-full border border-border bg-card p-1" aria-label="Filter emails">
           {FILTERS.map((f) => (
             <Link
               key={f.value}
               href={f.value === "all" ? "/email-log" : `/email-log?status=${f.value}`}
               className={cn(
                 "rounded-full px-4 py-1.5 text-sm font-semibold transition-colors",
-                (f.value === "failed") === failedOnly ? "bg-navy text-white" : "text-slate-600 hover:bg-slate-100",
+                (f.value === "failed") === failedOnly ? "bg-primary text-primary-foreground" : "text-slate-600 hover:bg-slate-100",
               )}
             >
               {f.label}
@@ -116,9 +116,9 @@ export default async function EmailLogPage({ searchParams }: { searchParams: Pro
           description="Emails show up here as soon as tickets are created, assigned or resolved."
         />
       ) : (
-        <div className="overflow-x-auto rounded-3xl border border-slate-200 bg-white shadow-sm">
+        <div className="overflow-x-auto rounded-3xl border border-border bg-card shadow-sm">
           <table className="w-full min-w-[720px] text-left text-sm">
-            <thead className="border-b border-slate-200 bg-slate-50 text-xs font-bold tracking-wider text-slate-500 uppercase">
+            <thead className="border-b border-border bg-slate-50 text-xs font-bold tracking-wider text-slate-500 uppercase">
               <tr>
                 <th className="px-4 py-3">When</th>
                 <th className="px-4 py-3">To</th>
@@ -127,16 +127,16 @@ export default async function EmailLogPage({ searchParams }: { searchParams: Pro
                 <th className="px-4 py-3">Status</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-border">
               {shown.map((r) => (
                 <tr key={r.id} className={r.status === "failed" ? "bg-red-50/40" : undefined}>
                   <td className="px-4 py-3 whitespace-nowrap text-slate-600">{formatDateTime(r.created_at)}</td>
                   <td className="px-4 py-3">
-                    <p className="font-semibold text-navy">{r.to_email}</p>
+                    <p className="font-semibold text-foreground">{r.to_email}</p>
                     {r.original_to && <p className="text-xs text-slate-500">Demo — meant for {r.original_to}</p>}
                   </td>
                   <td className="px-4 py-3 font-semibold text-slate-700">{TEMPLATE_LABELS[r.template] ?? r.template}</td>
-                  <td className="px-4 py-3 font-mono text-xs font-bold text-accent-blue">
+                  <td className="px-4 py-3 font-mono text-xs font-bold text-accent-text">
                     {r.ticket_id ? (tickets.get(r.ticket_id)?.ticket_no ?? "—") : "—"}
                   </td>
                   <td className="px-4 py-3">

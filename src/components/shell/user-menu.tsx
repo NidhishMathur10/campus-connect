@@ -50,7 +50,7 @@ export function UserMenu({ user, align = "end" }: { user: ShellUser; align?: "st
       </DropdownMenuTrigger>
       <DropdownMenuContent align={align} className="w-60 rounded-2xl p-2">
         <DropdownMenuLabel className="space-y-0.5 px-2 py-1.5">
-          <p className="truncate text-sm font-bold text-navy">{user.fullName}</p>
+          <p className="truncate text-sm font-bold text-foreground">{user.fullName}</p>
           <p className="truncate text-xs font-medium text-slate-500">
             {user.roleLabel}
             {user.subtitle ? ` · ${user.subtitle}` : ""}

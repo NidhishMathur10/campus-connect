@@ -7,13 +7,13 @@ import { signOut } from "@/app/(auth)/actions";
 export default function AccountIssuePage() {
   return (
     <main className="grid min-h-dvh place-items-center px-4">
-      <div className="w-full max-w-md space-y-6 rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm">
+      <div className="w-full max-w-md space-y-6 rounded-3xl border border-border bg-card p-8 text-center shadow-sm">
         <Logo className="justify-center" />
-        <div className="mx-auto grid size-14 place-items-center rounded-2xl bg-amber-50 text-amber-600">
+        <div className="mx-auto grid size-14 place-items-center rounded-2xl bg-amber-50 text-amber-700">
           <TriangleAlert className="size-6" />
         </div>
         <div className="space-y-2">
-          <h1 className="text-2xl font-extrabold text-navy">Your account isn&apos;t set up yet</h1>
+          <h1 className="text-2xl font-extrabold text-foreground">Your account isn&apos;t set up yet</h1>
           <p className="text-sm text-slate-600">
             You&apos;re signed in, but there&apos;s no profile for this account. Ask the team to run
             <code className="mx-1 rounded bg-slate-100 px-1.5 py-0.5">npm run seed</code>

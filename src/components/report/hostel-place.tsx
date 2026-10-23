@@ -60,7 +60,7 @@ export function HostelPlace({
 
   return (
     <div className="space-y-3">
-      <div className="grid grid-cols-2 gap-1 rounded-full border border-slate-200 bg-slate-50 p-1" role="tablist" aria-label="Where in the hostel">
+      <div className="grid grid-cols-2 gap-1 rounded-full border border-border bg-slate-50 p-1" role="tablist" aria-label="Where in the hostel">
         {(
           [
             { value: "room", label: "A room", icon: DoorOpen },
@@ -76,7 +76,7 @@ export function HostelPlace({
             onClick={() => onChange({ place: value })}
             className={cn(
               "flex items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-bold transition-colors",
-              draft.place === value ? "bg-navy text-white shadow-sm" : "text-slate-600 hover:bg-white",
+              draft.place === value ? "bg-primary text-primary-foreground shadow-sm" : "text-slate-600 hover:bg-card",
             )}
           >
             <Icon className="size-4" /> {label}
@@ -89,8 +89,8 @@ export function HostelPlace({
           <Label htmlFor="room-no">Room number</Label>
           {usingOwn ? (
             <div className="flex animate-fade-in flex-wrap items-center justify-between gap-2 rounded-2xl border border-sky-tint-2 bg-sky-tint px-4 py-3">
-              <span className="flex items-center gap-2 text-sm font-bold text-navy">
-                <Home className="size-4 text-accent-blue" /> Your room · {ownRoom}
+              <span className="flex items-center gap-2 text-sm font-bold text-foreground">
+                <Home className="size-4 text-accent-text" /> Your room · {ownRoom}
               </span>
               <Button
                 type="button"
@@ -123,7 +123,7 @@ export function HostelPlace({
                   type="button"
                   disabled={disabled}
                   onClick={() => onChange({ room: ownRoom, floor: floorFromRoom(ownRoom) ?? draft.floor })}
-                  className="text-xs font-semibold text-accent-blue hover:underline"
+                  className="text-xs font-semibold text-accent-text hover:underline"
                 >
                   Use my room ({ownRoom})
                 </button>
@@ -184,7 +184,7 @@ export function HostelPlace({
           )}
         </div>
       )}
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className="text-sm text-red-700">{error}</p>}
     </div>
   );
 }

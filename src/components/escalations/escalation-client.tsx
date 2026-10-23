@@ -131,7 +131,7 @@ export function EscalationActions({
       )}
 
       {status !== "resolved" && (
-        <div className="space-y-1.5 border-t border-slate-100 pt-4">
+        <div className="space-y-1.5 border-t border-border/60 pt-4">
           <Button
             variant="ghost"
             className="w-full text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800"

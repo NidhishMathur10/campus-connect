@@ -26,7 +26,7 @@ export function PhotoAnalysisBox({ analysis }: { analysis: PhotoAnalysis }) {
     <div
       className={cn(
         "space-y-1.5 rounded-2xl border p-4 text-sm",
-        mismatch ? "border-amber-300 bg-amber-50" : "border-slate-200 bg-slate-50",
+        mismatch ? "border-amber-300 bg-amber-50" : "border-border bg-slate-50",
       )}
     >
       <p className="eyebrow flex items-center gap-1.5">

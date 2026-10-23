@@ -27,7 +27,7 @@ export function LoginForm({ next }: { next?: string }) {
     <div className="space-y-8">
       <div className="space-y-2">
         <p className="eyebrow">Welcome back</p>
-        <h1 className="text-3xl font-extrabold tracking-tight text-navy sm:text-4xl">Log in</h1>
+        <h1 className="text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl">Log in</h1>
         <p className="text-sm text-slate-600">
           Students use their roll number. Staff use their staff ID.
         </p>
@@ -70,13 +70,13 @@ export function LoginForm({ next }: { next?: string }) {
         </Button>
         <p className="text-center text-sm text-slate-600">
           New student?{" "}
-          <Link href="/signup" className="font-bold text-accent-blue hover:underline">
+          <Link href="/signup" className="font-bold text-accent-text hover:underline">
             Create an account
           </Link>
         </p>
       </form>
 
-      <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+      <section className="rounded-3xl border border-border bg-card p-5 shadow-sm">
         <div className="mb-4 flex items-center justify-between gap-2">
           <p className="eyebrow">Demo quick login</p>
           <span className="rounded-full bg-sky-tint px-2.5 py-1 text-[11px] font-semibold text-slate-600">
@@ -95,11 +95,11 @@ export function LoginForm({ next }: { next?: string }) {
                     disabled={pending}
                     onClick={() => quickLogin(a)}
                     className={cn(
-                      "rounded-2xl border border-slate-200 bg-page px-3 py-2 text-left transition-all",
+                      "rounded-2xl border border-border bg-page px-3 py-2 text-left transition-all",
                       "hover:-translate-y-0.5 hover:border-accent-blue hover:bg-sky-tint disabled:opacity-50",
                     )}
                   >
-                    <span className="block truncate text-sm font-bold text-navy">{a.fullName}</span>
+                    <span className="block truncate text-sm font-bold text-foreground">{a.fullName}</span>
                     <span className="block truncate text-[11px] text-slate-500">{a.caption}</span>
                   </button>
                 ))}

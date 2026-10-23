@@ -57,7 +57,7 @@ export function SuccessCard({
         <Button size="lg" variant="secondary" onClick={copy}>
           {copied ? <Check /> : <Copy />} {copied ? "Copied" : "Copy number"}
         </Button>
-        <Button size="lg" className="bg-white text-navy hover:bg-sky-tint" asChild>
+        <Button size="lg" className="bg-card text-foreground hover:bg-sky-tint" asChild>
           <Link href={`${trackBase}/${ticketNo}`}>
             Track this ticket <ArrowRight />
           </Link>

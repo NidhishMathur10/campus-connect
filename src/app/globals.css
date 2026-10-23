@@ -12,13 +12,16 @@
   --font-heading: var(--font-manrope), "DM Sans", ui-sans-serif, system-ui, sans-serif;
 
   /* CampusConnect brand tokens */
-  --color-navy: #0f172a;
-  --color-navy-soft: #1e293b;
-  --color-sky-tint: #eff6ff;
-  --color-sky-tint-2: #dbeafe;
+  --color-navy: var(--navy);
+  --color-navy-soft: var(--navy-soft);
+  --color-ink: var(--ink);
+  --color-sky-tint: var(--sky-tint);
+  --color-sky-tint-2: var(--sky-tint-2);
   --color-accent-blue: #3b82f6;
   --color-accent-violet: #7c3aed;
-  --color-page: #f8fafc;
+  --color-accent-text: var(--accent-text);
+  --color-accent-violet-text: var(--accent-violet-text);
+  --color-page: var(--background);
 
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
@@ -70,8 +73,8 @@
   }
 }
 
-/* Light-only palette (navy primary, slate neutrals, sky tints). */
 :root {
+  /* ===== Light palette (our original design) ===== */
   --background: #f8fafc;
   --foreground: #0f172a;
   --card: #ffffff;
@@ -104,6 +107,232 @@
   --sidebar-accent-foreground: #0f172a;
   --sidebar-border: #e2e8f0;
   --sidebar-ring: #3b82f6;
+
+  /* CampusConnect extras */
+  --navy: #0f172a; /* hero / feature cards */
+  --navy-soft: #1e293b;
+  --ink: #1e293b; /* solid dark fill for badges (white text) */
+  --sky-tint: #eff6ff;
+  --sky-tint-2: #dbeafe;
+  --accent-text: #1d4ed8; /* accent blue used as TEXT (>= 4.5:1) */
+  --accent-violet-text: #6d28d9;
+  --grid-line: rgba(15, 23, 42, 0.035);
+  --logo-bubble: #0f172a;
+  --logo-check: #ffffff;
+  --chart-axis: #64748b;
+  --chart-axis-strong: #0f172a;
+  --chart-label: #334155;
+  --chart-grid: #e2e8f0;
+  --chart-cursor: #eff6ff;
+  --chart-dot-stroke: #ffffff;
+  color-scheme: light;
+}
+
+/* ===== Dark palette ===== */
+.dark {
+  --background: #0b1120;
+  --foreground: #f1f5f9;
+  --card: #111827;
+  --card-foreground: #f1f5f9;
+  --popover: #1e293b;
+  --popover-foreground: #f1f5f9;
+  --primary: #2563eb; /* accent blue, a shade deeper so white text stays >= 4.5:1 */
+  --primary-foreground: #ffffff;
+  --secondary: #1e293b;
+  --secondary-foreground: #dbeafe;
+  --muted: #1e293b;
+  --muted-foreground: #94a3b8;
+  --accent: #1e293b;
+  --accent-foreground: #f1f5f9;
+  --destructive: #f87171;
+  --border: #334155;
+  --input: #334155;
+  --ring: #3b82f6;
+  --chart-1: #3b82f6;
+  --chart-2: #a78bfa;
+  --chart-3: #38bdf8;
+  --chart-4: #fbbf24;
+  --chart-5: #34d399;
+  --sidebar: #111827;
+  --sidebar-foreground: #f1f5f9;
+  --sidebar-primary: #2563eb;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #1e293b;
+  --sidebar-accent-foreground: #f1f5f9;
+  --sidebar-border: #334155;
+  --sidebar-ring: #3b82f6;
+
+  --navy: #1e293b; /* navy hero cards become raised slate so they still stand out */
+  --navy-soft: #273449;
+  --ink: #475569;
+  --sky-tint: #1e293b;
+  --sky-tint-2: #27364d;
+  --accent-text: #60a5fa;
+  --accent-violet-text: #a78bfa;
+  --grid-line: #1e293b;
+  --logo-bubble: #f1f5f9;
+  --logo-check: #0b1120;
+  --chart-axis: #94a3b8;
+  --chart-axis-strong: #f1f5f9;
+  --chart-label: #cbd5e1;
+  --chart-grid: #334155;
+  --chart-cursor: #1e293b;
+  --chart-dot-stroke: #111827;
+  color-scheme: dark;
+
+  /* Neutral ramp: the same utility classes (text-slate-500 ...) flip automatically.
+     200/300 are left alone on purpose: they are only used as light text on navy cards. */
+  --color-slate-50: #161f31;
+  --color-slate-100: #1e293b;
+  --color-slate-400: #94a3b8;
+  --color-slate-500: #94a3b8;
+  --color-slate-600: #b4c0d0;
+  --color-slate-700: #cbd5e1;
+  --color-slate-800: #e2e8f0;
+  --color-slate-900: #f1f5f9;
+  --color-zinc-50: #161f31;
+  --color-zinc-100: #1e293b;
+  --color-zinc-200: #334155;
+  --color-zinc-500: #94a3b8;
+  --color-zinc-700: #cbd5e1;
+  --color-stone-50: #161f31;
+  --color-stone-200: #334155;
+  --color-stone-700: #cbd5e1;
+}
+
+/* Badge / banner hues: soft translucent tint (works on any surface) + light text. */
+.dark {
+  --tint-bg: 14%;
+  --tint-bg-strong: 22%;
+  --tint-border: 38%;
+}
+.dark {
+  --color-red-50: color-mix(in srgb, var(--color-red-500) var(--tint-bg), transparent);
+  --color-red-100: color-mix(in srgb, var(--color-red-500) var(--tint-bg-strong), transparent);
+  --color-red-200: color-mix(in srgb, var(--color-red-500) var(--tint-border), transparent);
+  --color-red-700: var(--color-red-300);
+  --color-red-800: var(--color-red-200);
+  --color-red-900: var(--color-red-100);
+}
+.dark {
+  --color-rose-50: color-mix(in srgb, var(--color-rose-500) var(--tint-bg), transparent);
+  --color-rose-100: color-mix(in srgb, var(--color-rose-500) var(--tint-bg-strong), transparent);
+  --color-rose-200: color-mix(in srgb, var(--color-rose-500) var(--tint-border), transparent);
+  --color-rose-700: var(--color-rose-300);
+  --color-rose-800: var(--color-rose-200);
+  --color-rose-900: var(--color-rose-100);
+}
+.dark {
+  --color-orange-50: color-mix(in srgb, var(--color-orange-500) var(--tint-bg), transparent);
+  --color-orange-100: color-mix(in srgb, var(--color-orange-500) var(--tint-bg-strong), transparent);
+  --color-orange-200: color-mix(in srgb, var(--color-orange-500) var(--tint-border), transparent);
+  --color-orange-700: var(--color-orange-300);
+  --color-orange-800: var(--color-orange-200);
+  --color-orange-900: var(--color-orange-100);
+}
+.dark {
+  --color-amber-50: color-mix(in srgb, var(--color-amber-500) var(--tint-bg), transparent);
+  --color-amber-100: color-mix(in srgb, var(--color-amber-500) var(--tint-bg-strong), transparent);
+  --color-amber-200: color-mix(in srgb, var(--color-amber-500) var(--tint-border), transparent);
+  --color-amber-700: var(--color-amber-300);
+  --color-amber-800: var(--color-amber-200);
+  --color-amber-900: var(--color-amber-100);
+}
+.dark {
+  --color-yellow-50: color-mix(in srgb, var(--color-yellow-500) var(--tint-bg), transparent);
+  --color-yellow-100: color-mix(in srgb, var(--color-yellow-500) var(--tint-bg-strong), transparent);
+  --color-yellow-200: color-mix(in srgb, var(--color-yellow-500) var(--tint-border), transparent);
+  --color-yellow-700: var(--color-yellow-300);
+  --color-yellow-800: var(--color-yellow-200);
+  --color-yellow-900: var(--color-yellow-100);
+}
+.dark {
+  --color-lime-50: color-mix(in srgb, var(--color-lime-500) var(--tint-bg), transparent);
+  --color-lime-100: color-mix(in srgb, var(--color-lime-500) var(--tint-bg-strong), transparent);
+  --color-lime-200: color-mix(in srgb, var(--color-lime-500) var(--tint-border), transparent);
+  --color-lime-700: var(--color-lime-300);
+  --color-lime-800: var(--color-lime-200);
+  --color-lime-900: var(--color-lime-100);
+}
+.dark {
+  --color-emerald-50: color-mix(in srgb, var(--color-emerald-500) var(--tint-bg), transparent);
+  --color-emerald-100: color-mix(in srgb, var(--color-emerald-500) var(--tint-bg-strong), transparent);
+  --color-emerald-200: color-mix(in srgb, var(--color-emerald-500) var(--tint-border), transparent);
+  --color-emerald-700: var(--color-emerald-300);
+  --color-emerald-800: var(--color-emerald-200);
+  --color-emerald-900: var(--color-emerald-100);
+}
+.dark {
+  --color-teal-50: color-mix(in srgb, var(--color-teal-500) var(--tint-bg), transparent);
+  --color-teal-100: color-mix(in srgb, var(--color-teal-500) var(--tint-bg-strong), transparent);
+  --color-teal-200: color-mix(in srgb, var(--color-teal-500) var(--tint-border), transparent);
+  --color-teal-700: var(--color-teal-300);
+  --color-teal-800: var(--color-teal-200);
+  --color-teal-900: var(--color-teal-100);
+}
+.dark {
+  --color-cyan-50: color-mix(in srgb, var(--color-cyan-500) var(--tint-bg), transparent);
+  --color-cyan-100: color-mix(in srgb, var(--color-cyan-500) var(--tint-bg-strong), transparent);
+  --color-cyan-200: color-mix(in srgb, var(--color-cyan-500) var(--tint-border), transparent);
+  --color-cyan-700: var(--color-cyan-300);
+  --color-cyan-800: var(--color-cyan-200);
+  --color-cyan-900: var(--color-cyan-100);
+}
+.dark {
+  --color-sky-50: color-mix(in srgb, var(--color-sky-500) var(--tint-bg), transparent);
+  --color-sky-100: color-mix(in srgb, var(--color-sky-500) var(--tint-bg-strong), transparent);
+  --color-sky-200: color-mix(in srgb, var(--color-sky-500) var(--tint-border), transparent);
+  --color-sky-700: var(--color-sky-300);
+  --color-sky-800: var(--color-sky-200);
+  --color-sky-900: var(--color-sky-100);
+}
+.dark {
+  --color-blue-50: color-mix(in srgb, var(--color-blue-500) var(--tint-bg), transparent);
+  --color-blue-100: color-mix(in srgb, var(--color-blue-500) var(--tint-bg-strong), transparent);
+  --color-blue-200: color-mix(in srgb, var(--color-blue-500) var(--tint-border), transparent);
+  --color-blue-700: var(--color-blue-300);
+  --color-blue-800: var(--color-blue-200);
+  --color-blue-900: var(--color-blue-100);
+}
+.dark {
+  --color-indigo-50: color-mix(in srgb, var(--color-indigo-500) var(--tint-bg), transparent);
+  --color-indigo-100: color-mix(in srgb, var(--color-indigo-500) var(--tint-bg-strong), transparent);
+  --color-indigo-200: color-mix(in srgb, var(--color-indigo-500) var(--tint-border), transparent);
+  --color-indigo-700: var(--color-indigo-300);
+  --color-indigo-800: var(--color-indigo-200);
+  --color-indigo-900: var(--color-indigo-100);
+}
+.dark {
+  --color-violet-50: color-mix(in srgb, var(--color-violet-500) var(--tint-bg), transparent);
+  --color-violet-100: color-mix(in srgb, var(--color-violet-500) var(--tint-bg-strong), transparent);
+  --color-violet-200: color-mix(in srgb, var(--color-violet-500) var(--tint-border), transparent);
+  --color-violet-700: var(--color-violet-300);
+  --color-violet-800: var(--color-violet-200);
+  --color-violet-900: var(--color-violet-100);
+}
+.dark {
+  --color-purple-50: color-mix(in srgb, var(--color-purple-500) var(--tint-bg), transparent);
+  --color-purple-100: color-mix(in srgb, var(--color-purple-500) var(--tint-bg-strong), transparent);
+  --color-purple-200: color-mix(in srgb, var(--color-purple-500) var(--tint-border), transparent);
+  --color-purple-700: var(--color-purple-300);
+  --color-purple-800: var(--color-purple-200);
+  --color-purple-900: var(--color-purple-100);
+}
+.dark {
+  --color-fuchsia-50: color-mix(in srgb, var(--color-fuchsia-500) var(--tint-bg), transparent);
+  --color-fuchsia-100: color-mix(in srgb, var(--color-fuchsia-500) var(--tint-bg-strong), transparent);
+  --color-fuchsia-200: color-mix(in srgb, var(--color-fuchsia-500) var(--tint-border), transparent);
+  --color-fuchsia-700: var(--color-fuchsia-300);
+  --color-fuchsia-800: var(--color-fuchsia-200);
+  --color-fuchsia-900: var(--color-fuchsia-100);
+}
+.dark {
+  --color-pink-50: color-mix(in srgb, var(--color-pink-500) var(--tint-bg), transparent);
+  --color-pink-100: color-mix(in srgb, var(--color-pink-500) var(--tint-bg-strong), transparent);
+  --color-pink-200: color-mix(in srgb, var(--color-pink-500) var(--tint-border), transparent);
+  --color-pink-700: var(--color-pink-300);
+  --color-pink-800: var(--color-pink-200);
+  --color-pink-900: var(--color-pink-100);
 }
 
 @layer base {
@@ -115,11 +344,11 @@
   }
   body {
     @apply text-foreground;
-    background-color: #f8fafc;
+    background-color: var(--background);
     /* faint grid pattern */
     background-image:
-      linear-gradient(to right, rgba(15, 23, 42, 0.035) 1px, transparent 1px),
-      linear-gradient(to bottom, rgba(15, 23, 42, 0.035) 1px, transparent 1px);
+      linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px);
     background-size: 32px 32px;
     background-attachment: fixed;
   }
@@ -132,6 +361,6 @@
 @layer components {
   /* Small uppercase letter-spaced label, e.g. "AI SUMMARY" */
   .eyebrow {
-    @apply text-[11px] font-bold tracking-[0.14em] text-slate-500 uppercase;
+    @apply text-[11px] font-bold tracking-[0.14em] text-muted-foreground uppercase;
   }
 }

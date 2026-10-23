@@ -19,10 +19,10 @@ export function ModerationFlags({ flags }: { flags: ModerationFlag[] }) {
         {flags.map((f) => (
           <li
             key={f.user_id}
-            className="inline-flex items-center gap-2 rounded-full border border-amber-300 bg-white px-3 py-1.5 text-sm font-semibold text-navy"
+            className="inline-flex items-center gap-2 rounded-full border border-amber-300 bg-card px-3 py-1.5 text-sm font-semibold text-foreground"
           >
             <span className="font-mono">{f.who}</span>
-            <span className="rounded-full bg-amber-500 px-2 py-0.5 text-xs font-bold text-white">{f.blocks} blocks</span>
+            <span className="rounded-full bg-amber-400 px-2 py-0.5 text-xs font-bold text-amber-950">{f.blocks} blocks</span>
             <span className="text-xs font-medium text-slate-500">last {timeAgo(f.last_at)}</span>
           </li>
         ))}

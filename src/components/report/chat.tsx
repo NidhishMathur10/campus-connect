@@ -28,7 +28,7 @@ export function Bubble({
   if (from === "student") {
     return (
       <div className={cn("flex animate-slide-up justify-end", className)}>
-        <div className="max-w-[85%] rounded-3xl rounded-br-lg bg-navy px-4 py-3 text-sm text-white shadow-sm sm:max-w-[70%]">
+        <div className="max-w-[85%] rounded-3xl rounded-br-lg bg-primary px-4 py-3 text-sm text-primary-foreground shadow-sm sm:max-w-[70%]">
           {children}
         </div>
       </div>
@@ -42,7 +42,7 @@ export function Bubble({
           "max-w-[85%] rounded-3xl rounded-bl-lg border px-4 py-3 text-sm shadow-sm sm:max-w-[70%]",
           tone === "warning"
             ? "border-amber-200 bg-amber-50 text-amber-900"
-            : "border-slate-200 bg-white text-slate-800",
+            : "border-border bg-card text-slate-800",
         )}
       >
         {children}
@@ -76,7 +76,7 @@ export function AiThinking({ round, hasPhoto }: { round: 1 | 2; hasPhoto: boolea
         <span className="absolute inset-0 animate-ping rounded-full bg-accent-blue/30" />
         <AiAvatar />
       </span>
-      <div className="rounded-3xl rounded-bl-lg border border-sky-tint-2 bg-sky-tint px-4 py-3 text-sm font-semibold text-navy">
+      <div className="rounded-3xl rounded-bl-lg border border-sky-tint-2 bg-sky-tint px-4 py-3 text-sm font-semibold text-foreground">
         <span className="flex items-center gap-2">
           <span className="flex gap-1">
             {[0, 150, 300].map((d) => (
@@ -106,7 +106,7 @@ export function ChatReply({
   const send = () => value.trim() && !busy && onSend(value.trim());
 
   return (
-    <div className="animate-slide-up space-y-2 rounded-3xl border border-slate-200 bg-white p-3 shadow-sm">
+    <div className="animate-slide-up space-y-2 rounded-3xl border border-border bg-card p-3 shadow-sm">
       <div className="flex items-end gap-2">
         <Textarea
           autoFocus
@@ -131,7 +131,7 @@ export function ChatReply({
         type="button"
         onClick={onSkip}
         disabled={busy}
-        className="px-2 text-xs font-semibold text-slate-500 hover:text-navy disabled:opacity-50"
+        className="px-2 text-xs font-semibold text-slate-500 hover:text-foreground disabled:opacity-50"
       >
         Skip — I don&apos;t know / submit without these details
       </button>

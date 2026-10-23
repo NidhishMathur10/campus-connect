@@ -1,5 +1,6 @@
 import { Copy, Languages, ScanSearch, Ticket, type LucideIcon } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
+import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { COLLEGE_NAME } from "@/config/college";
 
 const HIGHLIGHTS: { icon: LucideIcon; text: string }[] = [
@@ -16,7 +17,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
       <aside className="relative hidden overflow-hidden bg-navy p-12 text-white lg:flex lg:flex-col">
         <div className="absolute -top-24 -right-24 size-96 rounded-full border-[40px] border-accent-blue/20" />
         <div className="absolute -bottom-32 -left-16 size-96 rounded-full border-[40px] border-accent-violet/20" />
-        <div className="relative inline-flex w-fit items-center gap-2 rounded-full bg-white px-4 py-2">
+        <div className="relative inline-flex w-fit items-center gap-2 rounded-full bg-card px-4 py-2">
           <Logo />
         </div>
         <div className="relative my-auto w-full max-w-xl space-y-6 py-10">
@@ -41,7 +42,8 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         </div>
       </aside>
 
-      <main className="flex flex-col items-center px-4 py-8 sm:px-8 sm:py-12">
+      <main className="relative flex flex-col items-center px-4 py-8 sm:px-8 sm:py-12">
+        <ThemeToggle className="absolute top-4 right-4 sm:top-6 sm:right-6" />
         <div className="mb-8 lg:hidden">
           <Logo />
         </div>

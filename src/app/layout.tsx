@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Manrope } from "next/font/google";
+import { ThemeProvider } from "@/components/theme/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { APP_NAME, COLLEGE_NAME } from "@/config/college";
@@ -17,15 +18,20 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#F8FAFC",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#F8FAFC" },
+    { media: "(prefers-color-scheme: dark)", color: "#0B1120" },
+  ],
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${manrope.variable} h-full antialiased`}>
+    <html lang="en" suppressHydrationWarning className={`${manrope.variable} h-full antialiased`}>
       <body className="min-h-full">
-        <TooltipProvider>{children}</TooltipProvider>
-        <Toaster theme="light" position="top-center" richColors />
+        <ThemeProvider>
+          <TooltipProvider>{children}</TooltipProvider>
+          <Toaster position="top-center" richColors />
+        </ThemeProvider>
       </body>
     </html>
   );

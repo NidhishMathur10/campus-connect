@@ -20,7 +20,7 @@ import type { TicketEvent } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const EVENT_META: Record<TicketEventType, { icon: LucideIcon; color: string; label: (e: TicketEvent) => string }> = {
-  created: { icon: FilePlus2, color: "bg-navy text-white", label: () => "Ticket submitted" },
+  created: { icon: FilePlus2, color: "bg-primary text-primary-foreground", label: () => "Ticket submitted" },
   status_change: {
     icon: ArrowRightLeft,
     color: "bg-violet-100 text-violet-700",
@@ -62,7 +62,7 @@ export function TicketTimeline({ events }: { events: TicketEvent[] }) {
   }
   return (
     <ol className="relative space-y-5">
-      <span className="absolute top-2 bottom-2 left-[15px] w-px bg-slate-200" aria-hidden />
+      <span className="absolute top-2 bottom-2 left-[15px] w-px bg-border" aria-hidden />
       {events.map((e, i) => {
         const meta = EVENT_META[e.type] ?? EVENT_META.note;
         const Icon = meta.icon;
@@ -71,7 +71,7 @@ export function TicketTimeline({ events }: { events: TicketEvent[] }) {
           <li key={e.id} className="relative flex animate-fade-in gap-3">
             <span
               className={cn(
-                "relative z-10 grid size-8 shrink-0 place-items-center rounded-full ring-4 ring-white",
+                "relative z-10 grid size-8 shrink-0 place-items-center rounded-full ring-4 ring-card",
                 meta.color,
                 last && "shadow-[0_0_0_6px_rgba(59,130,246,0.15)]",
               )}
@@ -80,7 +80,7 @@ export function TicketTimeline({ events }: { events: TicketEvent[] }) {
             </span>
             <div className="min-w-0 flex-1 pt-0.5">
               <div className="flex flex-wrap items-baseline justify-between gap-x-3">
-                <p className="flex items-center gap-2 font-bold text-navy">
+                <p className="flex items-center gap-2 font-bold text-foreground">
                   {meta.label(e)}
                   {(e.is_internal || INTERNAL_EVENT_TYPES.includes(e.type)) && (
                     <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold tracking-wider text-amber-800 uppercase">

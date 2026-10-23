@@ -37,7 +37,7 @@ export function ResolutionPanel({ ticketId }: { ticketId: string }) {
     <div className="animate-slide-up space-y-4 rounded-3xl border-2 border-emerald-200 bg-emerald-50 p-5">
       <div>
         <p className="eyebrow text-emerald-700">Staff marked this resolved</p>
-        <p className="mt-1 text-lg font-extrabold text-navy">Is it fixed?</p>
+        <p className="mt-1 text-lg font-extrabold text-foreground">Is it fixed?</p>
       </div>
       <div className="flex gap-2">
         <Button
@@ -52,7 +52,7 @@ export function ResolutionPanel({ ticketId }: { ticketId: string }) {
           variant={choice === "no" ? "default" : "outline"}
           onClick={() => setChoice("no")}
           disabled={pending}
-          className={cn("flex-1", choice === "no" && "bg-rose-600 hover:bg-rose-700")}
+          className={cn("flex-1", choice === "no" && "bg-rose-600 hover:brightness-90")}
         >
           <ThumbsDown /> No, reopen
         </Button>
@@ -76,7 +76,7 @@ export function ResolutionPanel({ ticketId }: { ticketId: string }) {
                   <Star
                     className={cn(
                       "size-8 transition-colors",
-                      n <= (hover || rating) ? "fill-amber-400 text-amber-400" : "text-slate-300",
+                      n <= (hover || rating) ? "fill-amber-400 text-amber-400" : "text-muted-foreground/40",
                     )}
                   />
                 </button>
@@ -110,7 +110,7 @@ export function ResolutionPanel({ ticketId }: { ticketId: string }) {
           <Button
             onClick={submit}
             disabled={pending || text.trim().length < 3}
-            className="w-full bg-rose-600 hover:bg-rose-700 sm:w-auto"
+            className="w-full bg-rose-600 hover:brightness-90 sm:w-auto"
           >
             {pending ? <Loader2 className="animate-spin" /> : <RotateCcw />} Reopen ticket
           </Button>

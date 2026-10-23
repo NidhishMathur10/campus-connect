@@ -12,7 +12,7 @@ import { ResolutionPanel } from "./resolution-panel";
 import { TicketTimeline } from "./ticket-timeline";
 
 function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return <section className={`rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6 ${className}`}>{children}</section>;
+  return <section className={`rounded-3xl border border-border bg-card p-5 shadow-sm sm:p-6 ${className}`}>{children}</section>;
 }
 
 function Header({
@@ -27,11 +27,11 @@ function Header({
   return (
     <div className="mb-6 animate-slide-up space-y-3">
       <div className="flex flex-wrap items-center gap-2">
-        <span className="rounded-full bg-navy px-3 py-1 font-mono text-sm font-bold text-white">{ticket.ticket_no}</span>
+        <span className="rounded-full bg-primary px-3 py-1 font-mono text-sm font-bold text-primary-foreground">{ticket.ticket_no}</span>
         <span className="eyebrow">{MODULE_LABELS[ticket.module]}</span>
         {live}
       </div>
-      <h1 className="text-2xl font-extrabold tracking-tight text-navy sm:text-4xl">{ticket.title}</h1>
+      <h1 className="text-2xl font-extrabold tracking-tight text-foreground sm:text-4xl">{ticket.title}</h1>
       <div className="flex flex-wrap gap-1.5">
         <StatusBadge status={ticket.status} />
         <CategoryBadge category={ticket.category} />
@@ -52,8 +52,8 @@ function SlaLine({ ticket }: { ticket: Ticket }) {
   if (!ticket.sla_due_at || !OPEN_STATUSES.includes(ticket.status)) return null;
   const overdue = isOverdue(ticket.sla_due_at);
   return (
-    <p className={`flex items-center gap-2 text-sm font-semibold ${overdue ? "text-red-600" : "text-slate-700"}`}>
-      <Timer className="size-4 text-slate-400" />
+    <p className={`flex items-center gap-2 text-sm font-semibold ${overdue ? "text-red-700" : "text-slate-700"}`}>
+      <Timer className="size-4 text-slate-500" />
       {overdue ? "Overdue — target was " : "Target fix by "}
       {formatDateTime(ticket.sla_due_at)}
     </p>
@@ -133,7 +133,7 @@ export function TicketDetail({
               <span className="eyebrow">{isReporter ? "Your rating" : "Student rating"}</span>
               <span className="flex">
                 {[1, 2, 3, 4, 5].map((n) => (
-                  <Star key={n} className={`size-5 ${n <= ticket.rating! ? "fill-amber-400 text-amber-400" : "text-slate-300"}`} />
+                  <Star key={n} className={`size-5 ${n <= ticket.rating! ? "fill-amber-400 text-amber-400" : "text-muted-foreground/40"}`} />
                 ))}
               </span>
               {ticket.feedback && <span className="text-sm text-slate-600">“{ticket.feedback}”</span>}
@@ -149,8 +149,8 @@ export function TicketDetail({
               )}
             </div>
             <div className="grid gap-3 text-sm sm:grid-cols-2">
-              <p className="flex items-center gap-2 font-semibold text-slate-700"><MapPin className="size-4 text-slate-400" /> {formatLocation(ticket)}</p>
-              <p className="flex items-center gap-2 font-semibold text-slate-700"><Building2 className="size-4 text-slate-400" /> {ticket.department}</p>
+              <p className="flex items-center gap-2 font-semibold text-slate-700"><MapPin className="size-4 text-slate-500" /> {formatLocation(ticket)}</p>
+              <p className="flex items-center gap-2 font-semibold text-slate-700"><Building2 className="size-4 text-slate-500" /> {ticket.department}</p>
               <SlaLine ticket={ticket} />
               {ticket.resolved_at && (
                 <p className="flex items-center gap-2 font-semibold text-emerald-700"><Clock className="size-4" /> Resolved {formatDateTime(ticket.resolved_at)}</p>
@@ -168,7 +168,7 @@ export function TicketDetail({
               {ticket.photo_url && (
                 <a href={ticket.photo_url} target="_blank" rel="noreferrer">
                   {/* eslint-disable-next-line @next/next/no-img-element -- Supabase storage URL */}
-                  <img src={ticket.photo_url} alt="Complaint photo" className="h-52 w-full rounded-2xl border border-slate-200 object-cover" />
+                  <img src={ticket.photo_url} alt="Complaint photo" className="h-52 w-full rounded-2xl border border-border object-cover" />
                 </a>
               )}
               {ticket.photo_analysis && <PhotoAnalysisBox analysis={ticket.photo_analysis} />}
@@ -194,7 +194,7 @@ export function TicketDetail({
                 if (!meta) return null;
                 return (
                   <div key={field} className="space-y-0.5 text-sm">
-                    <p className="flex items-center gap-2 font-semibold text-navy capitalize">
+                    <p className="flex items-center gap-2 font-semibold text-foreground capitalize">
                       {field}: <span className="font-bold">{field === "category" ? ticket.category : field === "department" ? ticket.department : ticket.priority}</span>
                       <Confidence value={meta.confidence} />
                     </p>
@@ -224,13 +224,13 @@ export function TrackedTicketView({ ticket, events }: { ticket: TrackedTicket; e
         <Card className="h-fit space-y-3 text-sm">
           <p className="eyebrow">Ticket status</p>
           <p className="flex items-center gap-2 font-semibold text-slate-700">
-            <MapPin className="size-4 text-slate-400" /> {formatLocation({ building: ticket.building, floor: ticket.floor })}
+            <MapPin className="size-4 text-slate-500" /> {formatLocation({ building: ticket.building, floor: ticket.floor })}
           </p>
           <p className="flex items-center gap-2 font-semibold text-slate-700">
-            <Building2 className="size-4 text-slate-400" /> {ticket.department}
+            <Building2 className="size-4 text-slate-500" /> {ticket.department}
           </p>
           <p className="flex items-center gap-2 text-slate-500">
-            <Clock className="size-4 text-slate-400" /> Last update {timeAgo(ticket.updated_at)}
+            <Clock className="size-4 text-slate-500" /> Last update {timeAgo(ticket.updated_at)}
           </p>
           <p className="rounded-2xl bg-slate-50 p-3 text-xs text-slate-500">
             This is the public tracking view. Only the student who reported it (and students who joined with

@@ -88,10 +88,10 @@ function MoveForm({
     <>
       <DialogHeader className="text-left">
         <p className="eyebrow">{ticket.ticket_no}</p>
-        <DialogTitle className="text-lg font-extrabold text-navy">{ticket.title}</DialogTitle>
+        <DialogTitle className="text-lg font-extrabold text-foreground">{ticket.title}</DialogTitle>
         <DialogDescription asChild>
           <div className="flex items-center gap-2 pt-1">
-            <StatusBadge status={ticket.status} /> <ArrowRight className="size-4 text-slate-400" /> <StatusBadge status={to} />
+            <StatusBadge status={ticket.status} /> <ArrowRight className="size-4 text-slate-500" /> <StatusBadge status={to} />
           </div>
         </DialogDescription>
       </DialogHeader>
@@ -109,7 +109,7 @@ function MoveForm({
 
       <div className="space-y-1.5">
         <Label htmlFor="move-note">
-          Note for the student {noteRequired ? <span className="text-red-600">*</span> : <span className="text-slate-400">(optional)</span>}
+          Note for the student {noteRequired ? <span className="text-red-700">*</span> : <span className="text-slate-500">(optional)</span>}
         </Label>
         <Textarea
           id="move-note"

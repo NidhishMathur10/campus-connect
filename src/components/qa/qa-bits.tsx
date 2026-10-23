@@ -29,7 +29,7 @@ export function TeacherAnsweredBadge() {
 
 export function BestAnswerBadge() {
   return (
-    <span className={cn(pill, "border-emerald-600 bg-emerald-600 text-white")}>
+    <span className={cn(pill, "border-[#047857] bg-[#047857] text-white")}>
       <BadgeCheck className="size-3" /> Best answer
     </span>
   );

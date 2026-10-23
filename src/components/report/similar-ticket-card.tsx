@@ -42,7 +42,7 @@ export function SimilarTicketCard({
         <p className="eyebrow flex items-center gap-1.5 text-amber-700">
           <Copy className="size-3.5" /> Similar open ticket found
         </p>
-        <p className="text-lg font-extrabold text-navy">
+        <p className="text-lg font-extrabold text-foreground">
           {match.is_own
             ? `You already reported this as ${match.ticket_no}`
             : following
@@ -56,11 +56,11 @@ export function SimilarTicketCard({
 
       <div className="space-y-2 px-4 pt-3">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="font-mono text-sm font-bold text-navy">{match.ticket_no}</span>
+          <span className="font-mono text-sm font-bold text-foreground">{match.ticket_no}</span>
           <StatusBadge status={match.status as TicketStatus} />
           <span className="text-xs text-slate-500">reported {timeAgo(match.created_at)}</span>
         </div>
-        <p className="font-bold text-navy">{match.title}</p>
+        <p className="font-bold text-foreground">{match.title}</p>
         {match.summary && <p className="text-sm text-slate-600">{match.summary}</p>}
         <p className="flex items-center gap-1.5 text-xs font-semibold text-slate-500">
           <MapPin className="size-3.5" /> {formatLocation(match)}

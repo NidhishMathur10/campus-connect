@@ -81,7 +81,7 @@ export function PreviewCard({
   const translated = draft.language !== "en" && draft.english_text && draft.english_text !== originalText;
 
   return (
-    <div className="animate-slide-up overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-lg shadow-slate-900/5">
+    <div className="animate-slide-up overflow-hidden rounded-3xl border border-border bg-card shadow-lg shadow-slate-900/5">
       <div className="bg-navy px-5 py-5 text-white sm:px-7">
         <p className="eyebrow flex items-center gap-1.5 text-sky-300">
           <Sparkles className="size-3.5" /> {manual ? "Your ticket" : "AI ticket preview"}
@@ -144,8 +144,8 @@ export function PreviewCard({
           </section>
           <section className="space-y-1.5">
             <p className="eyebrow">Department</p>
-            <p className="flex h-11 items-center gap-2 font-semibold text-navy">
-              <Building2 className="size-4 text-slate-400" /> {draft.category ? draft.department : "—"}
+            <p className="flex h-11 items-center gap-2 font-semibold text-foreground">
+              <Building2 className="size-4 text-slate-500" /> {draft.category ? draft.department : "—"}
             </p>
             {aiCategory && draft.ai?.reasons.department && (
               <p className="text-xs text-slate-500">{draft.ai.reasons.department}</p>
@@ -166,7 +166,7 @@ export function PreviewCard({
         <section className="space-y-1">
           <p className="eyebrow">Location</p>
           <p className="flex items-center gap-2 text-sm font-semibold text-slate-700">
-            <MapPin className="size-4 text-slate-400" /> {formatLocation(draft.location)}
+            <MapPin className="size-4 text-slate-500" /> {formatLocation(draft.location)}
             <ScopeBadge scope={draft.scope} />
           </p>
         </section>
@@ -175,7 +175,7 @@ export function PreviewCard({
           <div className="grid gap-3 sm:grid-cols-[160px_1fr]">
             {photoUrl && (
               // eslint-disable-next-line @next/next/no-img-element -- local blob preview
-              <img src={photoUrl} alt="Your photo" className="h-40 w-full rounded-2xl border border-slate-200 object-cover sm:w-40" />
+              <img src={photoUrl} alt="Your photo" className="h-40 w-full rounded-2xl border border-border object-cover sm:w-40" />
             )}
             {draft.photo_analysis && <PhotoAnalysisBox analysis={draft.photo_analysis} />}
           </div>
@@ -242,7 +242,7 @@ function PrivacyOptions({
   const toggle = "mt-0.5 size-4 shrink-0 accent-navy";
 
   return (
-    <section className={`space-y-3 rounded-2xl border p-4 ${confidential ? "border-slate-800 bg-slate-900 text-white" : "border-slate-200 bg-slate-50"}`}>
+    <section className={`space-y-3 rounded-2xl border p-4 ${confidential ? "border-ink bg-ink text-white" : "border-border bg-slate-50"}`}>
       <p className={`eyebrow flex items-center gap-1.5 ${confidential ? "text-sky-300" : ""}`}>
         {confidential ? <Lock className="size-3.5" /> : <Unlock className="size-3.5" />}
         {confidential ? "Confidential report" : "Not confidential"}

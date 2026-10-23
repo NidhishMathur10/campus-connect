@@ -60,7 +60,7 @@ type ActionResult = { ok: true } | { ok: false; error: string };
 
 function Section({ title, icon: Icon, children, className }: { title: string; icon?: typeof Sparkles; children: React.ReactNode; className?: string }) {
   return (
-    <section className={cn("space-y-3 rounded-3xl border border-slate-200 bg-white p-4 sm:p-5", className)}>
+    <section className={cn("space-y-3 rounded-3xl border border-border bg-card p-4 sm:p-5", className)}>
       <p className="eyebrow flex items-center gap-1.5">
         {Icon && <Icon className="size-3.5" />} {title}
       </p>
@@ -77,7 +77,7 @@ function ConfidenceBar({ label, value, meta }: { label: string; value: string; m
         <p className="eyebrow">{label}</p>
         {pct != null && <span className="text-xs font-bold text-slate-600">{pct}%</span>}
       </div>
-      <p className="text-sm font-bold text-navy">{value}</p>
+      <p className="text-sm font-bold text-foreground">{value}</p>
       {pct != null && (
         <div className="h-1.5 overflow-hidden rounded-full bg-slate-100">
           <div
@@ -95,7 +95,7 @@ function Photo({ url, alt, className }: { url: string; alt: string; className?: 
   const [open, setOpen] = useState(false);
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} className={cn("block overflow-hidden rounded-2xl border border-slate-200", className)}>
+      <button type="button" onClick={() => setOpen(true)} className={cn("block overflow-hidden rounded-2xl border border-border", className)}>
         {/* eslint-disable-next-line @next/next/no-img-element -- Supabase storage URL */}
         <img src={url} alt={alt} className="h-full w-full object-cover transition-transform hover:scale-105" />
       </button>
@@ -123,13 +123,13 @@ function CompareColumn({
   reporters: number;
 }) {
   return (
-    <div className="min-w-0 space-y-2 rounded-2xl border border-amber-200 bg-white p-3 text-sm">
+    <div className="min-w-0 space-y-2 rounded-2xl border border-amber-200 bg-card p-3 text-sm">
       <p className="eyebrow text-amber-700">{heading}</p>
       <div className="flex flex-wrap items-center gap-1.5">
-        <span className="font-mono text-xs font-bold text-navy">{t.ticket_no}</span>
+        <span className="font-mono text-xs font-bold text-foreground">{t.ticket_no}</span>
         <StatusBadge status={t.status} className="text-[11px]" />
       </div>
-      <p className="font-bold text-navy">{t.title}</p>
+      <p className="font-bold text-foreground">{t.title}</p>
       {t.summary && <p className="text-xs text-slate-600">{t.summary}</p>}
       <p className="flex items-start gap-1 text-xs text-slate-500"><MapPin className="mt-0.5 size-3.5 shrink-0" /> {formatLocation(t)}</p>
       <p className="flex items-center gap-1 text-xs text-slate-500"><Users className="size-3.5" /> {reporters} student{reporters === 1 ? "" : "s"}</p>
@@ -137,7 +137,7 @@ function CompareColumn({
       {t.photo_url ? (
         <Photo url={t.photo_url} alt={`Photo on ${t.ticket_no}`} className="h-28 w-full" />
       ) : (
-        <p className="rounded-xl bg-slate-50 p-2 text-center text-xs text-slate-400">No photo</p>
+        <p className="rounded-xl bg-slate-50 p-2 text-center text-xs text-slate-500">No photo</p>
       )}
     </div>
   );
@@ -164,10 +164,10 @@ function DuplicateBanner({
     <div className="space-y-3 rounded-3xl border-2 border-amber-300 bg-amber-50 p-4 sm:p-5">
       <div className="space-y-1">
         <p className="eyebrow flex items-center gap-1.5 text-amber-700"><Copy className="size-3.5" /> Duplicate review</p>
-        <p className="text-lg font-extrabold text-navy">
+        <p className="text-lg font-extrabold text-foreground">
           Possible duplicate of{" "}
           {original ? (
-            <button type="button" onClick={() => onOpenTicket(original.ticket_no)} className="text-accent-blue underline-offset-2 hover:underline">
+            <button type="button" onClick={() => onOpenTicket(original.ticket_no)} className="text-accent-text underline-offset-2 hover:underline">
               {original.ticket_no}
             </button>
           ) : (
@@ -186,7 +186,7 @@ function DuplicateBanner({
       {canManage && (
         <div className="flex flex-col gap-2 sm:flex-row">
           <Button
-            className="flex-1 bg-amber-600 hover:bg-amber-700"
+            className="flex-1 bg-[#b45309] text-white hover:brightness-90"
             disabled={!original}
             onClick={() => run("merge", () => mergeDuplicate(ticket.id), `Merged into ${origNo}`)}
           >
@@ -258,11 +258,11 @@ function ActionsPanel({
                 onChange={(e) => setReopenReason(e.target.value)}
                 placeholder="Why? e.g. Problem is back according to the floor rep"
                 maxLength={500}
-                className="bg-white"
+                className="bg-card"
               />
               <Button
                 size="sm"
-                className="bg-rose-600 hover:bg-rose-700"
+                className="bg-rose-600 hover:brightness-90"
                 disabled={reopenReason.trim().length < 3 || busy === "reopen"}
                 onClick={() =>
                   run(
@@ -317,7 +317,7 @@ function ActionsPanel({
               onChange={(e) => setNote(e.target.value)}
               placeholder={noteVisible ? "Message the student sees in their timeline" : "Internal note — only staff can see this"}
               maxLength={1000}
-              className="min-h-16 bg-white"
+              className="min-h-16 bg-card"
             />
             <div className="flex flex-wrap items-center justify-between gap-2">
               <label className="flex items-center gap-2 text-xs font-semibold text-slate-600">
@@ -345,8 +345,8 @@ function ActionsPanel({
             </div>
           </div>
 
-          <details className="group rounded-2xl border border-slate-200 p-3">
-            <summary className="cursor-pointer text-sm font-semibold text-navy">Correct the AI (override category / department / priority)</summary>
+          <details className="group rounded-2xl border border-border p-3">
+            <summary className="cursor-pointer text-sm font-semibold text-foreground">Correct the AI (override category / department / priority)</summary>
             <div className="mt-3 grid gap-2 sm:grid-cols-2">
               <SimpleSelect
                 value={OVERRIDE_LABELS[field]}
@@ -446,7 +446,7 @@ function EscalationPanel({
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="rounded-3xl sm:max-w-md">
           <DialogHeader className="text-left">
-            <DialogTitle className="text-lg font-extrabold text-navy">Escalate {ticket.ticket_no} to the {target}</DialogTitle>
+            <DialogTitle className="text-lg font-extrabold text-foreground">Escalate {ticket.ticket_no} to the {target}</DialogTitle>
             <DialogDescription>It appears in their Escalations inbox with an AI-written brief.</DialogDescription>
           </DialogHeader>
           <Textarea
@@ -589,11 +589,11 @@ function DrawerBody({
     <div className="space-y-4 p-4 pb-10 sm:p-6">
       <SheetHeader className="space-y-2 p-0 pr-10">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="rounded-full bg-navy px-3 py-1 font-mono text-sm font-bold text-white">{ticket.ticket_no}</span>
+          <span className="rounded-full bg-primary px-3 py-1 font-mono text-sm font-bold text-primary-foreground">{ticket.ticket_no}</span>
           <span className="eyebrow">{MODULE_LABELS[ticket.module]}</span>
-          {!canManage && <span className="rounded-full bg-slate-200 px-2.5 py-0.5 text-xs font-semibold text-slate-600">Read-only</span>}
+          {!canManage && <span className="rounded-full bg-border px-2.5 py-0.5 text-xs font-semibold text-slate-600">Read-only</span>}
         </div>
-        <SheetTitle className="text-2xl font-extrabold tracking-tight text-navy">{ticket.title}</SheetTitle>
+        <SheetTitle className="text-2xl font-extrabold tracking-tight text-foreground">{ticket.title}</SheetTitle>
         <SheetDescription asChild>
           <div className="space-y-2">
             <div className="flex flex-wrap gap-1.5">
@@ -603,7 +603,7 @@ function DrawerBody({
               {ticket.escalated &&
                 (detail.escalations[0] ? (
                   <Link href={`/escalations/${detail.escalations[0].id}`} title="Open the escalation">
-                    <EscalatedBadge className="hover:bg-red-700" />
+                    <EscalatedBadge className="hover:brightness-90" />
                   </Link>
                 ) : (
                   <EscalatedBadge />
@@ -648,7 +648,7 @@ function DrawerBody({
         {ai?.extracted_issue && (
           <div>
             <p className="eyebrow">Extracted issue</p>
-            <p className="text-sm font-semibold text-navy">{ai.extracted_issue}</p>
+            <p className="text-sm font-semibold text-foreground">{ai.extracted_issue}</p>
           </div>
         )}
         <div>
@@ -683,9 +683,9 @@ function DrawerBody({
           </>
         )}
         <div className="flex flex-wrap items-center gap-2 text-sm font-semibold text-slate-700">
-          <MapPin className="size-4 text-slate-400" />
+          <MapPin className="size-4 text-slate-500" />
           {formatPlace(ticket) && (
-            <span className="rounded-full bg-navy px-3 py-0.5 text-sm font-bold text-white">{formatPlace(ticket)}</span>
+            <span className="rounded-full bg-primary px-3 py-0.5 text-sm font-bold text-primary-foreground">{formatPlace(ticket)}</span>
           )}
           <span>{formatLocation({ building: ticket.building, floor: ticket.floor })}</span>
           <ScopeBadge scope={ticket.scope} />
@@ -701,7 +701,7 @@ function DrawerBody({
       <Section title="Reporter" icon={User}>
         <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
           <div>
-            <p className="font-bold text-navy">{reporterHidden ? CONFIDENTIAL_REPORTER : (reporter?.full_name ?? "Student")}</p>
+            <p className="font-bold text-foreground">{reporterHidden ? CONFIDENTIAL_REPORTER : (reporter?.full_name ?? "Student")}</p>
             <p className="text-slate-500">
               {reporterHidden
                 ? "The student asked to hide their name. Only the Anti-Ragging Committee and the Dean can see who reported this."

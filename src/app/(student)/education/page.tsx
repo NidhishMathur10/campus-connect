@@ -44,14 +44,14 @@ export default async function EducationPage({ searchParams }: { searchParams: Pr
         }
       />
 
-      <nav className="mb-6 flex w-full gap-1 rounded-full border border-slate-200 bg-white p-1 shadow-sm sm:w-fit">
+      <nav className="mb-6 flex w-full gap-1 rounded-full border border-border bg-card p-1 shadow-sm sm:w-fit">
         {TABS.map(({ value, label, icon: Icon }) => (
           <Link
             key={value}
             href={value === "issues" ? "/education" : "/education?tab=qa"}
             className={cn(
               "flex flex-1 items-center justify-center gap-2 rounded-full px-5 py-2 text-sm font-bold whitespace-nowrap transition-colors sm:flex-none",
-              tab === value ? "bg-navy text-white" : "text-slate-600 hover:bg-slate-100",
+              tab === value ? "bg-primary text-primary-foreground" : "text-slate-600 hover:bg-slate-100",
             )}
           >
             <Icon className="size-4" /> {label}

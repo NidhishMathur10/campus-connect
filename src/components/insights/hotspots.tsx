@@ -25,8 +25,8 @@ async function fetchInsight(key: string, days: number, force: boolean): Promise<
 }
 
 const TREND = {
-  up: { icon: TrendingUp, className: "text-red-600", label: "Rising" },
-  down: { icon: TrendingDown, className: "text-emerald-600", label: "Falling" },
+  up: { icon: TrendingUp, className: "text-red-700", label: "Rising" },
+  down: { icon: TrendingDown, className: "text-emerald-700", label: "Falling" },
   flat: { icon: Minus, className: "text-slate-500", label: "Steady" },
 };
 
@@ -70,7 +70,7 @@ export function Hotspots({ hotspots, days }: { hotspots: Hotspot[]; days: number
         const rec = recs[h.key] ?? h.insight?.recommendation;
         const isOpen = open === h.key;
         return (
-          <li key={h.key} className={cn("rounded-2xl border bg-white transition-colors", isOpen ? "border-accent-blue" : "border-slate-200")}>
+          <li key={h.key} className={cn("rounded-2xl border bg-card transition-colors", isOpen ? "border-accent-blue" : "border-border")}>
             <button type="button" onClick={() => setOpen(isOpen ? null : h.key)} className="flex w-full items-center gap-3 p-3.5 text-left">
               <span
                 className={cn(
@@ -81,7 +81,7 @@ export function Hotspots({ hotspots, days }: { hotspots: Hotspot[]; days: number
                 {i === 0 ? <Flame className="size-4" /> : h.count}
               </span>
               <div className="min-w-0 flex-1">
-                <p className="flex items-center gap-2 font-bold text-navy">
+                <p className="flex items-center gap-2 font-bold text-foreground">
                   <span className="truncate">{h.label}</span>
                   {h.floorLevel && (
                     <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-indigo-200 bg-indigo-50 px-2 py-0.5 text-[11px] font-semibold text-indigo-700">
@@ -98,12 +98,12 @@ export function Hotspots({ hotspots, days }: { hotspots: Hotspot[]; days: number
                   </span>
                 </p>
               </div>
-              <ChevronDown className={cn("size-4 shrink-0 text-slate-400 transition-transform", isOpen && "rotate-180")} />
+              <ChevronDown className={cn("size-4 shrink-0 text-slate-500 transition-transform", isOpen && "rotate-180")} />
             </button>
 
-            <div className="space-y-3 border-t border-slate-100 px-3.5 pt-3 pb-3.5">
+            <div className="space-y-3 border-t border-border/60 px-3.5 pt-3 pb-3.5">
               <div className="flex items-start gap-2 rounded-xl bg-sky-tint p-2.5 text-sm">
-                <Sparkles className="mt-0.5 size-4 shrink-0 text-accent-blue" />
+                <Sparkles className="mt-0.5 size-4 shrink-0 text-accent-text" />
                 <p className="flex-1 text-slate-800">
                   {rec ?? (loading[h.key] ? "Gemini is thinking…" : "No recommendation yet.")}
                   {h.insight?.stale && !recs[h.key] && <span className="ml-1 text-xs text-amber-700">(new tickets since — refresh)</span>}
@@ -129,9 +129,9 @@ export function Hotspots({ hotspots, days }: { hotspots: Hotspot[]; days: number
                         href={`/staff/history?t=${t.ticket_no}`}
                         className="flex items-center gap-2 rounded-xl px-2 py-1.5 text-sm hover:bg-slate-50"
                       >
-                        <span className="font-mono text-xs font-bold text-accent-blue">{t.ticket_no}</span>
+                        <span className="font-mono text-xs font-bold text-accent-text">{t.ticket_no}</span>
                         <span className="min-w-0 flex-1 truncate text-slate-700">{t.title}</span>
-                        <span className="hidden text-xs text-slate-400 sm:inline">{timeAgo(t.created_at)}</span>
+                        <span className="hidden text-xs text-slate-500 sm:inline">{timeAgo(t.created_at)}</span>
                         <StatusBadge status={t.status} className="text-[11px]" />
                       </Link>
                     </li>

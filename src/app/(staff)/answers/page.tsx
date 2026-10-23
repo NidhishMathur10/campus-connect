@@ -49,7 +49,7 @@ export default async function MyAnswersPage() {
           {answers.map((a) => (
             <li
               key={a.answer_id}
-              className="group relative animate-slide-up space-y-2 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-accent-blue hover:shadow-md"
+              className="group relative animate-slide-up space-y-2 rounded-3xl border border-border bg-card p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-accent-blue hover:shadow-md"
             >
               <div className="flex flex-wrap items-center gap-1.5">
                 <SubjectBadge subject={a.subject} />
@@ -59,7 +59,7 @@ export default async function MyAnswersPage() {
                   </span>
                 )}
               </div>
-              <h3 className="font-bold text-navy group-hover:text-accent-blue">
+              <h3 className="font-bold text-foreground group-hover:text-accent-text">
                 <Link href={`/qa/${a.question_id}`} className="after:absolute after:inset-0 after:rounded-3xl">
                   {a.question_title}
                 </Link>

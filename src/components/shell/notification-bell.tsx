@@ -62,7 +62,7 @@ export function NotificationBell({ userId, align = "end" }: { userId: string; al
         <span className="sr-only">Notifications{unread ? ` (${unread} unread)` : ""}</span>
       </DropdownMenuTrigger>
       <DropdownMenuContent align={align} className="w-[min(22rem,calc(100vw-2rem))] rounded-2xl p-2">
-        <DropdownMenuLabel className="px-2 py-1.5 text-sm font-bold text-navy">Notifications</DropdownMenuLabel>
+        <DropdownMenuLabel className="px-2 py-1.5 text-sm font-bold text-foreground">Notifications</DropdownMenuLabel>
         <DropdownMenuSeparator />
         {items.length === 0 ? (
           <p className="px-3 py-6 text-center text-sm text-slate-500">Nothing yet — answers to your questions and ticket updates show up here.</p>
@@ -72,13 +72,13 @@ export function NotificationBell({ userId, align = "end" }: { userId: string; al
               const Icon = ICONS[n.kind] ?? Bell;
               const inner = (
                 <>
-                  <span className={cn("mt-0.5 grid size-8 shrink-0 place-items-center rounded-full", n.read_at ? "bg-slate-100 text-slate-500" : "bg-sky-tint-2 text-accent-blue")}>
+                  <span className={cn("mt-0.5 grid size-8 shrink-0 place-items-center rounded-full", n.read_at ? "bg-slate-100 text-slate-500" : "bg-sky-tint-2 text-accent-text")}>
                     <Icon className="size-4" />
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className={cn("block text-sm", n.read_at ? "font-medium text-slate-700" : "font-bold text-navy")}>{n.title}</span>
+                    <span className={cn("block text-sm", n.read_at ? "font-medium text-slate-700" : "font-bold text-foreground")}>{n.title}</span>
                     {n.body && <span className="block truncate text-xs text-slate-500">{n.body}</span>}
-                    <span className="block text-[11px] text-slate-400">{timeAgo(n.created_at)}</span>
+                    <span className="block text-[11px] text-slate-500">{timeAgo(n.created_at)}</span>
                   </span>
                   {!n.read_at && <span className="mt-2 size-2 shrink-0 rounded-full bg-accent-blue" />}
                 </>

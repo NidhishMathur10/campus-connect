@@ -37,10 +37,10 @@ export default async function EscalationsPage({ searchParams }: { searchParams: 
 
   const cards = stats
     ? [
-        { label: "Open escalations", value: stats.openEscalations, icon: Siren, tone: "text-red-600" },
-        { label: "Acknowledged", value: stats.acknowledged, icon: CheckCircle2, tone: "text-blue-600" },
-        { label: "Open tickets", value: stats.openTickets, icon: Inbox, tone: "text-navy" },
-        { label: "Past deadline", value: stats.overdueTickets, icon: Timer, tone: "text-orange-600" },
+        { label: "Open escalations", value: stats.openEscalations, icon: Siren, tone: "text-red-700" },
+        { label: "Acknowledged", value: stats.acknowledged, icon: CheckCircle2, tone: "text-blue-700" },
+        { label: "Open tickets", value: stats.openTickets, icon: Inbox, tone: "text-foreground" },
+        { label: "Past deadline", value: stats.overdueTickets, icon: Timer, tone: "text-orange-700" },
         {
           label: "Avg rating (30d)",
           value: stats.avgRating ? stats.avgRating.toFixed(1) : "—",
@@ -62,7 +62,7 @@ export default async function EscalationsPage({ searchParams }: { searchParams: 
 
       <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         {cards.map(({ label, value, icon: Icon, tone, hint }) => (
-          <div key={label} className="animate-slide-up rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+          <div key={label} className="animate-slide-up rounded-3xl border border-border bg-card p-4 shadow-sm sm:p-5">
             <div className="flex items-center justify-between">
               <p className="eyebrow">{label}</p>
               <Icon className={cn("size-4", tone)} />
@@ -73,14 +73,14 @@ export default async function EscalationsPage({ searchParams }: { searchParams: 
         ))}
       </div>
 
-      <nav className="mb-5 flex w-full gap-1 overflow-x-auto rounded-full border border-slate-200 bg-white p-1 sm:w-fit" aria-label="Filter escalations">
+      <nav className="mb-5 flex w-full gap-1 overflow-x-auto rounded-full border border-border bg-card p-1 sm:w-fit" aria-label="Filter escalations">
         {TABS.map((t) => (
           <Link
             key={t.value}
             href={t.value === "active" ? "/escalations" : `/escalations?tab=${t.value}`}
             className={cn(
               "rounded-full px-4 py-2 text-sm font-semibold whitespace-nowrap transition-colors",
-              tab === t.value ? "bg-navy text-white" : "text-slate-600 hover:bg-slate-100",
+              tab === t.value ? "bg-primary text-primary-foreground" : "text-slate-600 hover:bg-slate-100",
             )}
             aria-current={tab === t.value ? "page" : undefined}
           >

@@ -27,12 +27,12 @@ function Panel({
   children: React.ReactNode;
 }) {
   return (
-    <section className="animate-slide-up space-y-3 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+    <section className="animate-slide-up space-y-3 rounded-3xl border border-border bg-card p-5 shadow-sm">
       <div className="flex items-center justify-between gap-2">
-        <h2 className="flex items-center gap-2 text-lg font-extrabold text-navy">
+        <h2 className="flex items-center gap-2 text-lg font-extrabold text-foreground">
           <Icon className="size-5" /> {title}
         </h2>
-        <Link href={href} className="inline-flex items-center gap-1 text-xs font-bold text-accent-blue hover:underline">
+        <Link href={href} className="inline-flex items-center gap-1 text-xs font-bold text-accent-text hover:underline">
           {hrefLabel} <ArrowRight className="size-3.5" />
         </Link>
       </div>
@@ -42,7 +42,7 @@ function Panel({
 }
 
 const empty = (text: string) => (
-  <p className="rounded-2xl border border-dashed border-slate-300 p-4 text-center text-sm text-slate-500">{text}</p>
+  <p className="rounded-2xl border border-dashed border-border p-4 text-center text-sm text-slate-500">{text}</p>
 );
 
 export default async function FacultyHomePage() {
@@ -69,7 +69,7 @@ export default async function FacultyHomePage() {
 
       <div className="grid gap-5 lg:grid-cols-3">
         <Panel title="Unanswered questions" icon={Inbox} href="/qa" hrefLabel="Q&A Board">
-          <p className="text-4xl font-extrabold tracking-tight text-navy">{unanswered}</p>
+          <p className="text-4xl font-extrabold tracking-tight text-foreground">{unanswered}</p>
           {queue.length === 0 ? (
             empty("All caught up — every question has a teacher answer.")
           ) : (
@@ -77,7 +77,7 @@ export default async function FacultyHomePage() {
               {queue.map((g) => (
                 <li key={g.subject} className="flex items-center justify-between gap-2">
                   <SubjectBadge subject={g.subject} />
-                  <span className="text-sm font-extrabold text-navy">{g.questions.length}</span>
+                  <span className="text-sm font-extrabold text-foreground">{g.questions.length}</span>
                 </li>
               ))}
             </ul>
@@ -93,10 +93,10 @@ export default async function FacultyHomePage() {
                 <li key={t.id}>
                   <Link href={`/reports/${t.ticket_no}`} className="block space-y-1 rounded-2xl px-3 py-2 hover:bg-sky-tint">
                     <span className="flex items-center justify-between gap-2">
-                      <span className="font-mono text-[11px] font-bold text-accent-blue">{t.ticket_no}</span>
+                      <span className="font-mono text-[11px] font-bold text-accent-text">{t.ticket_no}</span>
                       <StatusBadge status={t.status} />
                     </span>
-                    <span className="line-clamp-1 block text-sm font-bold text-navy">{t.title}</span>
+                    <span className="line-clamp-1 block text-sm font-bold text-foreground">{t.title}</span>
                     <CategoryBadge category={t.category} className="px-2 text-[11px]" />
                   </Link>
                 </li>
@@ -113,9 +113,9 @@ export default async function FacultyHomePage() {
               {answers.map((a) => (
                 <li key={a.answer_id}>
                   <Link href={`/qa/${a.question_id}`} className="block space-y-0.5 rounded-2xl px-3 py-2 hover:bg-sky-tint">
-                    <span className="line-clamp-2 block text-sm font-bold text-navy">{a.question_title}</span>
+                    <span className="line-clamp-2 block text-sm font-bold text-foreground">{a.question_title}</span>
                     <span className="flex items-center gap-1.5 text-xs text-slate-500">
-                      {a.is_best && <BadgeCheck className="size-3.5 text-emerald-600" />}
+                      {a.is_best && <BadgeCheck className="size-3.5 text-emerald-700" />}
                       {a.is_best ? "Best answer · " : ""}
                       {a.answer_upvotes} upvote{a.answer_upvotes === 1 ? "" : "s"} · {timeAgo(a.created_at)}
                     </span>

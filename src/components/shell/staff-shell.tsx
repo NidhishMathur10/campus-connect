@@ -12,6 +12,7 @@ import { isFaculty } from "@/config/faculty";
 import { cn } from "@/lib/utils";
 import type { Role } from "@/config/roles";
 import { isActive, STAFF_NAV, type NavItem } from "./nav-items";
+import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { NotificationBell } from "./notification-bell";
 import { UserAvatar, UserMenu, type ShellUser } from "./user-menu";
 
@@ -28,7 +29,7 @@ function NavLinks({ items, pathname, onNavigate }: { items: NavItem[]; pathname:
               onClick={onNavigate}
               className={cn(
                 "flex items-center gap-3 rounded-2xl px-3.5 py-2.5 text-sm font-semibold transition-colors",
-                active ? "bg-navy text-white shadow-sm" : "text-slate-600 hover:bg-sky-tint hover:text-navy",
+                active ? "bg-primary text-primary-foreground shadow-sm" : "text-slate-600 hover:bg-sky-tint hover:text-foreground",
               )}
             >
               <Icon className="size-4.5" />
@@ -63,7 +64,7 @@ export function StaffShell({
     <div className="min-h-dvh lg:pl-72">
       {/* Desktop sidebar */}
       <aside className="fixed inset-y-0 left-0 z-40 hidden w-72 p-4 lg:block">
-        <div className="flex h-full flex-col rounded-3xl border border-slate-200/80 bg-white p-4 shadow-[0_8px_30px_-12px_rgba(15,23,42,0.15)]">
+        <div className="flex h-full flex-col rounded-3xl border border-border/80 bg-card p-4 shadow-[0_8px_30px_-12px_rgba(15,23,42,0.15)]">
           <Link href={items[0]?.href ?? "/"} className="px-2 pt-1">
             <Logo />
           </Link>
@@ -72,10 +73,14 @@ export function StaffShell({
           <p className="eyebrow mt-8 mb-2 px-3">Workspace</p>
           <NavLinks items={items} pathname={pathname} />
 
-          <div className="mt-auto flex items-center gap-3 rounded-2xl bg-sky-tint p-3">
+          <div className="mt-auto flex items-center justify-between px-2 pb-3">
+            <span className="eyebrow">Theme</span>
+            <ThemeToggle />
+          </div>
+          <div className="flex items-center gap-3 rounded-2xl bg-sky-tint p-3">
             <UserAvatar name={user.fullName} />
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-bold text-navy">{user.fullName}</p>
+              <p className="truncate text-sm font-bold text-foreground">{user.fullName}</p>
               <p className="truncate text-xs text-slate-500">{user.subtitle ?? user.roleLabel}</p>
             </div>
             {showBell && <NotificationBell userId={userId} align="start" />}
@@ -86,7 +91,7 @@ export function StaffShell({
 
       {/* Mobile top bar */}
       <header className="sticky top-0 z-40 px-3 pt-3 lg:hidden">
-        <nav className="flex h-14 items-center justify-between gap-2 rounded-full border border-slate-200/80 bg-white/90 py-2 pr-2 pl-2 shadow-[0_8px_30px_-12px_rgba(15,23,42,0.18)] backdrop-blur">
+        <nav className="flex h-14 items-center justify-between gap-2 rounded-full border border-border/80 bg-card/90 py-2 pr-2 pl-2 shadow-[0_8px_30px_-12px_rgba(15,23,42,0.18)] backdrop-blur">
           <Sheet open={open} onOpenChange={setOpen}>
             <SheetTrigger asChild>
               <Button variant="ghost" size="icon" aria-label="Open menu">
@@ -106,6 +111,7 @@ export function StaffShell({
           </Sheet>
           <Logo showText={false} />
           <div className="flex items-center gap-1">
+            <ThemeToggle variant="menu" />
             {showBell && <NotificationBell userId={userId} />}
             <UserMenu user={user} />
           </div>

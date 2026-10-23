@@ -18,7 +18,7 @@ import { HOSTELS, type Hostel } from "@/config/locations";
 import { signUp, type FormState } from "../actions";
 
 function FieldError({ message }: { message?: string }) {
-  return message ? <p className="text-xs font-medium text-red-600">{message}</p> : null;
+  return message ? <p className="text-xs font-medium text-red-700">{message}</p> : null;
 }
 
 export function SignupForm({ emailDomain }: { emailDomain: string }) {
@@ -46,7 +46,7 @@ export function SignupForm({ emailDomain }: { emailDomain: string }) {
     <div className="space-y-8">
       <div className="space-y-2">
         <p className="eyebrow">Students only</p>
-        <h1 className="text-3xl font-extrabold tracking-tight text-navy sm:text-4xl">Create your account</h1>
+        <h1 className="text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl">Create your account</h1>
         <p className="text-sm text-slate-600">Your roll number will be your username.</p>
       </div>
 
@@ -167,7 +167,7 @@ export function SignupForm({ emailDomain }: { emailDomain: string }) {
         </Button>
         <p className="text-center text-sm text-slate-600">
           Already have an account?{" "}
-          <Link href="/login" className="font-bold text-accent-blue hover:underline">
+          <Link href="/login" className="font-bold text-accent-text hover:underline">
             Log in
           </Link>
         </p>

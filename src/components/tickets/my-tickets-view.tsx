@@ -57,14 +57,14 @@ export async function MyTicketsView({
       />
 
       <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <nav className="flex w-fit gap-1 rounded-full border border-slate-200 bg-white p-1" aria-label="Filter tickets">
+        <nav className="flex w-fit gap-1 rounded-full border border-border bg-card p-1" aria-label="Filter tickets">
           {FILTERS.map((f) => (
             <Link
               key={f.value}
               href={f.value === "active" ? basePath : `${basePath}?filter=${f.value}`}
               className={cn(
                 "rounded-full px-5 py-2 text-sm font-semibold transition-colors",
-                filter === f.value ? "bg-navy text-white" : "text-slate-600 hover:bg-slate-100",
+                filter === f.value ? "bg-primary text-primary-foreground" : "text-slate-600 hover:bg-slate-100",
               )}
               aria-current={filter === f.value ? "page" : undefined}
             >

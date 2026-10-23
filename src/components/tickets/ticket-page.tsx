@@ -23,7 +23,7 @@ export async function TicketPage({
   if (!ticketNo) notFound();
 
   const back = (
-    <Link href={basePath} className="mb-4 inline-flex items-center gap-1 text-sm font-semibold text-slate-500 hover:text-navy">
+    <Link href={basePath} className="mb-4 inline-flex items-center gap-1 text-sm font-semibold text-slate-500 hover:text-foreground">
       <ArrowLeft className="size-4" /> {backLabel}
     </Link>
   );

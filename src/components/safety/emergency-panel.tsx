@@ -6,9 +6,9 @@ import { cn } from "@/lib/utils";
 export function EmergencyPanel({ emergency = false, className }: { emergency?: boolean; className?: string }) {
   const link = cn(
     "inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-bold transition-colors",
-    emergency ? "bg-white text-red-700 hover:bg-red-50" : "bg-navy text-white hover:bg-slate-800",
+    emergency ? "bg-white text-[#b91c1c] hover:bg-[#fee2e2]" : "bg-navy text-white hover:bg-ink/90",
   );
-  const sub = emergency ? "text-red-100" : "text-slate-500";
+  const sub = emergency ? "text-white/80" : "text-slate-500";
 
   return (
     <section
@@ -16,19 +16,19 @@ export function EmergencyPanel({ emergency = false, className }: { emergency?: b
       aria-label="Emergency contacts"
       className={cn(
         "animate-fade-in space-y-4 rounded-3xl border p-5 shadow-sm transition-colors sm:p-6",
-        emergency ? "border-red-700 bg-red-600 text-white shadow-red-900/20" : "border-rose-200 bg-rose-50 text-navy",
+        emergency ? "border-red-700 bg-red-600 text-white shadow-red-900/20" : "border-rose-200 bg-rose-50 text-foreground",
         className,
       )}
     >
       <div className="flex items-start gap-3">
-        <span className={cn("grid size-10 shrink-0 place-items-center rounded-2xl", emergency ? "bg-white/15" : "bg-white")}>
-          <Siren className={cn("size-5", emergency ? "animate-pulse text-white" : "text-rose-600")} />
+        <span className={cn("grid size-10 shrink-0 place-items-center rounded-2xl", emergency ? "bg-white/15" : "bg-card")}>
+          <Siren className={cn("size-5", emergency ? "animate-pulse text-white" : "text-rose-700")} />
         </span>
         <div>
           <p className="font-extrabold">
             {emergency ? "It sounds like you may be in danger right now." : "If you are in immediate danger"}
           </p>
-          <p className={cn("text-sm", emergency ? "text-red-50" : "text-slate-600")}>
+          <p className={cn("text-sm", emergency ? "text-white/90" : "text-slate-600")}>
             {emergency
               ? "Please call for help now — your report is saved and the right people are being told."
               : "Call Campus Security or 112 first, then report here."}
