@@ -36,6 +36,9 @@ export const DEMO_ACCOUNTS: DemoAccount[] = [
   { loginId: "2616400105", emailLocal: "2616400105", rollNo: "2616400105", fullName: "Vikram Joshi", role: "student", hostel: "New Hostel", wing: "Boys Wing", room: "207", caption: "New Hostel · Room 207", hidden: true },
   { loginId: "2616400106", emailLocal: "2616400106", rollNo: "2616400106", fullName: "Ishaan Gupta", role: "student", hostel: "New Hostel", wing: "Boys Wing", room: "212", caption: "New Hostel · Room 212", hidden: true },
   { loginId: "2616400107", emailLocal: "2616400107", rollNo: "2616400107", fullName: "Dev Malhotra", role: "student", hostel: "New Hostel", wing: "Boys Wing", room: "219", caption: "New Hostel · Room 219", hidden: true },
+  // Two more hidden students so Prof. Das has 8 Mathematics ratings (Aarav has none, for the rating demo).
+  { loginId: "2616400108", emailLocal: "2616400108", rollNo: "2616400108", fullName: "Ananya Rao", role: "student", hostel: "Old Hostel", wing: "Girls Wing", room: "G-110", caption: "Old Hostel · Room G-110", hidden: true },
+  { loginId: "2616400109", emailLocal: "2616400109", rollNo: "2616400109", fullName: "Sahil Bansal", role: "student", hostel: "Old Hostel", wing: "Boys Wing", room: "B-210", caption: "Old Hostel · Room B-210", hidden: true },
   // Department staff
   { loginId: "ramesh", emailLocal: "ramesh", fullName: "Ramesh", role: "staff", department: "Estate / Maintenance", preferredBuildings: ["Old Hostel", "Block A"], caption: "Estate / Maintenance" },
   { loginId: "mahesh", emailLocal: "mahesh", fullName: "Mahesh", role: "staff", department: "Estate / Maintenance", preferredBuildings: ["Block B", "Block C"], caption: "Estate / Maintenance" },

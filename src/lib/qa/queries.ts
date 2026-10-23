@@ -71,6 +71,9 @@ async function loadAuthors(supabase: Supabase, viewer: QaViewer, ids: string[]):
   return map;
 }
 
+/** Shown instead of the asker on questions that were made public from a private doubt. */
+export const ANONYMOUS_AUTHOR: QaAuthor = { id: "anonymous", name: "Anonymous student", role: null, roll_no: null };
+
 export const unknownAuthor = (id: string): QaAuthor => ({ id, name: "Student", role: null, roll_no: null });
 
 /** Strip characters that would break a PostgREST `or=(...)` filter. */
@@ -85,7 +88,7 @@ export async function listQuestions(
   const supabase = await createClient();
   let query = supabase
     .from("questions")
-    .select("id, author_id, subject, title, body, status, upvotes, created_at, pending_review, hidden, hidden_reason")
+    .select("id, author_id, anonymous, subject, title, body, status, upvotes, created_at, pending_review, hidden, hidden_reason")
     .limit(opts.limit ?? 60);
 
   if (opts.subject && (QA_SUBJECTS as readonly string[]).includes(opts.subject)) query = query.eq("subject", opts.subject);
@@ -102,7 +105,7 @@ export async function listQuestions(
 
   const { data, error } = await query;
   if (error) console.error("[listQuestions]", error.message);
-  const rows = (data ?? []) as (Pick<Question, "author_id"> & Omit<QuestionListItem, "author" | "answer_count" | "teacher_answered" | "is_mine" | "voted">)[];
+  const rows = (data ?? []) as (Pick<Question, "author_id" | "anonymous"> & Omit<QuestionListItem, "author" | "answer_count" | "teacher_answered" | "is_mine" | "voted">)[];
   if (rows.length === 0) return [];
 
   const ids = rows.map((r) => r.id);
@@ -118,7 +121,7 @@ export async function listQuestions(
     const mine = answerRows.filter((a) => a.question_id === r.id);
     return {
       ...r,
-      author: authors.get(r.author_id) ?? unknownAuthor(r.author_id),
+      author: r.anonymous ? ANONYMOUS_AUTHOR : (authors.get(r.author_id) ?? unknownAuthor(r.author_id)),
       answer_count: mine.length,
       teacher_answered: mine.some((a) => authors.get(a.author_id)?.role === "teacher"),
       is_mine: r.author_id === viewer.id,
@@ -153,7 +156,8 @@ export async function getQuestionDetail(id: string, viewer: QaViewer): Promise<Q
     ...answers.map((a) => a.author_id),
     ...comments.map((c) => c.author_id),
   ]);
-  const who = (uid: string) => authors.get(uid) ?? unknownAuthor(uid);
+  const who = (uid: string) =>
+    question.anonymous && uid === question.author_id ? ANONYMOUS_AUTHOR : (authors.get(uid) ?? unknownAuthor(uid));
 
   const items: AnswerItem[] = answers.map((a) => ({
     ...a,

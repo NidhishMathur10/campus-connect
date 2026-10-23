@@ -15,6 +15,7 @@ export default async function ProfilePage() {
     ["Role", ROLE_LABELS[profile.role]],
     ["Roll number", profile.roll_no],
     ["Department", profile.department],
+    ["My subjects", profile.role === "teacher" && profile.subjects?.length ? profile.subjects.join(", ") : null],
     ["Hostel", [profile.hostel, profile.wing, profile.room && `Room ${profile.room}`].filter(Boolean).join(" · ") || null],
   ];
 

@@ -128,6 +128,8 @@ create table if not exists public.ticket_events (
 -- Phase 5A: confidential safety reports + PIN for public tracking.
 alter table public.tickets add column if not exists is_confidential boolean not null default false;
 alter table public.tickets add column if not exists hide_identity   boolean not null default false;
+-- Formal concern about a teacher (HOD/Dean server pages only; see the teacher feedback section at the end).
+alter table public.tickets add column if not exists teacher_complaint boolean not null default false;
 
 -- 4 characters without look-alikes (no O/0/I/1).
 create or replace function public.gen_tracking_pin()
@@ -388,7 +390,9 @@ create or replace function public.can_view_ticket(
 returns boolean language sql stable security definer set search_path = public as $$
   select case
     when p_reporter = auth.uid() then true
-    when public.app_role()::text = 'dean' then true
+    -- The Dean reads everything except teacher concerns (those go through audited server pages).
+    when public.app_role()::text = 'dean' then
+      not exists (select 1 from public.tickets t where t.id = p_id and t.teacher_complaint)
     when exists (select 1 from public.tickets t where t.id = p_id and t.is_confidential) then
       (public.app_role()::text = 'arc' and p_department = public.app_department())
       or (public.app_role()::text = 'security_officer' and p_assigned = auth.uid())
@@ -857,3 +861,169 @@ returns void language sql security definer set search_path = public as $$
 $$;
 revoke all on function public.reset_lost_found_seq() from public, anon, authenticated;
 grant execute on function public.reset_lost_found_seq() to service_role;
+
+-- =====================================================================
+-- Ask my teacher (private doubts). Safe to re-run.
+-- profiles.subjects = the subjects a teacher answers (edited by the warden / HOD on /subjects).
+-- A thread is visible only to its student, the teacher(s) mapped to its subject, and the HOD.
+-- =====================================================================
+alter table public.profiles  add column if not exists subjects  text[] not null default '{}';
+-- A doubt made public keeps the asker's id for moderation but is shown as "Anonymous student".
+alter table public.questions add column if not exists anonymous boolean not null default false;
+
+create table if not exists public.doubt_threads (
+  id                 uuid primary key default gen_random_uuid(),
+  student_id         uuid not null references public.profiles(id) on delete cascade,
+  subject            text not null,
+  title              text not null,
+  status             text not null default 'open' check (status in ('open','answered','closed')),
+  photo_path         text,
+  photo_url          text,
+  -- Making it public: none -> requested (teacher picked an answer) -> published | declined (student decides).
+  public_status      text not null default 'none' check (public_status in ('none','requested','published','declined')),
+  public_message_id  uuid,
+  public_question_id uuid references public.questions(id) on delete set null,
+  last_sender        text not null default 'student' check (last_sender in ('student','teacher')),
+  last_message_at    timestamptz not null default now(),
+  reminder_sent_at   timestamptz,
+  answered_at        timestamptz,
+  closed_at          timestamptz,
+  created_at         timestamptz not null default now()
+);
+create index if not exists doubt_threads_student_idx on public.doubt_threads (student_id, last_message_at desc);
+create index if not exists doubt_threads_subject_idx on public.doubt_threads (subject, status, last_message_at);
+
+create table if not exists public.doubt_messages (
+  id             uuid primary key default gen_random_uuid(),
+  thread_id      uuid not null references public.doubt_threads(id) on delete cascade,
+  author_id      uuid references public.profiles(id) on delete set null,
+  sender         text not null check (sender in ('student','teacher','system')),
+  body           text not null,
+  pending_review boolean not null default false,
+  created_at     timestamptz not null default now()
+);
+create index if not exists doubt_messages_thread_idx on public.doubt_messages (thread_id, created_at);
+
+create or replace function public.is_subject_teacher(p_subject text)
+returns boolean language sql stable security definer set search_path = public as $$
+  select exists (
+    select 1 from public.profiles
+    where id = auth.uid() and role::text = 'teacher' and p_subject = any(subjects))
+$$;
+
+alter table public.doubt_threads  enable row level security;
+alter table public.doubt_messages enable row level security;
+
+drop policy if exists "doubt_threads_select" on public.doubt_threads;
+drop policy if exists "doubt_threads_insert" on public.doubt_threads;
+drop policy if exists "doubt_threads_update" on public.doubt_threads;
+create policy "doubt_threads_select" on public.doubt_threads for select to authenticated
+  using (student_id = auth.uid() or public.app_role()::text = 'hod' or public.is_subject_teacher(subject));
+create policy "doubt_threads_insert" on public.doubt_threads for insert to authenticated
+  with check (student_id = auth.uid() and public.app_role()::text = 'student');
+create policy "doubt_threads_update" on public.doubt_threads for update to authenticated
+  using (student_id = auth.uid() or public.is_subject_teacher(subject));
+
+drop policy if exists "doubt_messages_select" on public.doubt_messages;
+drop policy if exists "doubt_messages_insert" on public.doubt_messages;
+-- The sub-selects run under the caller's RLS, so thread visibility is enforced here too.
+create policy "doubt_messages_select" on public.doubt_messages for select to authenticated
+  using (exists (select 1 from public.doubt_threads t where t.id = thread_id));
+create policy "doubt_messages_insert" on public.doubt_messages for insert to authenticated
+  with check (author_id = auth.uid() and sender <> 'system'
+              and exists (select 1 from public.doubt_threads t
+                          where t.id = thread_id and (t.student_id = auth.uid() or public.is_subject_teacher(t.subject))));
+
+
+-- =====================================================================
+-- Anonymous teacher feedback + formal concerns. Safe to re-run.
+-- teacher_feedback.student_id exists only to enforce one rating per (student, teacher, subject, term);
+-- the server never selects it for anyone else. Concerns are confidential academic tickets
+-- (tickets.teacher_complaint) read through server pages by the HOD and Dean; the reporter's id lives in
+-- teacher_concern_identity, which has RLS on and NO policies (service role only).
+-- =====================================================================
+create table if not exists public.teacher_feedback (
+  id              uuid primary key default gen_random_uuid(),
+  student_id      uuid not null references public.profiles(id) on delete cascade,
+  teacher_id      uuid not null references public.profiles(id) on delete cascade,
+  subject         text not null,
+  term            text not null,
+  clarity         int not null check (clarity between 1 and 5),
+  doubt_solving   int not null check (doubt_solving between 1 and 5),
+  punctuality     int not null check (punctuality between 1 and 5),
+  fairness        int not null check (fairness between 1 and 5),
+  respect         int not null check (respect between 1 and 5),
+  comment         text,
+  -- Gemini's neutral one-line summary of the comment (abusive wording removed), for the HOD.
+  neutral_summary text,
+  moderation      text not null default 'passed' check (moderation in ('passed','unchecked')),
+  created_at      timestamptz not null default now(),
+  unique (student_id, teacher_id, subject, term)
+);
+create index if not exists teacher_feedback_teacher_idx on public.teacher_feedback (teacher_id, subject, term);
+
+-- Cached Gemini themes per teacher/subject/term; regenerated when response_count changes.
+create table if not exists public.feedback_summaries (
+  teacher_id     uuid not null references public.profiles(id) on delete cascade,
+  subject        text not null,
+  term           text not null,
+  response_count int  not null,
+  summary        jsonb not null,
+  model          text,
+  generated_at   timestamptz not null default now(),
+  primary key (teacher_id, subject, term)
+);
+
+create table if not exists public.teacher_concerns (
+  id               uuid primary key default gen_random_uuid(),
+  ticket_id        uuid not null unique references public.tickets(id) on delete cascade,
+  teacher_id       uuid not null references public.profiles(id) on delete cascade,
+  subject          text not null,
+  term             text not null,
+  concern_category text not null,
+  happened_when    text,
+  neutral_summary  text,
+  moderation       text not null default 'passed' check (moderation in ('passed','unchecked')),
+  acknowledged_at  timestamptz,
+  escalated_at     timestamptz,
+  escalation_reason text,
+  created_at       timestamptz not null default now()
+);
+create index if not exists teacher_concerns_open_idx on public.teacher_concerns (created_at) where acknowledged_at is null;
+
+create table if not exists public.teacher_concern_identity (
+  concern_id  uuid primary key references public.teacher_concerns(id) on delete cascade,
+  reporter_id uuid not null references public.profiles(id) on delete cascade,
+  teacher_id  uuid not null,
+  term        text not null,
+  created_at  timestamptz not null default now()
+);
+create index if not exists teacher_concern_identity_limit_idx on public.teacher_concern_identity (reporter_id, teacher_id, term);
+
+-- Every time the Dean opens a reporter's identity (never for ratings): who, when, why.
+create table if not exists public.identity_reveal_log (
+  id            uuid primary key default gen_random_uuid(),
+  ticket_id     uuid references public.tickets(id) on delete set null,
+  ticket_no     text not null,
+  revealed_by   uuid references public.profiles(id) on delete set null,
+  revealer_name text not null,
+  reason        text not null,
+  created_at    timestamptz not null default now()
+);
+
+alter table public.teacher_feedback         enable row level security;
+alter table public.feedback_summaries       enable row level security;
+alter table public.teacher_concerns         enable row level security;
+alter table public.teacher_concern_identity enable row level security;
+alter table public.identity_reveal_log      enable row level security;
+
+drop policy if exists "teacher_feedback_select" on public.teacher_feedback;
+drop policy if exists "teacher_concerns_select" on public.teacher_concerns;
+drop policy if exists "identity_reveal_log_select" on public.identity_reveal_log;
+-- A student can only see that they rated (their own row). Teachers, HOD and Dean read aggregates through
+-- the server, which selects only non-identifying columns. feedback_summaries / identity: no policies.
+create policy "teacher_feedback_select" on public.teacher_feedback for select to authenticated using (student_id = auth.uid());
+create policy "teacher_concerns_select" on public.teacher_concerns for select to authenticated
+  using (public.app_role()::text in ('hod','dean'));
+create policy "identity_reveal_log_select" on public.identity_reveal_log for select to authenticated
+  using (public.app_role()::text = 'dean');

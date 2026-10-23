@@ -1,14 +1,16 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, BadgeCheck, ClipboardPlus, Inbox, MessagesSquare, Ticket } from "lucide-react";
+import { ArrowRight, BadgeCheck, ClipboardPlus, Inbox, MessageCircleQuestion, MessagesSquare, Ticket } from "lucide-react";
 import { CategoryBadge, StatusBadge } from "@/components/common/badges";
 import { PageHeader } from "@/components/common/page-header";
 import { SubjectBadge } from "@/components/qa/qa-bits";
 import { Button } from "@/components/ui/button";
 import { requireProfile } from "@/lib/auth";
+import { listInbox } from "@/lib/doubts/queries";
 import { listMyAnswers } from "@/lib/faculty/queries";
 import { timeAgo } from "@/lib/format";
 import { getTeacherQueue } from "@/lib/qa/queries";
+import { runSlaWatcher } from "@/lib/sla-watcher";
 import { listMyTickets } from "@/lib/tickets/queries";
 
 export const metadata: Metadata = { title: "Home" };
@@ -47,11 +49,14 @@ const empty = (text: string) => (
 
 export default async function FacultyHomePage() {
   const profile = await requireProfile(["teacher"]);
-  const [queue, reports, answers] = await Promise.all([
+  await runSlaWatcher();
+  const [queue, reports, answers, doubts] = await Promise.all([
     getTeacherQueue(profile),
     listMyTickets(profile.id, "active"),
     listMyAnswers(profile.id, 5),
+    listInbox({ id: profile.id, role: profile.role, subjects: profile.subjects ?? [] }),
   ]);
+  const waitingDoubts = doubts.filter((d) => d.status === "open");
   const unanswered = queue.reduce((n, g) => n + g.questions.length, 0);
 
   return (
@@ -68,6 +73,27 @@ export default async function FacultyHomePage() {
       />
 
       <div className="grid gap-5 lg:grid-cols-3">
+        <Panel title="Private doubts" icon={MessageCircleQuestion} href="/doubts" hrefLabel="Doubt inbox">
+          <p className="text-4xl font-extrabold tracking-tight text-text">{waitingDoubts.length}</p>
+          {(profile.subjects ?? []).length > 0 && (
+            <p className="text-xs text-text-muted">Your subjects: {(profile.subjects ?? []).join(", ")}</p>
+          )}
+          {waitingDoubts.length === 0 ? (
+            empty("No student is waiting for you.")
+          ) : (
+            <ul className="space-y-1">
+              {waitingDoubts.slice(0, 4).map((d) => (
+                <li key={d.id}>
+                  <Link href={`/doubts/${d.id}`} className="block space-y-0.5 rounded-2xl px-3 py-2 hover:bg-surface-accent">
+                    <span className="line-clamp-1 block text-sm font-bold text-text">{d.title}</span>
+                    <span className="text-xs text-text-muted">{d.subject} · {d.student?.name ?? "Student"} · {timeAgo(d.last_message_at)}</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Panel>
+
         <Panel title="Unanswered questions" icon={Inbox} href="/qa" hrefLabel="Q&A Board">
           <p className="text-4xl font-extrabold tracking-tight text-text">{unanswered}</p>
           {queue.length === 0 ? (

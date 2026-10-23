@@ -16,6 +16,7 @@ export function SimpleSelect({
   disabled,
   invalid,
   className,
+  labels,
 }: {
   id?: string;
   value: string | null;
@@ -27,6 +28,8 @@ export function SimpleSelect({
   disabled?: boolean;
   invalid?: boolean;
   className?: string;
+  /** Display text per option value (default: the value itself). */
+  labels?: Record<string, string>;
 }) {
   return (
     <Select
@@ -41,7 +44,7 @@ export function SimpleSelect({
         {noneLabel && <SelectItem value={NONE}>{noneLabel}</SelectItem>}
         {options.map((o) => (
           <SelectItem key={o} value={o}>
-            {o}
+            {labels?.[o] ?? o}
           </SelectItem>
         ))}
       </SelectContent>

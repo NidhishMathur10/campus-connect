@@ -19,6 +19,8 @@ export interface Profile {
   /** Buildings this staff member covers; auto-assignment tries them first. */
   preferred_buildings: string[];
   last_assigned_at: string | null;
+  /** Teachers: the subjects they answer doubts for ("Ask my teacher"). */
+  subjects: string[];
   role: Role;
   department: string | null;
   hostel: string | null;
@@ -70,6 +72,8 @@ export interface Ticket {
   is_confidential: boolean;
   /** Safety & Security: only arc and dean may see who reported it. */
   hide_identity: boolean;
+  /** Formal concern about a teacher: only the HOD / Dean see it, through audited server pages. */
+  teacher_complaint: boolean;
   reporter_id: string;
   original_text: string;
   language: string;
@@ -186,6 +190,8 @@ export interface Question extends Moderated {
   status: "open" | "answered";
   best_answer_id: string | null;
   upvotes: number;
+  /** Made public from a private doubt: shown as "Anonymous student". */
+  anonymous: boolean;
   /** When the first teacher answer was posted. */
   answered_at: string | null;
   created_at: string;
@@ -211,7 +217,7 @@ export interface AnswerComment extends Moderated {
 export interface AppNotification {
   id: string;
   user_id: string;
-  kind: "answer" | "best_answer" | "comment" | "ticket" | "lost_found";
+  kind: "answer" | "best_answer" | "comment" | "ticket" | "lost_found" | "doubt";
   title: string;
   body: string | null;
   link: string | null;

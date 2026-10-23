@@ -16,8 +16,10 @@ import { clip, notifyInApp, PERSON_COLUMNS, peopleByIds, send, wa, type Person }
 const itemPath = (id: string) => `/lost-found/${id}`;
 const deskPath = "/lost-found/desk";
 
-interface Alert {
+export interface Alert {
   recipients: Person[];
+  /** In-app bell kind (default: lost_found). */
+  kind?: "lost_found" | "doubt" | "ticket";
   template: string;
   /** Email subject / heading and bell title. */
   title: string;
@@ -25,9 +27,11 @@ interface Alert {
   rows?: [string, string][];
   buttonLabel: string;
   path: string;
+  /** Skip the in-app bell row (default true) when something else already creates it, e.g. the ticket_events trigger. */
+  inApp?: boolean;
 }
 
-async function deliverAlert(a: Alert): Promise<void> {
+export async function deliverAlert(a: Alert): Promise<void> {
   const url = appUrl(a.path);
   for (const person of a.recipients) {
     await send(person, a.template, null, a.title, {
@@ -39,8 +43,9 @@ async function deliverAlert(a: Alert): Promise<void> {
     });
     await wa(person, a.template, null, `CampusConnect: ${clip(a.title, 90)}. ${clip(a.message, 200)} ${url}`);
   }
+  if (a.inApp === false) return;
   await notifyInApp(
-    a.recipients.map((p) => ({ user_id: p.id, kind: "lost_found" as const, title: a.title, body: clip(a.message, 160), link: a.path })),
+    a.recipients.map((p) => ({ user_id: p.id, kind: a.kind ?? ("lost_found" as const), title: a.title, body: clip(a.message, 160), link: a.path })),
   );
 }
 

@@ -8,6 +8,8 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { loginIdToEmail } from "../src/config/college";
 import { DEMO_ACCOUNTS, DEMO_PASSWORD, demoAccountEmail } from "../src/config/demo-accounts";
 import { collegeEmailDomain } from "../src/config/email";
+import { currentTerm } from "../src/config/feedback";
+import { defaultSubjectsFor } from "../src/config/subjects";
 import {
   computeSlaDueAt,
   getRoutingRule,
@@ -106,6 +108,7 @@ async function seedAccounts() {
         on_leave: a.onLeave ?? false,
         preferred_buildings: a.preferredBuildings ?? [],
         last_assigned_at: null,
+        subjects: a.role === "teacher" ? defaultSubjectsFor(a.loginId) : [],
       }),
       `profile ${email}`,
     );
@@ -133,6 +136,11 @@ async function wipe() {
   must(await db.from("tickets").delete().not("id", "is", null), "wipe tickets");
   // Cascades to matches, claims and the audit log.
   must(await db.from("lost_found_items").delete().not("id", "is", null), "wipe lost & found");
+  // Cascades to doubt messages.
+  must(await db.from("doubt_threads").delete().not("id", "is", null), "wipe doubts");
+  must(await db.from("teacher_feedback").delete().not("id", "is", null), "wipe teacher feedback");
+  must(await db.from("feedback_summaries").delete().not("subject", "is", null), "wipe feedback summaries");
+  must(await db.from("identity_reveal_log").delete().not("id", "is", null), "wipe identity log");
   must(await db.from("questions").delete().not("id", "is", null), "wipe questions");
   must(await db.from("notifications").delete().not("id", "is", null), "wipe notifications");
   must(await db.from("email_log").delete().not("id", "is", null), "wipe email log");
@@ -1091,6 +1099,207 @@ async function seedLostFound() {
 }
 
 // ---------------------------------------------------------------------------
+// 6. Ask my teacher: one doubt waiting 3 days (triggers the 48h reminder), one answered
+// ---------------------------------------------------------------------------
+async function seedDoubts() {
+  const mk = async (opts: {
+    student: string;
+    subject: string;
+    title: string;
+    status: "open" | "answered";
+    hoursAgo: number;
+    messages: { sender: "student" | "teacher"; by: string; body: string; hoursAgo: number }[];
+  }) => {
+    const created = new Date(Date.now() - opts.hoursAgo * H).toISOString();
+    const last = opts.messages[opts.messages.length - 1];
+    const thread = must(
+      await db
+        .from("doubt_threads")
+        .insert({
+          student_id: u(opts.student).id,
+          subject: opts.subject,
+          title: opts.title,
+          status: opts.status,
+          last_sender: last.sender,
+          last_message_at: new Date(Date.now() - last.hoursAgo * H).toISOString(),
+          answered_at: opts.status === "answered" ? new Date(Date.now() - last.hoursAgo * H).toISOString() : null,
+          created_at: created,
+        })
+        .select("id")
+        .single(),
+      "doubt thread",
+    )!;
+    must(
+      await db.from("doubt_messages").insert(
+        opts.messages.map((m) => ({
+          thread_id: thread.id,
+          author_id: u(m.by).id,
+          sender: m.sender,
+          body: m.body,
+          created_at: new Date(Date.now() - m.hoursAgo * H).toISOString(),
+        })),
+      ),
+      "doubt messages",
+    );
+  };
+
+  await mk({
+    student: "2616400101",
+    subject: "Mathematics",
+    title: "Why do we get two different answers when integrating by parts in a different order?",
+    status: "open",
+    hoursAgo: 72,
+    messages: [
+      {
+        sender: "student",
+        by: "2616400101",
+        hoursAgo: 72,
+        body: "I integrated x*e^x two ways (choosing u = x, then u = e^x) and the second one gave a messier answer. Is one of them wrong, or is it just harder?",
+      },
+    ],
+  });
+  await mk({
+    student: "2616400102",
+    subject: "Physics",
+    title: "What is the difference between speed and velocity in circular motion?",
+    status: "answered",
+    hoursAgo: 30,
+    messages: [
+      { sender: "student", by: "2616400102", hoursAgo: 30, body: "A car goes around a circular track at a constant 60 km/h. My book says its velocity is changing. How, if the speedometer never changes?" },
+      {
+        sender: "teacher",
+        by: "khan",
+        hoursAgo: 26,
+        body: "Speed is only a number (how fast). Velocity also has a direction. On a circle the direction keeps changing, so the velocity keeps changing even when the speed is constant. That change of velocity is why there is an acceleration towards the centre.",
+      },
+    ],
+  });
+  console.log("✔ 2 private doubts (1 waiting 3 days, 1 answered)");
+}
+
+// ---------------------------------------------------------------------------
+// 7. Anonymous teacher feedback (8 for Prof. Das / Mathematics) + one anonymous concern
+// ---------------------------------------------------------------------------
+async function seedFeedback() {
+  const term = currentTerm();
+  const das = u("das").id;
+  // clarity, doubt_solving, punctuality, fairness, respect + optional comment (+ neutral one-liner for the HOD)
+  const rows: [string, [number, number, number, number, number], string | null, string | null][] = [
+    ["2616400102", [5, 5, 4, 5, 5], "Explains every step on the board and always stays back to clear doubts.", "Praises the clear step-by-step explanations and willingness to stay back for doubts."],
+    ["2616400103", [4, 4, 5, 4, 5], "Very punctual and respectful. Sometimes goes a bit fast in the last ten minutes.", "Punctual and respectful; the pace speeds up near the end of class."],
+    ["2616400104", [5, 4, 4, 5, 4], null, null],
+    ["2616400105", [3, 3, 4, 4, 4], "Explains too fast when a topic is hard, and it is difficult to ask in a full class.", "Finds the pace too fast on difficult topics and finds it hard to ask questions in class."],
+    ["2616400106", [4, 5, 5, 5, 5], "Solved my doubt in the corridor in five minutes. Very approachable.", "Approachable and quick to resolve doubts outside class."],
+    ["2616400107", [4, 3, 4, 4, 4], "More solved examples before the test would help.", "Would like more solved examples before tests."],
+    ["2616400108", [5, 5, 5, 5, 5], null, null],
+    ["2616400109", [3, 4, 3, 4, 4], "Sometimes the class starts late, but the notes he shares are really good.", "Classes sometimes start late, though the shared notes are valued."],
+  ];
+  must(
+    await db.from("teacher_feedback").insert(
+      rows.map(([login, s, comment, neutral], i) => ({
+        student_id: u(login).id,
+        teacher_id: das,
+        subject: "Mathematics",
+        term,
+        clarity: s[0],
+        doubt_solving: s[1],
+        punctuality: s[2],
+        fairness: s[3],
+        respect: s[4],
+        comment,
+        neutral_summary: neutral,
+        moderation: "passed",
+        created_at: new Date(Date.now() - (2 + i) * D).toISOString(),
+      })),
+    ),
+    "teacher feedback",
+  );
+  // A cached AI summary so the demo works without Gemini; it is regenerated as soon as a 9th response arrives.
+  must(
+    await db.from("feedback_summaries").insert({
+      teacher_id: das,
+      subject: "Mathematics",
+      term,
+      response_count: rows.length,
+      model: "seed",
+      summary: {
+        overview: "Students rate the teaching very highly overall, especially the clarity of explanations and how approachable the teacher is outside class.",
+        strengths: ["Clear, step-by-step explanations", "Approachable and quick to resolve doubts", "Respectful and fair with students", "Helpful shared notes"],
+        concerns: ["The pace can feel fast on harder topics", "Classes occasionally start late"],
+        suggestions: ["Slow down on difficult topics and pause for questions", "Share more solved examples before tests"],
+      },
+    }),
+    "feedback summary",
+  );
+
+  // One anonymous concern (Rahul -> Prof. Khan, irregular classes), 1 day old and not yet acknowledged.
+  const khan = u("khan").id;
+  const rahul = u("2616400103").id;
+  const createdAt = new Date(Date.now() - 1 * D).toISOString();
+  const summary = "A student reports that several recent Physics lectures were skipped without notice, leaving the syllabus behind.";
+  const ticket = must(
+    await db
+      .from("tickets")
+      .insert({
+        module: "academic",
+        reporter_id: rahul,
+        original_text:
+          "Prof. Khan has skipped four of the last six Physics lectures without telling us beforehand. We wait in the classroom for twenty minutes and then leave. The syllabus is falling behind before the internal test.",
+        language: "en",
+        title: "Concern: Absence / irregular classes (Physics)",
+        summary,
+        category: "Teacher Concern",
+        department: "Head of Department",
+        priority: "Medium",
+        ai_meta: { model: "seed", moderation: "passed", manual_entry: true },
+        is_confidential: true,
+        hide_identity: true,
+        teacher_complaint: true,
+        status: "Submitted",
+        sla_due_at: null,
+        created_at: createdAt,
+        updated_at: createdAt,
+      })
+      .select("id, ticket_no")
+      .single(),
+    "concern ticket",
+  )!;
+  const concern = must(
+    await db
+      .from("teacher_concerns")
+      .insert({
+        ticket_id: ticket.id,
+        teacher_id: khan,
+        subject: "Physics",
+        term,
+        concern_category: "Absence / irregular classes",
+        happened_when: "Four of the last six Physics lectures, since mid-September",
+        neutral_summary: summary,
+        moderation: "passed",
+        created_at: createdAt,
+      })
+      .select("id")
+      .single(),
+    "teacher concern",
+  )!;
+  must(await db.from("teacher_concern_identity").insert({ concern_id: concern.id, reporter_id: rahul, teacher_id: khan, term }), "concern identity");
+  must(
+    await db.from("ticket_events").insert({
+      ticket_id: ticket.id,
+      actor_id: null,
+      actor_name: "CampusConnect",
+      actor_role: null,
+      type: "created",
+      to_status: "Submitted",
+      note: "Your concern was received. It is anonymous: the teacher will never see it, and your name is not shown to anyone.",
+      created_at: createdAt,
+    }),
+    "concern event",
+  );
+  console.log(`✔ ${rows.length} anonymous feedback entries for Prof. Das (Mathematics) + 1 anonymous concern (${ticket.ticket_no})`);
+}
+
+// ---------------------------------------------------------------------------
 async function main() {
   console.log("Seeding CampusConnect…");
   await seedAccounts();
@@ -1099,6 +1308,8 @@ async function main() {
   await seedEscalations(ids);
   await seedQuestions();
   await seedLostFound();
+  await seedDoubts();
+  await seedFeedback();
   console.log("Done ✔  Log in with any demo account (password demo1234).");
 }
 

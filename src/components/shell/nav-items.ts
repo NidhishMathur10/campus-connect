@@ -5,6 +5,8 @@ import {
   ClipboardPlus,
   LayoutDashboard,
   MessageSquareReply,
+  Inbox,
+  BookUser,
   MessagesSquare,
   ShieldCheck,
   Siren,
@@ -14,6 +16,8 @@ import {
   Mail,
   PackageSearch,
   ScanSearch,
+  ScrollText,
+  Star,
   UsersRound,
   type LucideIcon,
 } from "lucide-react";
@@ -44,6 +48,12 @@ const EMAIL_LOG: NavItem = { href: "/email-log", label: "Notification log", icon
 const DIRECTORY: NavItem = { href: "/directory", label: "Staff directory", icon: UsersRound };
 const LOST_FOUND: NavItem = { href: "/lost-found", label: "Lost & Found", icon: PackageSearch };
 const LF_DESK: NavItem = { href: "/lost-found/desk", label: "Lost & Found desk", icon: ScanSearch };
+const DOUBT_INBOX: NavItem = { href: "/doubts", label: "Doubt inbox", icon: Inbox };
+const SUBJECTS: NavItem = { href: "/subjects", label: "Subject teachers", icon: BookUser };
+const MY_FEEDBACK: NavItem = { href: "/feedback", label: "My feedback", icon: Star };
+const TEACHER_FEEDBACK: NavItem = { href: "/teacher-feedback", label: "Teacher feedback", icon: Star };
+const CONCERNS: NavItem = { href: "/concerns", label: "Teacher concerns", icon: ShieldCheck };
+const AUDIT: NavItem = { href: "/audit", label: "Audit log", icon: ScrollText };
 const QA: NavItem = { href: "/qa", label: "Q&A Board", icon: MessagesSquare };
 
 const FACULTY_HOME: NavItem = { href: "/faculty", label: "Home", icon: House };
@@ -57,10 +67,10 @@ export const STAFF_NAV: Record<Exclude<Role, "student">, NavItem[]> = {
   academic_office: [BOARD, HISTORY, QA, REPORT, MY_REPORTS, LOST_FOUND],
   security_officer: [BOARD, HISTORY, LOST_FOUND, LF_DESK],
   arc: [BOARD, HISTORY],
-  warden: [BOARD, HISTORY, INSIGHTS, ESCALATIONS, DIRECTORY, LOST_FOUND, LF_DESK, EMAIL_LOG],
-  dean: [ESCALATIONS, INSIGHTS, BOARD, HISTORY, DIRECTORY, QA, EMAIL_LOG],
-  hod: [ESCALATIONS, INSIGHTS, BOARD, HISTORY, QA, REPORT, MY_REPORTS, LOST_FOUND],
-  teacher: [FACULTY_HOME, QA, REPORT, MY_REPORTS, MY_ANSWERS, LOST_FOUND],
+  warden: [BOARD, HISTORY, INSIGHTS, ESCALATIONS, DIRECTORY, SUBJECTS, LOST_FOUND, LF_DESK, EMAIL_LOG],
+  dean: [ESCALATIONS, INSIGHTS, BOARD, HISTORY, DIRECTORY, QA, TEACHER_FEEDBACK, CONCERNS, AUDIT, EMAIL_LOG],
+  hod: [ESCALATIONS, INSIGHTS, BOARD, HISTORY, QA, DOUBT_INBOX, TEACHER_FEEDBACK, CONCERNS, SUBJECTS, REPORT, MY_REPORTS, LOST_FOUND],
+  teacher: [FACULTY_HOME, DOUBT_INBOX, QA, MY_FEEDBACK, REPORT, MY_REPORTS, MY_ANSWERS, LOST_FOUND],
 };
 
 export function isActive(pathname: string, href: string, items?: NavItem[]): boolean {
