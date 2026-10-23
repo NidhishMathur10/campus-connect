@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { PageHeader } from "@/components/common/page-header";
 import { EmailForm } from "@/components/profile/email-form";
+import { WhatsappForm } from "@/components/profile/whatsapp-form";
 import { collegeEmailDomain } from "@/config/email";
 import { ROLE_LABELS } from "@/config/roles";
 import { requireProfile } from "@/lib/auth";
@@ -41,6 +42,14 @@ export default async function ProfilePage() {
           Ticket updates and answers are emailed here. It must be a college address (@{collegeEmailDomain()}).
         </p>
         <EmailForm initialEmail={profile.email ?? ""} domain={collegeEmailDomain()} />
+      </section>
+
+      <section className="animate-slide-up space-y-3 rounded-3xl border border-border bg-surface p-5 shadow-sm sm:p-6">
+        <p className="eyebrow">WhatsApp updates</p>
+        <p className="text-sm text-text-muted">
+          Get short ticket updates on WhatsApp. Sandbox: first send the join code to the Twilio number.
+        </p>
+        <WhatsappForm initialPhone={profile.phone ?? ""} initialOptIn={profile.whatsapp_optin} />
       </section>
     </div>
   );

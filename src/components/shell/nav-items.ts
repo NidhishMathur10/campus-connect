@@ -34,7 +34,7 @@ const BOARD: NavItem = { href: "/staff", label: "Ticket Board", icon: LayoutDash
 const HISTORY: NavItem = { href: "/staff/history", label: "All Tickets", icon: History };
 const INSIGHTS: NavItem = { href: "/insights", label: "Insights", icon: BarChart3 };
 const ESCALATIONS: NavItem = { href: "/escalations", label: "Escalations", icon: Siren };
-const EMAIL_LOG: NavItem = { href: "/email-log", label: "Email log", icon: Mail };
+const EMAIL_LOG: NavItem = { href: "/email-log", label: "Notification log", icon: Mail };
 const QA: NavItem = { href: "/qa", label: "Q&A Board", icon: MessagesSquare };
 
 const FACULTY_HOME: NavItem = { href: "/faculty", label: "Home", icon: House };

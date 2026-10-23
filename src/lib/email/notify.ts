@@ -7,12 +7,18 @@ import { formatLocation } from "@/lib/format";
 import { hotspotLabel } from "@/lib/hotspots";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Escalation, Ticket } from "@/lib/types";
-import { deliver, emailEnabled, inBackground } from "./send";
+import { isDemoEmail } from "@/config/demo-accounts";
+import { collegeEmailDomain } from "@/config/email";
+import { deliver, inBackground } from "./send";
 import { appUrl, renderEmail, type EmailContent } from "./templates";
+import { deliverWhatsApp } from "./whatsapp";
 
 /**
  * Which emails go out when (CLAUDE.md §15). Every `notify*` function is fire-and-forget:
  * it runs after the response and can never fail the user's action.
+ *
+ * Every event also goes out on WhatsApp (Twilio sandbox) to people who opted in on /profile, and for
+ * seeded demo accounts to DEMO_NOTIFY_WHATSAPP. The same safety rule applies on both channels.
  *
  * Safety rule: confidential Safety & Security tickets only ever email the reporter, the
  * Anti-Ragging Committee and the Dean, and the email says nothing about the report itself.
@@ -21,20 +27,23 @@ import { appUrl, renderEmail, type EmailContent } from "./templates";
 interface Person {
   id: string;
   full_name: string;
-  email: string;
+  email: string | null;
+  phone: string | null;
+  whatsapp_optin: boolean;
   role: Role;
   department: string | null;
 }
+
+const PERSON_COLUMNS = "id, full_name, email, phone, whatsapp_optin, role, department";
 
 async function peopleByIds(ids: string[]): Promise<Person[]> {
   const unique = [...new Set(ids)];
   if (unique.length === 0) return [];
   const { data } = await createAdminClient()
     .from("profiles")
-    .select("id, full_name, email, role, department")
-    .in("id", unique)
-    .not("email", "is", null);
-  return ((data ?? []) as Person[]).filter((p) => !!p.email);
+    .select(PERSON_COLUMNS)
+    .in("id", unique);
+  return (data ?? []) as Person[];
 }
 
 async function loadTicket(id: string): Promise<Ticket | null> {
@@ -71,9 +80,25 @@ async function send(
   subject: string,
   content: EmailContent,
 ) {
+  if (!person.email) return;
   const { html, text } = renderEmail(content);
   await deliver({ to: person.email, template, ticketId, subject, html, text });
 }
+
+/** Short plain-text WhatsApp message (under 500 characters). Opted-in people and demo accounts only. */
+async function wa(person: Person, template: string, ticketId: string | null, body: string) {
+  const demo = !!person.email && isDemoEmail(person.email, collegeEmailDomain());
+  if (!demo && !(person.whatsapp_optin && person.phone)) return;
+  await deliverWhatsApp({
+    to: person.phone,
+    demoFor: demo ? person.full_name : null,
+    template,
+    ticketId,
+    body: body.length > 440 ? `${body.slice(0, 437)}...` : body,
+  });
+}
+
+const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
 
 // ---------------------------------------------------------------------------
 // Confidential Safety & Security tickets: generic emails, no details, ever.
@@ -82,8 +107,8 @@ async function sendConfidential(ticket: Pick<Ticket, "id" | "ticket_no" | "repor
   const admin = createAdminClient();
   const [reporters, arcRes, deanRes] = await Promise.all([
     peopleByIds([ticket.reporter_id]),
-    admin.from("profiles").select("id, full_name, email, role, department").eq("role", "arc").eq("department", ticket.department).not("email", "is", null),
-    admin.from("profiles").select("id, full_name, email, role, department").eq("role", "dean").not("email", "is", null),
+    admin.from("profiles").select(PERSON_COLUMNS).eq("role", "arc").eq("department", ticket.department),
+    admin.from("profiles").select(PERSON_COLUMNS).eq("role", "dean"),
   ]);
   const staff = [...((arcRes.data ?? []) as Person[]), ...((deanRes.data ?? []) as Person[])];
   const seen = new Set<string>();
@@ -105,6 +130,12 @@ async function sendConfidential(ticket: Pick<Ticket, "id" | "ticket_no" | "repor
         footer: "This is a confidential notification from CampusConnect.",
       },
     );
+    await wa(
+      person,
+      "confidential_update",
+      ticket.id,
+      `Update on ${mine ? "your " : ""}confidential report ${ticket.ticket_no} — open the app to view: ${link}`,
+    );
   }
 }
 
@@ -112,7 +143,6 @@ async function sendConfidential(ticket: Pick<Ticket, "id" | "ticket_no" | "repor
 // 1. Ticket created → reporter
 // ---------------------------------------------------------------------------
 export function notifyTicketCreated(ticketId: string): void {
-  if (!emailEnabled()) return;
   inBackground(async () => {
     const t = await loadTicket(ticketId);
     if (!t) return;
@@ -134,6 +164,12 @@ export function notifyTicketCreated(ticketId: string): void {
       ],
       button: { label: "Track your ticket", url: trackLink(reporter, t.ticket_no) },
     });
+    await wa(
+      reporter,
+      "ticket_created",
+      t.id,
+      `CampusConnect: ticket ${t.ticket_no} created. ${clip(t.title, 80)}. Status: Submitted, ${expectedTime(t)}. Track: ${trackLink(reporter, t.ticket_no)}`,
+    );
   });
 }
 
@@ -161,7 +197,7 @@ const STATUS_TEMPLATES: Record<TrackedStatus, { template: string; heading: (no: 
 };
 
 export function notifyTicketStatus(ticketId: string, status: string, note?: string | null): void {
-  if (!emailEnabled() || !(status in STATUS_TEMPLATES)) return;
+  if (!(status in STATUS_TEMPLATES)) return;
   inBackground(async () => {
     const t = await loadTicket(ticketId);
     if (!t) return;
@@ -184,6 +220,15 @@ export function notifyTicketStatus(ticketId: string, status: string, note?: stri
           url: trackLink(person, t.ticket_no),
         },
       });
+      const noteText = note?.trim() ? ` Note: ${clip(note.trim(), 100)}` : "";
+      await wa(
+        person,
+        cfg.template,
+        t.id,
+        `CampusConnect: ${t.ticket_no} (${clip(t.title, 60)}) is now ${status}.${noteText}${
+          resolved ? " Reply in the app to confirm it's fixed." : ""
+        } Track: ${trackLink(person, t.ticket_no)}`,
+      );
     }
   });
 }
@@ -192,7 +237,6 @@ export function notifyTicketStatus(ticketId: string, status: string, note?: stri
 // 3. Merged → reporter + followers of the duplicate
 // ---------------------------------------------------------------------------
 export function notifyTicketMerged(duplicateId: string, originalNo: string): void {
-  if (!emailEnabled()) return;
   inBackground(async () => {
     const t = await loadTicket(duplicateId);
     if (!t || t.is_confidential) return;
@@ -209,6 +253,12 @@ export function notifyTicketMerged(duplicateId: string, originalNo: string): voi
         ],
         button: { label: `Track ${originalNo}`, url: trackLink(person, originalNo) },
       });
+      await wa(
+        person,
+        "ticket_merged",
+        t.id,
+        `CampusConnect: ${t.ticket_no} was merged into ${originalNo} (same problem already reported). Status: Merged. Track: ${trackLink(person, originalNo)}`,
+      );
     }
   });
 }
@@ -217,7 +267,6 @@ export function notifyTicketMerged(duplicateId: string, originalNo: string): voi
 // 4. Assigned staff
 // ---------------------------------------------------------------------------
 export function notifyStaffAssigned(ticketId: string, assigneeId: string): void {
-  if (!emailEnabled()) return;
   inBackground(async () => {
     const t = await loadTicket(ticketId);
     // Confidential reports: only the reporter, arc and dean are ever emailed.
@@ -238,6 +287,12 @@ export function notifyStaffAssigned(ticketId: string, assigneeId: string): void 
       ],
       button: { label: "Open ticket", url: staffLink(t.ticket_no) },
     });
+    await wa(
+      staff,
+      "staff_assigned",
+      t.id,
+      `CampusConnect: ${t.ticket_no} assigned to you. ${clip(t.title, 70)} (${t.priority}, ${t.category}). Open: ${staffLink(t.ticket_no)}`,
+    );
   });
 }
 
@@ -246,7 +301,6 @@ export function notifyStaffAssigned(ticketId: string, assigneeId: string): void 
 // ---------------------------------------------------------------------------
 /** Awaited version: runs inside the background brief job. Claims the escalation so it is emailed only once. */
 export async function sendEscalationEmail(escalationId: string): Promise<void> {
-  if (!emailEnabled()) return;
   try {
     const admin = createAdminClient();
     const { data: claimed, error } = await admin
@@ -265,9 +319,8 @@ export async function sendEscalationEmail(escalationId: string): Promise<void> {
     const ticket = esc.ticket_id ? await loadTicket(esc.ticket_id) : null;
     const { data: recipients } = await admin
       .from("profiles")
-      .select("id, full_name, email, role, department")
-      .eq("role", esc.target_role)
-      .not("email", "is", null);
+      .select(PERSON_COLUMNS)
+      .eq("role", esc.target_role);
     const people = (recipients ?? []) as Person[];
     const link = appUrl(`/escalations/${esc.id}`);
 
@@ -280,6 +333,7 @@ export async function sendEscalationEmail(escalationId: string): Promise<void> {
           button: { label: "Open CampusConnect", url: link },
           footer: "This is a confidential notification from CampusConnect.",
         });
+        await wa(p, "confidential_update", ticket.id, `Update on confidential report ${ticket.ticket_no} — open the app to view: ${link}`);
       }
       return;
     }
@@ -301,6 +355,14 @@ export async function sendEscalationEmail(escalationId: string): Promise<void> {
         quote: esc.brief ? { label: "AI brief", text: esc.brief } : undefined,
         button: { label: "Review escalation", url: link },
       });
+      await wa(
+        p,
+        "escalation",
+        ticket?.id ?? null,
+        `CampusConnect escalation: ${clip(esc.headline ?? ESCALATION_REASON_LABELS[esc.reason], 90)} (${clip(where, 60)}). ${
+          ticket ? `Ticket ${ticket.ticket_no}. ` : ""
+        }Review: ${link}`,
+      );
     }
   } catch (err) {
     console.error("[email] escalation:", err instanceof Error ? err.message : err);
@@ -311,7 +373,6 @@ export async function sendEscalationEmail(escalationId: string): Promise<void> {
 // 6. Teacher answered a student's question
 // ---------------------------------------------------------------------------
 export function notifyTeacherAnswered(questionId: string, authorId: string, questionTitle: string, teacherName: string): void {
-  if (!emailEnabled()) return;
   inBackground(async () => {
     const [author] = await peopleByIds([authorId]);
     if (!author || author.role !== "student") return;
@@ -322,5 +383,11 @@ export function notifyTeacherAnswered(questionId: string, authorId: string, ques
       rows: [["Question", questionTitle]],
       button: { label: "Read the answer", url: appUrl(`/education/qa/${questionId}`) },
     });
+    await wa(
+      author,
+      "teacher_answered",
+      null,
+      `CampusConnect: ${teacherName} answered your question "${clip(questionTitle, 80)}". Read: ${appUrl(`/education/qa/${questionId}`)}`,
+    );
   });
 }
