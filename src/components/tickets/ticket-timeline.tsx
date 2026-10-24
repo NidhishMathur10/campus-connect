@@ -62,13 +62,14 @@ export function TicketTimeline({ events }: { events: TicketEvent[] }) {
   }
   return (
     <ol className="relative space-y-5">
-      <span className="absolute top-2 bottom-2 left-[15px] w-px bg-border" aria-hidden />
+      <span className="fx-line absolute top-2 bottom-2 left-[15px] w-px bg-border" aria-hidden />
       {events.map((e, i) => {
         const meta = EVENT_META[e.type] ?? EVENT_META.note;
         const Icon = meta.icon;
         const last = i === events.length - 1;
         return (
-          <li key={e.id} className="relative flex animate-fade-in gap-3">
+          <li key={e.id} className="fx-step relative flex gap-3" style={{ "--i": Math.min(i, 12) } as React.CSSProperties}>
+            {last && <span className="fx-dot-pulse absolute top-0 left-0 size-8 rounded-full bg-accent-blue" aria-hidden="true" />}
             <span
               className={cn(
                 "relative z-10 grid size-8 shrink-0 place-items-center rounded-full ring-4 ring-surface",

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ArrowLeft, CalendarDays, CheckCircle2, ClipboardCheck, EyeOff, Lock, Sparkles, Tag } from "lucide-react";
+import { Confetti } from "@/components/common/celebrate";
 import { PhotoAnalysisBox } from "@/components/tickets/ai-bits";
 import { Button } from "@/components/ui/button";
 import { LF_HELD_LABELS } from "@/config/lost-found";
@@ -97,7 +98,8 @@ export function ItemDetailView({ detail }: { detail: ItemDetail }) {
             </p>
           )}
           {detail.myClaim?.status === "approved" && (
-            <div className="space-y-1">
+            <div className="relative space-y-1">
+              <Confetti count={18} className="top-3" />
               <p className="flex items-center gap-2 font-extrabold text-success-fg"><CheckCircle2 className="size-5" /> Your claim was approved</p>
               <p className="text-text">{detail.pickup_note ?? "Collect it from the Security Office. Bring your college ID card."}</p>
               {item.status === "returned" && <p className="text-sm text-text-muted">The handover has been recorded.</p>}

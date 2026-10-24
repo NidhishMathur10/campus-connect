@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Manrope } from "next/font/google";
+import { MotionProvider } from "@/components/motion/motion-provider";
 import { ServiceWorkerRegister } from "@/components/push/push-controls";
 import { ThemeProvider } from "@/components/theme/theme-provider";
 import { Suspense } from "react";
@@ -8,6 +9,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { APP_NAME, COLLEGE_NAME } from "@/config/college";
 import "./globals.css";
+import "./motion.css";
 
 const manrope = Manrope({
   variable: "--font-manrope",
@@ -55,6 +57,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <TooltipProvider>{children}</TooltipProvider>
           <Toaster position="top-center" richColors />
           <ServiceWorkerRegister />
+          <MotionProvider />
           <Suspense fallback={null}><DeniedToast /></Suspense>
         </ThemeProvider>
       </body>

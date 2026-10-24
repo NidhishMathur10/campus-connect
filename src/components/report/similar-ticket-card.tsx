@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Copy, Loader2, MapPin, Search, Users } from "lucide-react";
+import { Bump } from "@/components/common/celebrate";
 import { StatusBadge } from "@/components/common/badges";
 import { Button } from "@/components/ui/button";
 import type { TicketStatus } from "@/config/statuses";
@@ -49,6 +50,11 @@ export function SimilarTicketCard({
               ? `You're already following ${match.ticket_no}`
               : `This may already be reported as ${match.ticket_no}`}
         </p>
+        {!match.is_own && (
+          <Bump value={following ? 1 : 0}>
+            {following ? <span className="inline-flex items-center gap-1 rounded-full bg-surface px-2.5 py-0.5 text-xs font-bold text-info-fg"><Users className="size-3" /> You&apos;re following</span> : null}
+          </Bump>
+        )}
         <p className="text-sm text-warning-fg">
           {Math.round(match.similarity * 100)}% similar — {match.reason}
         </p>

@@ -52,7 +52,7 @@ const FEATURES: { icon: LucideIcon; title: string; text: string }[] = [
 /** Public home page for signed-out visitors. */
 export function LandingPage() {
   return (
-    <div className="min-h-dvh">
+    <div className="min-h-dvh" data-no-fx>
       <header className="sticky top-0 z-40 px-3 pt-3 sm:px-6 sm:pt-4">
         <nav
           aria-label="Main"

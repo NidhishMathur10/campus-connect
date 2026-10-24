@@ -20,6 +20,8 @@ const BLUE = "var(--chart-1)";
 /** Chart colours come from CSS variables (globals.css) so they follow the light/dark theme. */
 const AXIS = { fontSize: 11, fill: "var(--chart-axis)" };
 const GRID = "var(--chart-grid)";
+/** Charts draw in once on mount; skipped for prefers-reduced-motion. */
+const ANIMATE = typeof window === "undefined" || !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 /** Status hues match the status badges used everywhere else. */
 const STATUS_FILL: Record<TicketStatus, string> = {
@@ -60,7 +62,7 @@ export function RankedBars({ data, height }: { data: { name: string; count: numb
           <XAxis type="number" allowDecimals={false} tick={AXIS} axisLine={false} tickLine={false} />
           <YAxis type="category" dataKey="name" width={130} tick={{ ...AXIS, fill: "var(--chart-axis-strong)" }} axisLine={false} tickLine={false} />
           <Tooltip content={<ChartTooltip />} cursor={{ fill: "var(--chart-cursor)" }} />
-          <Bar dataKey="count" fill={BLUE} radius={[0, 4, 4, 0]} maxBarSize={22}>
+          <Bar isAnimationActive={ANIMATE} dataKey="count" fill={BLUE} radius={[0, 4, 4, 0]} maxBarSize={22}>
             <LabelList dataKey="count" position="right" style={{ fontSize: 11, fontWeight: 700, fill: "var(--chart-label)" }} />
           </Bar>
         </BarChart>
@@ -79,6 +81,7 @@ export function DailyLine({ data }: { data: { day: string; count: number }[] }) 
           <YAxis allowDecimals={false} tick={AXIS} axisLine={false} tickLine={false} />
           <Tooltip content={<ChartTooltip unit="new tickets" />} cursor={{ stroke: "var(--chart-axis)", strokeDasharray: "3 3" }} />
           <Line
+            isAnimationActive={ANIMATE}
             type="monotone"
             dataKey="count"
             stroke={BLUE}
@@ -104,7 +107,7 @@ export function StatusBars({ data }: { data: { status: TicketStatus; count: numb
           <XAxis type="number" allowDecimals={false} tick={AXIS} axisLine={false} tickLine={false} />
           <YAxis type="category" dataKey="name" width={90} tick={{ ...AXIS, fill: "var(--chart-axis-strong)" }} axisLine={false} tickLine={false} />
           <Tooltip content={<ChartTooltip />} cursor={{ fill: "var(--chart-cursor)" }} />
-          <Bar dataKey="count" radius={[0, 4, 4, 0]} maxBarSize={22}>
+          <Bar isAnimationActive={ANIMATE} dataKey="count" radius={[0, 4, 4, 0]} maxBarSize={22}>
             {rows.map((r) => (
               <Cell key={r.name} fill={STATUS_FILL[r.name]} />
             ))}
