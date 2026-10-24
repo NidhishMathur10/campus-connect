@@ -48,8 +48,18 @@ export const LOAN_ACTIVE_STATUSES: LoanStatus[] = ["reserved", "issued", "overdu
 export const SPORTS_MANAGER_ROLES: Role[] = ["sports_incharge"];
 export const SPORTS_VIEWER_ROLES: Role[] = ["sports_incharge", "warden", "dean"];
 
+/** Who may look up pickup codes, issue and take equipment back (the Dean as a backup; inventory stays with the in-charge). */
+export const SPORTS_ISSUE_ROLES: Role[] = ["sports_incharge", "dean"];
+export const canIssueEquipment = (role: Role) => SPORTS_ISSUE_ROLES.includes(role);
+
 export const isSportsManager = (role: Role) => SPORTS_MANAGER_ROLES.includes(role);
 
 /** Pickup codes avoid look-alike characters (0/O, 1/I). */
 export const PICKUP_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 export const PICKUP_CODE_LENGTH = 6;
+
+/** Turns whatever was typed or scanned into a candidate pickup code (spaces and symbols dropped, upper-case), or null. */
+export function normalizePickupCode(raw: string): string | null {
+  const code = raw.replace(/[^a-z0-9]/gi, "").toUpperCase();
+  return code.length === PICKUP_CODE_LENGTH && [...code].every((c) => PICKUP_CODE_ALPHABET.includes(c)) ? code : null;
+}

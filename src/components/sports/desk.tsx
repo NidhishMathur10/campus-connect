@@ -19,6 +19,7 @@ import type { DeskData } from "@/lib/sports/core";
 import { campusDate, formatClock, formatSlot, relativeTime } from "@/lib/sports/time";
 import type { ItemWithAvailability, LoanView } from "@/lib/sports/types";
 import { cn } from "@/lib/utils";
+import { PickupPanel } from "./pickup-panel";
 import { CategoryIcon, LoanStatusBadge } from "./sports-bits";
 
 type Result = { ok: true } | { ok: false; error: string };
@@ -66,7 +67,7 @@ function Stat({ label, value, tone }: { label: string; value: number; tone?: "da
   );
 }
 
-export function SportsDesk({ data, canManage }: { data: DeskData; canManage: boolean }) {
+export function SportsDesk({ data, canManage, canIssue }: { data: DeskData; canManage: boolean; canIssue: boolean }) {
   const { run, busy } = useDeskAction();
   const [query, setQuery] = useState("");
   const [returning, setReturning] = useState<LoanView | null>(null);
@@ -89,7 +90,7 @@ export function SportsDesk({ data, canManage }: { data: DeskData; canManage: boo
   );
 
   const card = (l: LoanView) => (
-    <LoanRow key={l.id} loan={l} canManage={canManage} busy={busy(`issue-${l.id}`)} onIssue={() => run(`issue-${l.id}`, () => issueLoan(l.id), "Issued")} onReturn={() => setReturning(l)} />
+    <LoanRow key={l.id} loan={l} canManage={canIssue} busy={busy(`issue-${l.id}`)} onIssue={() => run(`issue-${l.id}`, () => issueLoan(l.id), "Issued")} onReturn={() => setReturning(l)} />
   );
 
   return (
@@ -101,7 +102,9 @@ export function SportsDesk({ data, canManage }: { data: DeskData; canManage: boo
         <Stat label="Under repair" value={repairCount} tone="warning" />
       </div>
 
-      {canManage && (
+      {canIssue && <PickupPanel />}
+
+      {canIssue && (
         <div className="rounded-3xl border border-border bg-surface p-4 shadow-sm sm:p-5">
           <Label htmlFor="desk-search" className="eyebrow mb-2 block">Issue / return desk</Label>
           <div className="relative">
@@ -140,7 +143,7 @@ export function SportsDesk({ data, canManage }: { data: DeskData; canManage: boo
                       <p className="text-sm">{l.student_name} · Roll {l.student_roll ?? "—"}</p>
                       {l.return_requested_at && <p className="text-xs">Marked returned {relativeTime(l.return_requested_at)}</p>}
                     </div>
-                    {canManage && (
+                    {canIssue && (
                       <div className="flex flex-wrap gap-2">
                         <Button size="sm" disabled={busy(`good-${l.id}`)} onClick={() => run(`good-${l.id}`, () => returnLoan({ loanId: l.id, qty: l.qty, condition: "good" }), "Return confirmed")}>
                           {busy(`good-${l.id}`) ? <Loader2 className="animate-spin" /> : <PackageCheck />} Confirm · Good
