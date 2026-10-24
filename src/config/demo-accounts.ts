@@ -55,6 +55,8 @@ export const DEMO_ACCOUNTS: DemoAccount[] = [
   // Safety & Security
   { loginId: "yadav", emailLocal: "mr.yadav", fullName: "Mr. Yadav – Security Officer", role: "security_officer", department: "Security Office", caption: "Security Office" },
   { loginId: "mehra", emailLocal: "dr.mehra", fullName: "Dr. Mehra – Anti-Ragging Committee Nodal Officer", role: "arc", department: "Anti-Ragging Committee", caption: "Anti-Ragging Committee" },
+  // Sports
+  { loginId: "singh", emailLocal: "mr.singh", fullName: "Mr. Singh – Sports In-charge", role: "sports_incharge", caption: "Sports In-charge" },
   // Admins
   { loginId: "rao", emailLocal: "mr.rao", fullName: "Mr. Rao", role: "warden", department: "Warden (manual triage)", caption: "Warden" },
   { loginId: "iyer", emailLocal: "dr.iyer", fullName: "Dr. Iyer", role: "dean", caption: "Dean of Student Affairs" },
@@ -68,6 +70,7 @@ export const DEMO_GROUPS: { label: string; roles: Role[] }[] = [
   { label: "Students", roles: ["student"] },
   { label: "Staff", roles: ["staff", "academic_office"] },
   { label: "Safety & Security", roles: ["security_officer", "arc"] },
+  { label: "Sports", roles: ["sports_incharge"] },
   { label: "Admins", roles: ["warden", "dean", "hod"] },
   { label: "Teachers", roles: ["teacher"] },
 ];

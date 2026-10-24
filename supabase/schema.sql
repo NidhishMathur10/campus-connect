@@ -55,6 +55,7 @@ exception when duplicate_object then null; end $$;
 -- below (::text), so this file still runs in one go.
 alter type public.user_role add value if not exists 'security_officer';
 alter type public.user_role add value if not exists 'arc';
+alter type public.user_role add value if not exists 'sports_incharge';
 alter type public.ticket_module add value if not exists 'security';
 alter type public.escalation_reason add value if not exists 'safety';
 
@@ -1228,3 +1229,84 @@ create table if not exists public.push_subscriptions (
 create unique index if not exists push_subscriptions_endpoint_idx on public.push_subscriptions (endpoint);
 create index if not exists push_subscriptions_user_idx on public.push_subscriptions (user_id);
 alter table public.push_subscriptions enable row level security;
+
+
+-- ---------------------------------------------------------------------------
+-- Sports equipment issuing (Hostel module). Students reserve, the Sports In-charge issues / takes back.
+-- Available = total_qty - (reserved + issued + overdue). Writes go through the server (service role);
+-- RLS is the safety net: students read items + their OWN loans, sports_incharge / warden / dean read all.
+-- ---------------------------------------------------------------------------
+create table if not exists public.equipment_items (
+  id              uuid primary key default gen_random_uuid(),
+  name            text not null,
+  category        text not null,
+  total_qty       int  not null check (total_qty >= 0),
+  condition_notes text,
+  photo_url       text,
+  active          boolean not null default true,    -- false = retired / hidden from students
+  under_repair    boolean not null default false,   -- true = visible but cannot be reserved
+  created_at      timestamptz not null default now()
+);
+
+create table if not exists public.equipment_loans (
+  id               uuid primary key default gen_random_uuid(),
+  item_id          uuid not null references public.equipment_items(id) on delete cascade,
+  student_id       uuid not null references public.profiles(id) on delete cascade,
+  qty              int  not null check (qty > 0),
+  status           text not null default 'reserved'
+                   check (status in ('reserved','issued','returned','expired','overdue')),
+  pickup_code      text,                            -- null on the "returned" part of a split partial return
+  reserved_for     timestamptz not null,            -- start of the reserved time slot
+  due_at           timestamptz not null,            -- return deadline (end of the slot)
+  issued_at        timestamptz,
+  returned_at      timestamptz,
+  return_condition text check (return_condition in ('good','damaged')),
+  notes            text,
+  ticket_id        uuid references public.tickets(id) on delete set null,   -- Sports ticket for a damaged return
+  reminded_at      timestamptz,                     -- "due in 30 min" reminder sent
+  overdue_notified_at timestamptz,
+  created_at       timestamptz not null default now()
+);
+create unique index if not exists equipment_loans_code_idx on public.equipment_loans (pickup_code) where pickup_code is not null;
+create index if not exists equipment_loans_student_idx on public.equipment_loans (student_id, status);
+create index if not exists equipment_loans_item_idx on public.equipment_loans (item_id, status);
+
+alter table public.equipment_items enable row level security;
+alter table public.equipment_loans enable row level security;
+
+drop policy if exists "equip_items_select" on public.equipment_items;
+drop policy if exists "equip_items_write"  on public.equipment_items;
+create policy "equip_items_select" on public.equipment_items for select to authenticated
+  using (public.app_role()::text in ('student','sports_incharge','warden','dean'));
+create policy "equip_items_write" on public.equipment_items for all to authenticated
+  using (public.app_role()::text = 'sports_incharge') with check (public.app_role()::text = 'sports_incharge');
+
+drop policy if exists "equip_loans_select" on public.equipment_loans;
+drop policy if exists "equip_loans_update" on public.equipment_loans;
+create policy "equip_loans_select" on public.equipment_loans for select to authenticated
+  using (student_id = auth.uid() or public.app_role()::text in ('sports_incharge','warden','dean'));
+create policy "equip_loans_update" on public.equipment_loans for update to authenticated
+  using (public.app_role()::text = 'sports_incharge');
+
+-- Atomic reservation: locks the item (and the student) so two students can never take the last racket,
+-- and nobody can hold more than p_max items at once. Called by the server with the service role only.
+create or replace function public.reserve_equipment(
+  p_item uuid, p_student uuid, p_qty int, p_start timestamptz, p_end timestamptz, p_code text, p_max int)
+returns uuid language plpgsql security definer set search_path = public as $$
+declare v_item public.equipment_items; v_out int; v_mine int; v_id uuid;
+begin
+  perform 1 from public.profiles where id = p_student for update;
+  select * into v_item from public.equipment_items where id = p_item for update;
+  if not found or not v_item.active then raise exception 'unavailable'; end if;
+  if v_item.under_repair then raise exception 'under_repair'; end if;
+  select coalesce(sum(qty), 0) into v_out from public.equipment_loans
+    where item_id = p_item and status in ('reserved','issued','overdue');
+  if v_item.total_qty - v_out < p_qty then raise exception 'not_enough'; end if;
+  select coalesce(sum(qty), 0) into v_mine from public.equipment_loans
+    where student_id = p_student and status in ('reserved','issued','overdue');
+  if v_mine + p_qty > p_max then raise exception 'limit'; end if;
+  insert into public.equipment_loans (item_id, student_id, qty, pickup_code, reserved_for, due_at)
+  values (p_item, p_student, p_qty, p_code, p_start, p_end) returning id into v_id;
+  return v_id;
+end $$;
+revoke all on function public.reserve_equipment(uuid, uuid, int, timestamptz, timestamptz, text, int) from public, anon, authenticated;

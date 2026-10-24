@@ -7,6 +7,7 @@ const NON_STUDENT_ROLES: Exclude<Role, "student">[] = [
   "academic_office",
   "security_officer",
   "arc",
+  "sports_incharge",
   "warden",
   "dean",
   "hod",

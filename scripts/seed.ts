@@ -137,6 +137,8 @@ async function wipe() {
   must(await db.from("tickets").delete().not("id", "is", null), "wipe tickets");
   // Cascades to matches, claims and the audit log.
   must(await db.from("lost_found_items").delete().not("id", "is", null), "wipe lost & found");
+  // Equipment loans cascade from items.
+  must(await db.from("equipment_items").delete().not("id", "is", null), "wipe sports equipment");
   // Cascades to doubt messages.
   must(await db.from("doubt_threads").delete().not("id", "is", null), "wipe doubts");
   must(await db.from("teacher_feedback").delete().not("id", "is", null), "wipe teacher feedback");
@@ -1303,6 +1305,59 @@ async function seedFeedback() {
 }
 
 // ---------------------------------------------------------------------------
+// Sports equipment: inventory + a few live loans (one overdue). Aarav has none, for the reserve -> issue -> damaged-return demo.
+// ---------------------------------------------------------------------------
+async function seedSports() {
+  const ITEMS: { key: string; name: string; category: string; total_qty: number; condition_notes: string | null }[] = [
+    { key: "football", name: "Football (size 5)", category: "Football", total_qty: 6, condition_notes: "Two balls need pumping before use" },
+    { key: "basketball", name: "Basketball", category: "Basketball", total_qty: 4, condition_notes: null },
+    { key: "volleyball", name: "Volleyball", category: "Volleyball", total_qty: 4, condition_notes: null },
+    { key: "racket", name: "Badminton racket", category: "Badminton", total_qty: 10, condition_notes: "Two rackets have worn grips" },
+    { key: "shuttle", name: "Shuttlecock tube (12)", category: "Badminton", total_qty: 8, condition_notes: null },
+    { key: "cricket", name: "Cricket kit (bat, ball, stumps)", category: "Cricket", total_qty: 2, condition_notes: null },
+    { key: "tt", name: "Table tennis bat", category: "Table Tennis", total_qty: 6, condition_notes: null },
+    { key: "chess", name: "Chess set", category: "Indoor games", total_qty: 4, condition_notes: null },
+  ];
+  const ids = new Map<string, string>();
+  for (const it of ITEMS) {
+    const { key, ...row } = it;
+    const r = must(await db.from("equipment_items").insert(row).select("id").single(), `item ${key}`);
+    ids.set(key, r!.id);
+  }
+  const now = Date.now();
+  const loans = [
+    // Priya has a football out, due in 50 minutes (the "due soon" reminder fires in ~20).
+    { item: "football", by: "2616400102", qty: 1, status: "issued", code: "FB4K7P", slot: now - 70 * 60_000, due: now + 50 * 60_000, issued: now - 40 * 60_000 },
+    // Rahul reserved a basketball for the next hour: look it up by pickup code at the desk.
+    { item: "basketball", by: "2616400103", qty: 1, status: "reserved", code: "BK7Q2M", slot: now + 60 * 60_000, due: now + 3 * H },
+    // Kabir kept two rackets too long: the overdue one.
+    { item: "racket", by: "2616400104", qty: 2, status: "overdue", code: "RK9W3X", slot: now - 4 * H, due: now - 60 * 60_000, issued: now - 3.5 * H, late: now - 55 * 60_000 },
+    // History: a clean return and a late one.
+    { item: "chess", by: "2616400108", qty: 1, status: "returned", code: null, slot: now - D, due: now - D + 2 * H, issued: now - D + 0.2 * H, returned: now - D + 1.5 * H, cond: "good" },
+    { item: "volleyball", by: "2616400109", qty: 1, status: "returned", code: null, slot: now - 5 * D, due: now - 5 * D + H, issued: now - 5 * D, returned: now - 5 * D + 2 * H, cond: "good", late: now - 5 * D + H },
+  ] as const;
+  for (const l of loans) {
+    must(
+      await db.from("equipment_loans").insert({
+        item_id: ids.get(l.item)!,
+        student_id: u(l.by).id,
+        qty: l.qty,
+        status: l.status,
+        pickup_code: l.code,
+        reserved_for: new Date(l.slot).toISOString(),
+        due_at: new Date(l.due).toISOString(),
+        issued_at: "issued" in l ? new Date(l.issued).toISOString() : null,
+        returned_at: "returned" in l ? new Date(l.returned).toISOString() : null,
+        return_condition: "cond" in l ? l.cond : null,
+        overdue_notified_at: "late" in l ? new Date(l.late).toISOString() : null,
+      }),
+      `loan ${l.item}`,
+    );
+  }
+  console.log(`✔ ${ITEMS.length} sports equipment items + ${loans.length} loans (Kabir's 2 rackets are overdue; Aarav has none)`);
+}
+
+// ---------------------------------------------------------------------------
 async function main() {
   console.log("Seeding CampusConnect…");
   await seedAccounts();
@@ -1314,6 +1369,7 @@ async function main() {
   await seedDoubts();
   await seedFeedback();
   await seedNotices(db, u);
+  await seedSports();
   console.log("Done ✔  Log in with any demo account (password demo1234).");
 }
 

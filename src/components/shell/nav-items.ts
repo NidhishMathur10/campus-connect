@@ -21,6 +21,7 @@ import {
   Star,
   UsersRound,
   ClipboardCheck,
+  Dumbbell,
   type LucideIcon,
 } from "lucide-react";
 import type { Role } from "@/config/roles";
@@ -63,6 +64,7 @@ const TEACHER_FEEDBACK: NavItem = { href: "/teacher-feedback", label: "Teacher f
 const CONCERNS: NavItem = { href: "/concerns", label: "Teacher concerns", icon: ShieldCheck };
 const AUDIT: NavItem = { href: "/audit", label: "Audit log", icon: ScrollText };
 const NOTICES: NavItem = { href: "/notices", label: "Notices", icon: Megaphone };
+const SPORTS_DESK: NavItem = { href: "/sports", label: "Sports equipment", icon: Dumbbell };
 const QA: NavItem = { href: "/qa", label: "Q&A Board", icon: MessagesSquare };
 
 const FACULTY_HOME: NavItem = { href: "/faculty", label: "Home", icon: House };
@@ -76,11 +78,13 @@ export const STAFF_NAV: Record<Exclude<Role, "student">, NavItem[]> = {
   academic_office: [BOARD, HISTORY, NOTICES, QA, SUBJECTS, REPORT, MY_REPORTS, LOST_FOUND],
   security_officer: [MY_JOBS, ADVANCED, LF_DESK, NOTICES, EMAIL_LOG],
   arc: [BOARD, HISTORY],
-  warden: [BOARD, HISTORY, NOTICES, INSIGHTS, ESCALATIONS, DIRECTORY, LOST_FOUND, EMAIL_LOG],
+  sports_incharge: [SPORTS_DESK],
+  warden: [BOARD, HISTORY, NOTICES, INSIGHTS, ESCALATIONS, DIRECTORY, SPORTS_DESK, LOST_FOUND, EMAIL_LOG],
   dean: [
     ...inGroup("Hostel", ESCALATIONS, INSIGHTS, BOARD, HISTORY, DIRECTORY),
     ...inGroup("Academic", QA, SUBJECTS, TEACHER_FEEDBACK, CONCERNS),
     ...inGroup("Safety", LF_DESK, LOST_FOUND),
+    ...inGroup("Sports", SPORTS_DESK),
     ...inGroup("Admin", NOTICES, EMAIL_LOG, AUDIT),
   ],
   hod: [BOARD, HISTORY, NOTICES, INSIGHTS, ESCALATIONS, SUBJECTS, TEACHER_FEEDBACK, EMAIL_LOG],
