@@ -11,6 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { signOut } from "@/app/(auth)/actions";
+import { forgetThisDevice } from "@/components/push/push-client";
 import { cn } from "@/lib/utils";
 
 export interface ShellUser {
@@ -63,7 +64,13 @@ export function UserMenu({ user, align = "end" }: { user: ShellUser; align?: "st
             Profile
           </Link>
         </DropdownMenuItem>
-        <form action={signOut}>
+        <form
+          action={async () => {
+            // A shared phone must stop buzzing for the person who just left.
+            await forgetThisDevice();
+            await signOut();
+          }}
+        >
           <DropdownMenuItem asChild className="rounded-xl">
             <button type="submit" className="w-full">
               <LogOut className="size-4" />

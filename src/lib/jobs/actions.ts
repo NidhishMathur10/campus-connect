@@ -138,6 +138,7 @@ export async function needHelp(ticketId: string, kind: HelpKind): Promise<Action
         template: "help_request",
         title: `${profile.full_name} needs help with ${ticket.ticket_no}`,
         message,
+        push: "text",
       });
     }
   };

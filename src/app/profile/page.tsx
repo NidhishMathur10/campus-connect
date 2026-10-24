@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import { PageHeader } from "@/components/common/page-header";
 import { EmailForm } from "@/components/profile/email-form";
 import { WhatsappForm } from "@/components/profile/whatsapp-form";
+import { InstallApp, PushToggle } from "@/components/push/push-controls";
 import { collegeEmailDomain } from "@/config/email";
+import { isFaculty } from "@/config/faculty";
 import { ROLE_LABELS } from "@/config/roles";
 import { requireProfile } from "@/lib/auth";
 
@@ -51,6 +53,19 @@ export default async function ProfilePage() {
           Save your number so staff can reach you on WhatsApp. Automated alerts are coming soon.
         </p>
         <WhatsappForm initialPhone={profile.phone ?? ""} initialOptIn={profile.whatsapp_optin} />
+      </section>
+
+      <section className="animate-slide-up space-y-3 rounded-3xl border border-border bg-surface p-5 shadow-sm sm:p-6">
+        <p className="eyebrow">Phone notifications &amp; app</p>
+        <p className="text-sm text-text-muted">
+          {profile.role === "student" || isFaculty(profile.role)
+            ? "Get a notification on this phone when your ticket changes. Works best once the app is installed."
+            : "Get a notification on this phone the moment a job is assigned to you. Staff rarely check email, so turn this on."}
+        </p>
+        <PushToggle
+          audience={profile.role === "student" || isFaculty(profile.role) ? "student" : "staff"}
+        />
+        <InstallApp />
       </section>
     </div>
   );

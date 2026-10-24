@@ -14,7 +14,7 @@ import {
 import { canTransition, NOTE_REQUIRED_STATUSES, TICKET_STATUSES, type TicketStatus } from "@/config/statuses";
 import { autoAssignTicket, freshSlaWindow, resumeSlaFields } from "@/lib/assignment";
 import { getCurrentProfile } from "@/lib/auth";
-import { notifyStaffAssigned, notifyTicketMerged, notifyTicketStatus } from "@/lib/email/notify";
+import { notifyStaffAlert, notifyStaffAssigned, notifyTicketMerged, notifyTicketStatus } from "@/lib/email/notify";
 import { checkEscalations, createManualEscalation } from "@/lib/escalations";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Profile, Ticket } from "@/lib/types";
@@ -335,6 +335,18 @@ export async function addTicketNote(
   await addEvents(admin, [
     { ticket_id: ticket.id, ...actor(profile), type: "note", note: note.data, is_internal: !!input.internal },
   ]);
+  // A warden / dean answering the assigned staff member (e.g. after "Need help"): phone alert only.
+  if ((profile.role === "warden" || profile.role === "dean") && ticket.assigned_to && ticket.assigned_to !== profile.id) {
+    notifyStaffAlert({
+      ticketId: ticket.id,
+      recipientIds: [ticket.assigned_to],
+      template: "help_reply",
+      title: `Reply from ${profile.full_name} on ${ticket.ticket_no}`,
+      message: note.data,
+      push: "text",
+      pushOnly: true,
+    });
+  }
   return done(ticket.id, ticket.ticket_no);
 }
 

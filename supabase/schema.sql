@@ -1210,3 +1210,21 @@ create policy "notice_attachments_upload" on storage.objects for insert to authe
     and public.app_role()::text in ('warden','dean','hod','academic_office','teacher','security_officer'));
 create policy "notice_attachments_delete" on storage.objects for delete to authenticated
   using (bucket_id = 'notice-attachments' and (storage.foldername(name))[1] = auth.uid()::text);
+
+
+-- ---------------------------------------------------------------------------
+-- Web Push (phone notifications): one row per phone / browser a person turned alerts on for.
+-- Server only: RLS is on with no policies, the app reads and writes with the service role.
+-- email_log.channel also holds 'push' now (the column has no constraint, nothing to alter).
+-- ---------------------------------------------------------------------------
+create table if not exists public.push_subscriptions (
+  id         uuid primary key default gen_random_uuid(),
+  user_id    uuid not null references public.profiles(id) on delete cascade,
+  endpoint   text not null,
+  keys       jsonb not null,
+  user_agent text,
+  created_at timestamptz not null default now()
+);
+create unique index if not exists push_subscriptions_endpoint_idx on public.push_subscriptions (endpoint);
+create index if not exists push_subscriptions_user_idx on public.push_subscriptions (user_id);
+alter table public.push_subscriptions enable row level security;

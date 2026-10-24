@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { AlertTriangle, CheckCircle2, Mail, MessageCircle, MinusCircle } from "lucide-react";
+import { AlertTriangle, BellRing, CheckCircle2, Mail, MessageCircle, MinusCircle } from "lucide-react";
 import { EmptyState } from "@/components/common/empty-state";
 import { PageHeader } from "@/components/common/page-header";
 import { requireProfile } from "@/lib/auth";
 import { emailEnabled } from "@/lib/email/send";
 import { whatsappConfigured } from "@/lib/email/whatsapp";
+import { pushConfigured } from "@/lib/push/send";
 import { formatDateTime } from "@/lib/format";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { cn } from "@/lib/utils";
@@ -18,7 +19,7 @@ interface LogRow {
   original_to: string | null;
   template: string;
   ticket_id: string | null;
-  channel: "email" | "whatsapp";
+  channel: "email" | "whatsapp" | "push";
   status: "sent" | "failed" | "skipped";
   error: string | null;
   created_at: string;
@@ -34,6 +35,13 @@ const TEMPLATE_LABELS: Record<string, string> = {
   escalation: "Escalation",
   teacher_answered: "Teacher answered",
   confidential_update: "Confidential update",
+  sla_reminder: "Deadline reminder",
+  sla_reassigned: "Reassigned",
+  help_request: "Needs help",
+  help_reply: "Reply to staff",
+  ticket_reopened: "Reopened",
+  notice_urgent: "Urgent notice",
+  notice_known_issue: "Known issue",
 };
 
 const FILTERS = [
@@ -74,7 +82,7 @@ export default async function NotificationLogPage({ searchParams }: { searchPara
       <PageHeader
         eyebrow="Notifications"
         title="Notification log"
-        description="Every email and WhatsApp message CampusConnect tried to send, newest first (last 300 attempts)."
+        description="Every email, WhatsApp message and phone push CampusConnect tried to send, newest first (last 300 attempts)."
       />
 
       {!emailEnabled() && (
@@ -87,6 +95,13 @@ export default async function NotificationLogPage({ searchParams }: { searchPara
         <p className="mb-6 flex items-start gap-2 rounded-3xl border border-warning-fg/30 bg-warning-bg p-4 text-sm font-semibold text-warning-fg">
           <AlertTriangle className="mt-0.5 size-4 shrink-0" />
           WhatsApp is switched off: the Twilio variables are not all set, so messages are logged as skipped.
+        </p>
+      )}
+
+      {!pushConfigured() && (
+        <p className="mb-6 flex items-start gap-2 rounded-3xl border border-warning-fg/30 bg-warning-bg p-4 text-sm font-semibold text-warning-fg">
+          <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+          Phone push is switched off: the VAPID keys are not set, so no push notifications are sent.
         </p>
       )}
 
@@ -152,8 +167,14 @@ export default async function NotificationLogPage({ searchParams }: { searchPara
                   </td>
                   <td className="px-4 py-3">
                     <span className="inline-flex items-center gap-1 text-xs font-bold text-text-muted">
-                      {r.channel === "whatsapp" ? <MessageCircle className="size-3.5" /> : <Mail className="size-3.5" />}
-                      {r.channel === "whatsapp" ? "WhatsApp" : "Email"}
+                      {r.channel === "whatsapp" ? (
+                        <MessageCircle className="size-3.5" />
+                      ) : r.channel === "push" ? (
+                        <BellRing className="size-3.5" />
+                      ) : (
+                        <Mail className="size-3.5" />
+                      )}
+                      {r.channel === "whatsapp" ? "WhatsApp" : r.channel === "push" ? "Push" : "Email"}
                     </span>
                   </td>
                   <td className="px-4 py-3 font-semibold text-text">{TEMPLATE_LABELS[r.template] ?? r.template}</td>
