@@ -2,20 +2,16 @@ import Link from "next/link";
 import {
   ArrowRight,
   BellRing,
-  BrainCircuit,
   Copy,
-  FilePenLine,
   GitMerge,
   GraduationCap,
   Languages,
   Lock,
   Mail,
   PackageSearch,
-  Route,
   ScanSearch,
   ShieldAlert,
   ShieldCheck,
-  Ticket,
   TrendingUp,
   UserCog,
   type LucideIcon,
@@ -25,12 +21,17 @@ import { PublicTrackCard } from "@/components/tickets/public-track-card";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { COLLEGE_NAME } from "@/config/college";
+import { CountUp } from "./count-up";
+import { AnimatedWords, HeroBackdrop } from "./hero-fx";
+import { Reveal } from "./reveal";
+import { StepsDemo } from "./steps-demo";
+import { TiltCard } from "./tilt-card";
 
-const STEPS: { icon: LucideIcon; title: string; text: string }[] = [
-  { icon: FilePenLine, title: "Report", text: "Describe the problem in your own words — add a photo and the place." },
-  { icon: BrainCircuit, title: "AI understands", text: "Gemini reads it, asks only what's missing and writes a clear ticket." },
-  { icon: Route, title: "Routed", text: "It lands with the right department at the right priority." },
-  { icon: Ticket, title: "Tracked", text: "Follow every step live with your ticket number until it's fixed." },
+// Demo numbers for the landing page only — static, not live data.
+const STATS: { to: number; decimals?: number; suffix: string; label: string }[] = [
+  { to: 12480, suffix: "+", label: "Tickets resolved" },
+  { to: 6.4, decimals: 1, suffix: " hrs", label: "Avg fix time" },
+  { to: 8200, suffix: "+", label: "Students helped" },
 ];
 
 const FEATURES: { icon: LucideIcon; title: string; text: string }[] = [
@@ -68,20 +69,35 @@ export function LandingPage() {
 
       <main>
         {/* Hero */}
-        <section className="mx-auto max-w-6xl px-4 pt-14 pb-16 text-center sm:px-6 sm:pt-20 sm:pb-24">
-          <p className="eyebrow animate-slide-up">{COLLEGE_NAME} · CampusConnect</p>
-          <h1 className="mx-auto mt-4 max-w-4xl animate-slide-up text-4xl leading-[1.1] font-extrabold tracking-tight text-text [animation-delay:60ms] sm:text-6xl">
-            Every campus complaint, tracked to resolution
-          </h1>
-          <p className="mx-auto mt-5 max-w-2xl animate-slide-up text-base text-text-muted [animation-delay:120ms] sm:text-lg">
-            Say what&apos;s wrong in your own words — Hindi or English, with or without a photo. AI turns it into a
-            clear ticket, sends it to the right team and keeps you updated until it&apos;s fixed.
-          </p>
-          <div className="mt-8 flex animate-slide-up flex-col justify-center gap-3 [animation-delay:180ms] sm:flex-row">
-            <Button asChild size="lg"><Link href="/signup">Sign up <ArrowRight /></Link></Button>
-            <Button asChild size="lg" variant="outline"><Link href="/login">Log in</Link></Button>
+        <HeroBackdrop>
+          <div className="mx-auto max-w-6xl px-4 pt-14 pb-16 text-center sm:px-6 sm:pt-20 sm:pb-24">
+            <p className="eyebrow animate-slide-up">{COLLEGE_NAME} · CampusConnect</p>
+            <h1 className="mx-auto mt-4 max-w-4xl text-4xl leading-[1.1] font-extrabold tracking-tight text-text sm:text-6xl">
+              <AnimatedWords text="Every campus complaint, tracked to resolution" />
+            </h1>
+            <p className="mx-auto mt-5 max-w-2xl animate-slide-up text-base text-text-muted [animation-delay:700ms] sm:text-lg">
+              Say what&apos;s wrong in your own words — Hindi or English, with or without a photo. AI turns it into a
+              clear ticket, sends it to the right team and keeps you updated until it&apos;s fixed.
+            </p>
+            <div className="mt-8 flex animate-slide-up flex-col justify-center gap-3 [animation-delay:800ms] sm:flex-row">
+              <Button asChild size="lg"><Link href="/signup">Sign up <ArrowRight /></Link></Button>
+              <Button asChild size="lg" variant="outline"><Link href="/login">Log in</Link></Button>
+            </div>
           </div>
-        </section>
+        </HeroBackdrop>
+
+        {/* Stats (demo numbers) */}
+        <Reveal as="section" className="mx-auto max-w-6xl px-4 pb-16 sm:px-6 sm:pb-20">
+          <dl className="grid gap-4 rounded-3xl border border-border bg-surface p-6 text-center shadow-sm sm:grid-cols-3 sm:p-8">
+            {STATS.map(({ to, decimals, suffix, label }) => (
+              <div key={label}>
+                <dt className="eyebrow order-2">{label}</dt>
+                <dd className="text-3xl font-extrabold tracking-tight text-text sm:text-4xl"><CountUp to={to} decimals={decimals} suffix={suffix} /></dd>
+              </div>
+            ))}
+          </dl>
+          <p className="mt-2 text-center text-xs text-text-muted">Sample figures for illustration.</p>
+        </Reveal>
 
         {/* How it works */}
         <section aria-labelledby="how-title" className="mx-auto max-w-6xl px-4 pb-16 sm:px-6 sm:pb-24">
@@ -89,24 +105,9 @@ export function LandingPage() {
           <h2 id="how-title" className="mt-2 text-center text-2xl font-extrabold tracking-tight text-text sm:text-4xl">
             From a rough complaint to a fixed problem
           </h2>
-          <ol className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {STEPS.map(({ icon: Icon, title, text }, i) => (
-              <li
-                key={title}
-                className="relative animate-slide-up rounded-3xl border border-border bg-surface p-6 shadow-sm transition-all hover:-translate-y-1 hover:border-accent-blue hover:shadow-md"
-                style={{ animationDelay: `${i * 80}ms` }}
-              >
-                <span className="absolute top-5 right-6 text-4xl font-extrabold text-border" aria-hidden="true">{i + 1}</span>
-                <span className="grid size-12 place-items-center rounded-2xl bg-primary text-primary-fg">
-                  <Icon className="size-6" />
-                </span>
-                <h3 className="mt-5 text-lg font-extrabold text-text">{title}</h3>
-                <p className="mt-1 text-sm text-text-muted">{text}</p>
-              </li>
-            ))}
-          </ol>
+          <StepsDemo />
 
-          <div className="mt-6 animate-slide-up rounded-3xl border border-warning-fg/30 bg-warning-bg p-6 sm:p-7">
+          <Reveal className="mt-6 rounded-3xl border border-warning-fg/30 bg-warning-bg p-6 sm:p-7">
             <div className="flex items-center gap-3">
               <span className="grid size-11 place-items-center rounded-2xl bg-warning-solid text-warning-solid-fg">
                 <PackageSearch className="size-6" />
@@ -129,7 +130,7 @@ export function LandingPage() {
                 </li>
               ))}
             </ol>
-          </div>
+          </Reveal>
         </section>
 
         {/* Features */}
@@ -140,14 +141,16 @@ export function LandingPage() {
               Everything a complaint needs
             </h2>
             <ul className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {FEATURES.map(({ icon: Icon, title, text }) => (
-                <li key={title} className="rounded-3xl border border-text-inverse/15 bg-text-inverse/5 p-5 transition-colors hover:bg-text-inverse/10">
+              {FEATURES.map(({ icon: Icon, title, text }, i) => (
+                <Reveal as="li" key={title} delay={(i % 4) * 80}>
+                <TiltCard className="h-full rounded-3xl border border-text-inverse/15 bg-text-inverse/5 p-5 hover:bg-text-inverse/10">
                   <span className="grid size-10 place-items-center rounded-2xl bg-text-inverse/10">
                     <Icon className="size-5 text-info-on-inverse" />
                   </span>
                   <h3 className="mt-4 font-bold">{title}</h3>
                   <p className="mt-1 text-sm text-text-inverse-muted">{text}</p>
-                </li>
+                </TiltCard>
+                </Reveal>
               ))}
             </ul>
           </div>
