@@ -1,6 +1,7 @@
 import type { Category, Priority, TicketModule } from "@/config/routing";
 import type { TicketScope } from "@/config/locations";
 import type { Role } from "@/config/roles";
+import type { NoticeAudience, NoticeModule, NoticeStatus, NoticeType } from "@/config/notices";
 import type { DuplicateStatus, TicketEventType, TicketStatus } from "@/config/statuses";
 
 /** Row types mirroring supabase/schema.sql. */
@@ -217,10 +218,37 @@ export interface AnswerComment extends Moderated {
 export interface AppNotification {
   id: string;
   user_id: string;
-  kind: "answer" | "best_answer" | "comment" | "ticket" | "lost_found" | "doubt";
+  kind: "answer" | "best_answer" | "comment" | "ticket" | "lost_found" | "doubt" | "notice";
   title: string;
   body: string | null;
   link: string | null;
   read_at: string | null;
   created_at: string;
+}
+
+/** Notice board row (CLAUDE.md §23). */
+export interface Notice {
+  id: string;
+  author_id: string;
+  author_name: string;
+  author_role: string;
+  module: NoticeModule;
+  type: NoticeType;
+  title: string;
+  title_hi: string | null;
+  body: string;
+  body_hi: string | null;
+  summary: string | null;
+  category: string | null;
+  audience: NoticeAudience;
+  attachment_url: string | null;
+  event_at: string | null;
+  expected_fix_at: string | null;
+  pinned: boolean;
+  expires_at: string | null;
+  status: NoticeStatus;
+  resolved_at: string | null;
+  resolution_note: string | null;
+  created_at: string;
+  updated_at: string;
 }

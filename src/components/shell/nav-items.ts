@@ -13,6 +13,7 @@ import {
   Ticket,
   Building2,
   History,
+  Megaphone,
   Mail,
   PackageSearch,
   ScanSearch,
@@ -54,6 +55,7 @@ const MY_FEEDBACK: NavItem = { href: "/feedback", label: "My feedback", icon: St
 const TEACHER_FEEDBACK: NavItem = { href: "/teacher-feedback", label: "Teacher feedback", icon: Star };
 const CONCERNS: NavItem = { href: "/concerns", label: "Teacher concerns", icon: ShieldCheck };
 const AUDIT: NavItem = { href: "/audit", label: "Audit log", icon: ScrollText };
+const NOTICES: NavItem = { href: "/notices", label: "Notices", icon: Megaphone };
 const QA: NavItem = { href: "/qa", label: "Q&A Board", icon: MessagesSquare };
 
 const FACULTY_HOME: NavItem = { href: "/faculty", label: "Home", icon: House };
@@ -64,13 +66,13 @@ const MY_ANSWERS: NavItem = { href: "/answers", label: "My Answers", icon: Messa
 /** Sidebar items for every non-student role (must agree with ROUTE_ACCESS in config/roles). */
 export const STAFF_NAV: Record<Exclude<Role, "student">, NavItem[]> = {
   staff: [BOARD, HISTORY],
-  academic_office: [BOARD, HISTORY, QA, REPORT, MY_REPORTS, LOST_FOUND],
-  security_officer: [BOARD, HISTORY, LOST_FOUND, LF_DESK],
+  academic_office: [BOARD, HISTORY, NOTICES, QA, REPORT, MY_REPORTS, LOST_FOUND],
+  security_officer: [BOARD, HISTORY, NOTICES, LOST_FOUND, LF_DESK],
   arc: [BOARD, HISTORY],
-  warden: [BOARD, HISTORY, INSIGHTS, ESCALATIONS, DIRECTORY, SUBJECTS, LOST_FOUND, LF_DESK, EMAIL_LOG],
-  dean: [ESCALATIONS, INSIGHTS, BOARD, HISTORY, DIRECTORY, QA, TEACHER_FEEDBACK, CONCERNS, AUDIT, EMAIL_LOG],
-  hod: [ESCALATIONS, INSIGHTS, BOARD, HISTORY, QA, DOUBT_INBOX, TEACHER_FEEDBACK, CONCERNS, SUBJECTS, REPORT, MY_REPORTS, LOST_FOUND],
-  teacher: [FACULTY_HOME, DOUBT_INBOX, QA, MY_FEEDBACK, REPORT, MY_REPORTS, MY_ANSWERS, LOST_FOUND],
+  warden: [BOARD, HISTORY, NOTICES, INSIGHTS, ESCALATIONS, DIRECTORY, SUBJECTS, LOST_FOUND, LF_DESK, EMAIL_LOG],
+  dean: [ESCALATIONS, INSIGHTS, BOARD, HISTORY, NOTICES, DIRECTORY, QA, TEACHER_FEEDBACK, CONCERNS, AUDIT, EMAIL_LOG],
+  hod: [ESCALATIONS, INSIGHTS, BOARD, HISTORY, NOTICES, QA, DOUBT_INBOX, TEACHER_FEEDBACK, CONCERNS, SUBJECTS, REPORT, MY_REPORTS, LOST_FOUND],
+  teacher: [FACULTY_HOME, NOTICES, DOUBT_INBOX, QA, MY_FEEDBACK, REPORT, MY_REPORTS, MY_ANSWERS, LOST_FOUND],
 };
 
 export function isActive(pathname: string, href: string, items?: NavItem[]): boolean {

@@ -21,6 +21,7 @@ import type {
 import { formatLocation } from "@/lib/format";
 import { createTicket, followTicket } from "@/lib/tickets/actions";
 import { AiThinking, Bubble, ChatReply } from "./chat";
+import { KnownIssueCard } from "./known-issue-card";
 import { SimilarTicketCard } from "./similar-ticket-card";
 import { LostFoundHint } from "@/components/safety/lost-found-hint";
 import { PreviewCard, type TicketDraft } from "./preview-card";
@@ -667,14 +668,28 @@ export function ReportFlow({
             notice={
               isSecurity && ticket.category === "Theft / Lost item" ? (
                 <LostFoundHint text={draft.text} building={ticket.location.building} spot={ticket.location.spot} />
-              ) : !isSecurity && dup ? (
-                <SimilarTicketCard
-                  checking={dup.checking}
-                  match={match}
-                  onMeToo={meToo}
-                  onSubmitNew={submitAsNew}
-                  busy={choiceBusy}
-                />
+              ) : !isSecurity ? (
+                <div className="space-y-3">
+                  {/* An active known-issue notice for this category + place (students only) */}
+                  {audience === "student" && ticket.category && (module === "hostel" || module === "academic") && (
+                    <KnownIssueCard
+                      module={module}
+                      category={ticket.category}
+                      building={ticket.location.building}
+                      floor={ticket.location.floor}
+                      hindi={ticket.language === "hi"}
+                    />
+                  )}
+                  {dup && (
+                    <SimilarTicketCard
+                      checking={dup.checking}
+                      match={match}
+                      onMeToo={meToo}
+                      onSubmitNew={submitAsNew}
+                      busy={choiceBusy}
+                    />
+                  )}
+                </div>
               ) : null
             }
           />
