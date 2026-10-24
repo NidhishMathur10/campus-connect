@@ -52,7 +52,7 @@ const FEATURES: { icon: LucideIcon; title: string; text: string }[] = [
 /** Public home page for signed-out visitors. */
 export function LandingPage() {
   return (
-    <div className="min-h-dvh" data-no-fx>
+    <div className="min-h-dvh overflow-x-hidden" data-no-fx>
       <header className="sticky top-0 z-40 px-3 pt-3 sm:px-6 sm:pt-4">
         <nav
           aria-label="Main"
@@ -72,7 +72,7 @@ export function LandingPage() {
         <HeroBackdrop>
           <div className="mx-auto max-w-6xl px-4 pt-14 pb-16 text-center sm:px-6 sm:pt-20 sm:pb-24">
             <p className="eyebrow animate-slide-up">{COLLEGE_NAME} · CampusConnect</p>
-            <h1 className="mx-auto mt-4 max-w-4xl text-4xl leading-[1.1] font-extrabold tracking-tight text-text sm:text-6xl">
+            <h1 className="mx-auto mt-4 max-w-[18ch] text-center text-[clamp(2.25rem,6vw,5rem)] leading-[1.05] font-extrabold tracking-tight text-balance text-text sm:max-w-[22ch]">
               <AnimatedWords text="Every campus complaint, tracked to resolution" />
             </h1>
             <p className="mx-auto mt-5 max-w-2xl animate-slide-up text-base text-text-muted [animation-delay:700ms] sm:text-lg">
