@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { RealtimeBoundary } from "@/components/shell/notification-bell";
 import { cn } from "@/lib/utils";
 import type { Ticket } from "@/lib/types";
 
@@ -34,8 +35,9 @@ export function useLiveTickets({
       timer = setTimeout(() => router.refresh(), 300);
     };
 
+    // Unique name per mount: Strict Mode / several widgets must never share a subscribed channel.
     const channel = supabase
-      .channel(ticketId ? `ticket-${ticketId}` : `tickets-${Math.random().toString(36).slice(2)}`)
+      .channel(`${ticketId ? `ticket-${ticketId}` : "tickets"}-${crypto.randomUUID()}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "ticket_events", ...(ticketId ? { filter: `ticket_id=eq.${ticketId}` } : {}) },
@@ -77,7 +79,15 @@ export function LiveBadge({ live, className }: { live: boolean; className?: stri
 }
 
 /** Live badge + auto-refresh. Omit `ticketId` to watch all visible tickets. */
-export function LiveRefresh({ ticketId, className }: { ticketId?: string; className?: string }) {
+export function LiveRefresh(props: { ticketId?: string; className?: string }) {
+  return (
+    <RealtimeBoundary fallback={<LiveBadge live={false} className={props.className} />}>
+      <LiveRefreshInner {...props} />
+    </RealtimeBoundary>
+  );
+}
+
+function LiveRefreshInner({ ticketId, className }: { ticketId?: string; className?: string }) {
   const live = useLiveTickets({ ticketId });
   return <LiveBadge live={live} className={className} />;
 }
