@@ -24,6 +24,6 @@ export async function requireProfile(roles?: Role[]): Promise<Profile> {
   if (!userId) redirect("/login");
   // Signed in but no profile row (e.g. schema.sql was run after the user was created).
   if (!profile) redirect("/account-issue");
-  if (roles && !roles.includes(profile.role)) redirect(ROLE_HOME[profile.role]);
+  if (roles && !roles.includes(profile.role)) redirect(`${ROLE_HOME[profile.role]}?denied=1`);
   return profile;
 }

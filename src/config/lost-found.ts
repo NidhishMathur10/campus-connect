@@ -66,11 +66,14 @@ export const LF_REPORTER_ROLES: Role[] = ["student", "teacher", "hod", "academic
 /** Who manages the desk (approve claims, confirm matches, hand over, dispose). */
 export const LF_MANAGER_ROLES: Role[] = ["security_officer"];
 /** Who sees everything, including private details, roll numbers and the audit log. */
-export const LF_STAFF_ROLES: Role[] = ["security_officer", "warden"];
+export const LF_STAFF_ROLES: Role[] = ["security_officer", "warden", "dean"];
+/** Who may open the desk (claims, held items, approvals). The dean sees it read-only. */
+export const LF_DESK_ROLES: Role[] = ["security_officer", "dean"];
 /** Everyone who may open the Lost & Found pages. */
 export const LF_ALL_ROLES: Role[] = [...LF_REPORTER_ROLES, ...LF_STAFF_ROLES];
 
 export const isLfManager = (role: Role) => LF_MANAGER_ROLES.includes(role);
+export const canOpenLfDesk = (role: Role) => LF_DESK_ROLES.includes(role);
 export const isLfStaff = (role: Role) => LF_STAFF_ROLES.includes(role);
 
 /** Default pickup instruction once a claim is approved. */

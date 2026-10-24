@@ -41,10 +41,11 @@ export async function updateSession(request: NextRequest) {
   if (matches(OPEN_ROUTES) || OPEN_EXACT_ROUTES.includes(pathname)) return response;
   const isPublic = matches(PUBLIC_ROUTES);
 
-  const redirectTo = (path: string) => {
+  const redirectTo = (path: string, denied = false) => {
     const target = request.nextUrl.clone();
     target.pathname = path;
     target.search = "";
+    if (denied) target.searchParams.set("denied", "1");
     if (path === "/login" && pathname !== "/") target.searchParams.set("next", pathname + search);
     const res = NextResponse.redirect(target);
     response.cookies.getAll().forEach((c) => res.cookies.set(c));
@@ -60,7 +61,7 @@ export async function updateSession(request: NextRequest) {
   const role: Role = isRole(appMeta.role) ? appMeta.role : "student";
 
   if (isPublic) return redirectTo(ROLE_HOME[role]);
-  if (!canAccess(role, pathname)) return redirectTo(ROLE_HOME[role]);
+  if (!canAccess(role, pathname)) return redirectTo(ROLE_HOME[role], true);
 
   return response;
 }

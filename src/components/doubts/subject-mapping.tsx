@@ -10,7 +10,7 @@ import { saveTeacherSubjects } from "@/lib/doubts/actions";
 import type { TeacherRef } from "@/lib/doubts/queries";
 import { cn } from "@/lib/utils";
 
-function TeacherRow({ teacher }: { teacher: TeacherRef }) {
+function TeacherRow({ teacher, readOnly }: { teacher: TeacherRef; readOnly: boolean }) {
   const router = useRouter();
   const [selected, setSelected] = useState<string[]>(teacher.subjects);
   const [pending, start] = useTransition();
@@ -32,7 +32,7 @@ function TeacherRow({ teacher }: { teacher: TeacherRef }) {
     <li className="space-y-3 rounded-3xl border border-border bg-surface p-5 shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-lg font-extrabold text-text">{teacher.name}</h2>
-        <Button size="sm" onClick={save} disabled={pending || !dirty}>
+        <Button size="sm" onClick={save} disabled={readOnly || pending || !dirty}>
           {pending ? <Loader2 className="animate-spin" /> : <Check />} Save
         </Button>
       </div>
@@ -45,7 +45,7 @@ function TeacherRow({ teacher }: { teacher: TeacherRef }) {
               type="button"
               aria-pressed={on}
               onClick={() => toggle(s)}
-              disabled={pending}
+              disabled={readOnly || pending}
               className={cn(
                 "rounded-full border px-3.5 py-1.5 text-sm font-semibold transition-colors",
                 on ? "border-primary bg-primary text-primary-fg" : "border-border bg-surface-2 text-text-muted hover:text-text",
@@ -60,8 +60,8 @@ function TeacherRow({ teacher }: { teacher: TeacherRef }) {
   );
 }
 
-/** Warden / HOD: which subjects each teacher answers. Subjects with no teacher can't receive private doubts. */
-export function SubjectMapping({ teachers }: { teachers: TeacherRef[] }) {
+/** HOD / Academic Office: which subjects each teacher answers. Subjects with no teacher can't receive private doubts. */
+export function SubjectMapping({ teachers, readOnly = false }: { teachers: TeacherRef[]; readOnly?: boolean }) {
   const uncovered = DOUBT_SUBJECTS.filter((s) => !teachers.some((t) => t.subjects.includes(s)));
   return (
     <div className="space-y-5">
@@ -72,7 +72,7 @@ export function SubjectMapping({ teachers }: { teachers: TeacherRef[] }) {
       )}
       <ul className="space-y-4">
         {teachers.map((t) => (
-          <TeacherRow key={`${t.id}-${t.subjects.join("|")}`} teacher={t} />
+          <TeacherRow key={`${t.id}-${t.subjects.join("|")}`} teacher={t} readOnly={readOnly} />
         ))}
       </ul>
     </div>

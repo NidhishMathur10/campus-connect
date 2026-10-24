@@ -50,7 +50,7 @@ const FILTERS = [
 ] as const;
 
 export default async function NotificationLogPage({ searchParams }: { searchParams: Promise<{ status?: string }> }) {
-  const profile = await requireProfile(["warden", "dean"]);
+  const profile = await requireProfile(["warden", "dean", "hod", "security_officer"]);
   const { status } = await searchParams;
   const failedOnly = status === "failed";
 
@@ -61,15 +61,29 @@ export default async function NotificationLogPage({ searchParams }: { searchPara
 
   // Ticket numbers; the warden never sees anything about Safety & Security tickets.
   const ticketIds = [...new Set(rows.map((r) => r.ticket_id).filter((id): id is string => !!id))];
-  const tickets = new Map<string, { ticket_no: string; module: string }>();
+  const tickets = new Map<string, { ticket_no: string; module: string; is_confidential: boolean }>();
   if (ticketIds.length) {
-    const { data: t } = await admin.from("tickets").select("id, ticket_no, module").in("id", ticketIds);
-    for (const x of t ?? []) tickets.set(x.id, { ticket_no: x.ticket_no, module: x.module });
+    const { data: t } = await admin.from("tickets").select("id, ticket_no, module, is_confidential").in("id", ticketIds);
+    for (const x of t ?? []) tickets.set(x.id, { ticket_no: x.ticket_no, module: x.module, is_confidential: !!x.is_confidential });
   }
   if (profile.role === "warden") {
     rows = rows.filter(
       (r) => r.template !== "confidential_update" && !(r.ticket_id && tickets.get(r.ticket_id)?.module === "security"),
     );
+  }
+
+  // HOD: academic tickets only. Security officer: Safety & Security tickets (never confidential ones) and Lost & Found only.
+  if (profile.role === "hod") {
+    rows = rows.filter((r) => {
+      const t = r.ticket_id ? tickets.get(r.ticket_id) : null;
+      return !!t && t.module === "academic" && !t.is_confidential && r.template !== "confidential_update";
+    });
+  } else if (profile.role === "security_officer") {
+    rows = rows.filter((r) => {
+      if (r.template.startsWith("lf_")) return true;
+      const t = r.ticket_id ? tickets.get(r.ticket_id) : null;
+      return !!t && t.module === "security" && !t.is_confidential && r.template !== "confidential_update";
+    });
   }
 
   const sent = rows.filter((r) => r.status === "sent").length;

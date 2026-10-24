@@ -39,4 +39,4 @@ export const DOUBT_REMINDER_HOURS = 48;
 export const DOUBT_TEACHER_ROLES = ["teacher"] as const;
 export const DOUBT_VIEW_ROLES = ["teacher", "hod"] as const;
 /** Roles that edit the subject -> teacher mapping. */
-export const SUBJECT_ADMIN_ROLES = ["warden", "hod"] as const;
+export const SUBJECT_ADMIN_ROLES = ["hod", "academic_office"] as const;

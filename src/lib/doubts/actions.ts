@@ -245,7 +245,7 @@ const MappingSchema = z.object({
 
 export async function saveTeacherSubjects(input: z.input<typeof MappingSchema>): Promise<ActionResult> {
   const { profile } = await getCurrentProfile();
-  if (!profile || !(SUBJECT_ADMIN_ROLES as readonly string[]).includes(profile.role)) return { ok: false, error: "Only the warden or HOD can change this." };
+  if (!profile || !(SUBJECT_ADMIN_ROLES as readonly string[]).includes(profile.role)) return { ok: false, error: "Not allowed: only the HOD or Academic Office can change this." };
   const parsed = MappingSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Something went wrong. Please try again." };
   const { error } = await createAdminClient()

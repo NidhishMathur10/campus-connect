@@ -19,11 +19,13 @@ import { UserAvatar, UserMenu, type ShellUser } from "./user-menu";
 function NavLinks({ items, pathname, onNavigate }: { items: NavItem[]; pathname: string; onNavigate?: () => void }) {
   return (
     <ul className="space-y-1">
-      {items.map((item) => {
+      {items.map((item, idx) => {
+        const heading = item.group && item.group !== items[idx - 1]?.group ? item.group : null;
         const active = isActive(pathname, item.href, items);
         const Icon = item.icon;
         return (
           <li key={item.href}>
+            {heading && <p className={cn("eyebrow mb-1 px-3", idx > 0 && "mt-4")}>{heading}</p>}
             <Link
               href={item.href}
               onClick={onNavigate}
