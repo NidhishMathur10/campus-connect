@@ -10,6 +10,9 @@ import { COLLEGE_NAME } from "@/config/college";
 import { CATEGORY_STYLES } from "@/config/styles";
 import { HOSTEL_CATEGORIES, ACADEMIC_CATEGORIES } from "@/config/routing";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { TodayMenuCard } from "@/components/mess/today-menu-card";
+import { MESS_LABELS, messForStudent } from "@/config/mess";
+import { loadMenu } from "@/lib/mess/core";
 
 const LF_CHIPS = ["Phones", "Wallets", "ID cards", "Earphones", "Keys", "Bottles"];
 
@@ -34,7 +37,12 @@ export default async function StudentHome() {
   if (!userId) return <LandingPage />;
   const profile = await requireProfile(["student"]);
   const firstName = profile.full_name.split(" ")[0];
-  const [foundCount, unreadNotices] = await Promise.all([foundThisWeek(), unreadNoticeCount(profile)]);
+  const mess = messForStudent(profile.hostel, profile.wing);
+  const [foundCount, unreadNotices, menu] = await Promise.all([
+    foundThisWeek(),
+    unreadNoticeCount(profile),
+    loadMenu(mess ?? "all").catch(() => null),
+  ]);
 
   return (
     <div className="relative space-y-8">
@@ -51,6 +59,8 @@ export default async function StudentHome() {
           ticket, send it to the right team, and keep you updated.
         </p>
       </div>
+
+      {menu && <TodayMenuCard menu={menu} messLabel={mess ? MESS_LABELS[mess] : "Hostel mess"} nowIso={new Date().toISOString()} />}
 
       <div className="grid gap-5 md:grid-cols-2">
         {/* Hostel & Campus — navy hero card */}

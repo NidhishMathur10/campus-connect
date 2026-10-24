@@ -1332,3 +1332,126 @@ alter table public.equipment_loan_log enable row level security;
 drop policy if exists "equip_log_select" on public.equipment_loan_log;
 create policy "equip_log_select" on public.equipment_loan_log for select to authenticated
   using (public.app_role()::text in ('sports_incharge','warden','dean'));
+
+
+-- ---------------------------------------------------------------------------
+-- Mess menu (Hostel module). One shared weekly menu (mess = 'all'); a per-mess row overrides it later.
+-- Everyone signed in reads; only the Mess Committee (staff in department 'Mess Committee') and the Dean edit.
+-- Students write their own meal ratings. Safe to re-run.
+-- ---------------------------------------------------------------------------
+create or replace function public.is_mess_manager()
+returns boolean language sql stable security definer set search_path = public as $$
+  select public.app_role()::text = 'dean'
+      or (public.app_role()::text = 'staff' and public.app_department() = 'Mess Committee')
+$$;
+
+create table if not exists public.mess_menus (
+  id         uuid primary key default gen_random_uuid(),
+  mess       text not null default 'all' check (mess in ('all','girls','old_hostel','new_hostel')),
+  semester   text not null,
+  day        int  not null check (day between 0 and 6),   -- 0 = Monday … 6 = Sunday
+  meal       text not null check (meal in ('breakfast','lunch','snacks','dinner')),
+  items      jsonb not null default '[]'::jsonb,           -- [{name, type 'veg'|'nonveg'|'either', alt, alt_type}]
+  note       text,
+  updated_at timestamptz not null default now(),
+  unique (mess, semester, day, meal)
+);
+
+create table if not exists public.daily_extras (
+  id         uuid primary key default gen_random_uuid(),
+  mess       text not null default 'all' check (mess in ('all','girls','old_hostel','new_hostel')),
+  name       text not null,
+  meals      text[] not null default '{breakfast,lunch,snacks,dinner}',
+  sort_order int not null default 0
+);
+
+create table if not exists public.mess_timings (
+  mess       text not null default 'all' check (mess in ('all','girls','old_hostel','new_hostel')),
+  meal       text not null check (meal in ('breakfast','lunch','snacks','dinner')),
+  start_time text not null,   -- "HH:MM" campus time
+  end_time   text not null,
+  primary key (mess, meal)
+);
+
+-- Title + footer of the printed chart, one row per mess key.
+create table if not exists public.mess_menu_meta (
+  mess        text primary key default 'all' check (mess in ('all','girls','old_hostel','new_hostel')),
+  semester    text not null,
+  title       text not null,
+  footer_note text,
+  updated_at  timestamptz not null default now()
+);
+
+create table if not exists public.meal_ratings (
+  id         uuid primary key default gen_random_uuid(),
+  user_id    uuid not null references public.profiles(id) on delete cascade,
+  mess       text,
+  date       date not null,
+  meal       text not null check (meal in ('breakfast','lunch','snacks','dinner')),
+  rating     int  not null check (rating between 1 and 5),
+  comment    text,
+  moderation text not null default 'passed',   -- passed | unchecked
+  created_at timestamptz not null default now(),
+  unique (user_id, date, meal)
+);
+create index if not exists meal_ratings_date_idx on public.meal_ratings (date desc);
+
+-- Cached Hindi spellings of dish names and the cached AI summary of rating comments (server only).
+create table if not exists public.mess_translations (
+  name text primary key,
+  hi   text not null,
+  created_at timestamptz not null default now()
+);
+create table if not exists public.mess_rating_summaries (
+  id             text primary key default 'all',
+  response_count int not null,
+  summary        jsonb not null,
+  updated_at     timestamptz not null default now()
+);
+
+alter table public.mess_menus enable row level security;
+alter table public.daily_extras enable row level security;
+alter table public.mess_timings enable row level security;
+alter table public.mess_menu_meta enable row level security;
+alter table public.meal_ratings enable row level security;
+alter table public.mess_translations enable row level security;
+alter table public.mess_rating_summaries enable row level security;
+
+drop policy if exists "mess_menus_select" on public.mess_menus;
+drop policy if exists "mess_menus_write"  on public.mess_menus;
+create policy "mess_menus_select" on public.mess_menus for select to authenticated using (true);
+create policy "mess_menus_write"  on public.mess_menus for all to authenticated
+  using (public.is_mess_manager()) with check (public.is_mess_manager());
+
+drop policy if exists "daily_extras_select" on public.daily_extras;
+drop policy if exists "daily_extras_write"  on public.daily_extras;
+create policy "daily_extras_select" on public.daily_extras for select to authenticated using (true);
+create policy "daily_extras_write"  on public.daily_extras for all to authenticated
+  using (public.is_mess_manager()) with check (public.is_mess_manager());
+
+drop policy if exists "mess_timings_select" on public.mess_timings;
+drop policy if exists "mess_timings_write"  on public.mess_timings;
+create policy "mess_timings_select" on public.mess_timings for select to authenticated using (true);
+create policy "mess_timings_write"  on public.mess_timings for all to authenticated
+  using (public.is_mess_manager()) with check (public.is_mess_manager());
+
+drop policy if exists "mess_meta_select" on public.mess_menu_meta;
+drop policy if exists "mess_meta_write"  on public.mess_menu_meta;
+create policy "mess_meta_select" on public.mess_menu_meta for select to authenticated using (true);
+create policy "mess_meta_write"  on public.mess_menu_meta for all to authenticated
+  using (public.is_mess_manager()) with check (public.is_mess_manager());
+
+-- Ratings: a student reads / writes their own; the committee, Dean and warden read all.
+drop policy if exists "meal_ratings_select" on public.meal_ratings;
+drop policy if exists "meal_ratings_insert" on public.meal_ratings;
+drop policy if exists "meal_ratings_update" on public.meal_ratings;
+create policy "meal_ratings_select" on public.meal_ratings for select to authenticated
+  using (user_id = auth.uid() or public.is_mess_manager() or public.app_role()::text = 'warden');
+create policy "meal_ratings_insert" on public.meal_ratings for insert to authenticated
+  with check (user_id = auth.uid() and public.app_role()::text = 'student');
+create policy "meal_ratings_update" on public.meal_ratings for update to authenticated
+  using (user_id = auth.uid()) with check (user_id = auth.uid());
+
+-- Dish-name translations are public text; summaries have no policy (service role only).
+drop policy if exists "mess_translations_select" on public.mess_translations;
+create policy "mess_translations_select" on public.mess_translations for select to authenticated using (true);

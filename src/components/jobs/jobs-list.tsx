@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { CheckCircle2, ClipboardCheck, Languages, LayoutDashboard } from "lucide-react";
+import { CheckCircle2, ClipboardCheck, Languages, LayoutDashboard, UtensilsCrossed } from "lucide-react";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { NotificationBell } from "@/components/shell/notification-bell";
 import { UserMenu, type ShellUser } from "@/components/shell/user-menu";
@@ -65,6 +65,14 @@ export function JobsHeader({ user, userId, doneCount }: { user: ShellUser; userI
             <span className="inline-flex h-11 items-center gap-1.5 rounded-full bg-success-bg px-4 text-base font-bold text-success-fg">
               {t.doneToday}: {doneCount} <CheckCircle2 className="size-5" />
             </span>
+          )}
+          {user.subtitle === "Mess Committee" && (
+            <Link
+              href="/mess-menu"
+              className="inline-flex h-11 items-center gap-1.5 rounded-full border border-border bg-surface px-4 text-sm font-bold text-text hover:bg-surface-2"
+            >
+              <UtensilsCrossed className="size-4" /> Mess menu
+            </Link>
           )}
           <Link
             href="/staff"

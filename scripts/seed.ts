@@ -10,6 +10,7 @@ import { DEMO_ACCOUNTS, DEMO_PASSWORD, demoAccountEmail } from "../src/config/de
 import { collegeEmailDomain } from "../src/config/email";
 import { currentTerm } from "../src/config/feedback";
 import { defaultSubjectsFor } from "../src/config/subjects";
+import { DAILY_EXTRAS, DAY_NAMES, DEFAULT_MENU, DEFAULT_TIMINGS, MEALS, MENU_FOOTER_NOTE, MENU_SEMESTER, MENU_TITLE, MESS_TZ } from "../src/config/mess";
 import { seedNotices } from "./seed-notices";
 import {
   computeSlaDueAt,
@@ -137,6 +138,12 @@ async function wipe() {
   must(await db.from("tickets").delete().not("id", "is", null), "wipe tickets");
   // Cascades to matches, claims and the audit log.
   must(await db.from("lost_found_items").delete().not("id", "is", null), "wipe lost & found");
+  must(await db.from("meal_ratings").delete().not("id", "is", null), "wipe meal ratings");
+  must(await db.from("mess_rating_summaries").delete().not("id", "is", null), "wipe mess summaries");
+  must(await db.from("mess_menus").delete().not("id", "is", null), "wipe mess menus");
+  must(await db.from("daily_extras").delete().not("id", "is", null), "wipe daily extras");
+  must(await db.from("mess_timings").delete().not("meal", "is", null), "wipe mess timings");
+  must(await db.from("mess_menu_meta").delete().not("mess", "is", null), "wipe mess menu meta");
   // Equipment loans cascade from items.
   must(await db.from("equipment_items").delete().not("id", "is", null), "wipe sports equipment");
   // Cascades to doubt messages.
@@ -1358,6 +1365,50 @@ async function seedSports() {
 }
 
 // ---------------------------------------------------------------------------
+// Mess menu: the printed 2026-27 (Odd Sem) chart shared by all three messes, serving times, and a few past ratings.
+// Nobody has rated today, so the live "Rate this meal" demo works.
+// ---------------------------------------------------------------------------
+async function seedMess() {
+  const rows = DAY_NAMES.flatMap((_, day) => MEALS.map((meal) => ({ mess: "all", semester: MENU_SEMESTER, day, meal, items: DEFAULT_MENU[day][meal] })));
+  must(await db.from("mess_menus").insert(rows), "mess menus");
+  must(await db.from("daily_extras").insert(DAILY_EXTRAS.map((name, i) => ({ mess: "all", name, sort_order: i }))), "daily extras");
+  must(
+    await db.from("mess_timings").insert(MEALS.map((meal) => ({ mess: "all", meal, start_time: DEFAULT_TIMINGS[meal].start, end_time: DEFAULT_TIMINGS[meal].end }))),
+    "mess timings",
+  );
+  must(await db.from("mess_menu_meta").insert({ mess: "all", semester: MENU_SEMESTER, title: MENU_TITLE, footer_note: MENU_FOOTER_NOTE }), "mess meta");
+
+  // Most recent PAST date (never today) that fell on a given weekday (0 = Monday), so a rating matches that day's dishes.
+  const lastWeekday = (wd: number) => {
+    for (let back = 1; back <= 7; back++) {
+      const date = dateBack(back);
+      if ((new Date(`${date}T12:00:00Z`).getUTCDay() + 6) % 7 === wd) return date;
+    }
+    throw new Error("unreachable");
+  };
+  const dateBack = (n: number) => new Date(Date.now() - n * 86_400_000).toLocaleDateString("en-CA", { timeZone: MESS_TZ });
+  const who = ["2616400101", "2616400102", "2616400103", "2616400104", "2616400108", "2616400109"];
+  const mess = ["new_hostel", "girls", "old_hostel", "new_hostel", "girls", "old_hostel"];
+  // [weekday, meal, ratings per student, comment from the 3rd student]
+  const plan: [number, (typeof MEALS)[number], number[], string?][] = [
+    [4, "lunch", [2, 2, 1, 2, 2, 1], "Aloo soya matar was bland and the dal was watery."],
+    [4, "dinner", [4, 4, 5, 4, 5, 4]],
+    [1, "dinner", [2, 3, 2, 2, 3, 2], "Petha was too sweet and the chana dal had no taste."],
+    [1, "lunch", [3, 4, 3, 4, 3, 3]],
+    [6, "dinner", [5, 5, 5, 4, 5, 5], "Veg biryani was great, please keep it every Sunday."],
+    [3, "breakfast", [4, 4, 5, 4, 4, 5]],
+    [5, "lunch", [3, 3, 4, 3, 3, 3]],
+    [0, "snacks", [3, 4, 3, 3, 4, 3]],
+    [2, "dinner", [4, 3, 4, 4, 3, 4]],
+  ];
+  const ratings = plan.flatMap(([wd, meal, stars, comment]) =>
+    stars.map((rating, i) => ({ user_id: u(who[i]).id, mess: mess[i], date: lastWeekday(wd), meal, rating, comment: i === 2 ? (comment ?? null) : null })),
+  );
+  must(await db.from("meal_ratings").insert(ratings), "meal ratings");
+  console.log(`✔ Mess menu (${rows.length} meal slots, shared by all three messes) + ${ratings.length} sample ratings`);
+}
+
+// ---------------------------------------------------------------------------
 async function main() {
   console.log("Seeding CampusConnect…");
   await seedAccounts();
@@ -1370,6 +1421,7 @@ async function main() {
   await seedFeedback();
   await seedNotices(db, u);
   await seedSports();
+  await seedMess();
   console.log("Done ✔  Log in with any demo account (password demo1234).");
 }
 
