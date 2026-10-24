@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { Component, useEffect, useState, type ReactNode } from "react";
 import { Bell, BellOff, BadgeCheck, MessageSquare, PackageSearch, Ticket, Megaphone } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { createClient } from "@/lib/supabase/client";
@@ -11,36 +11,122 @@ import { cn } from "@/lib/utils";
 
 const ICONS = { answer: MessageSquare, comment: MessageSquare, best_answer: BadgeCheck, ticket: Ticket, lost_found: PackageSearch, doubt: MessageSquare, notice: Megaphone } as const;
 
-/** In-app bell: latest 20 notifications, live via Realtime (RLS: own rows only). */
-export function NotificationBell({ userId, align = "end" }: { userId: string; align?: "start" | "end" }) {
-  const [items, setItems] = useState<AppNotification[]>([]);
-  const unread = items.filter((n) => !n.read_at).length;
+/**
+ * One shared Realtime subscription per user, however many bells are mounted
+ * (StaffShell renders two). The channel has a unique name and `.on()` is always
+ * called before `.subscribe()`.
+ */
+type Store = { items: AppNotification[]; listeners: Set<() => void>; stop: () => void };
+const stores = new Map<string, Store>();
 
-  useEffect(() => {
-    const supabase = createClient();
-    let cancelled = false;
-    supabase
-      .from("notifications")
-      .select("*")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: false })
-      .limit(20)
-      .then(({ data }) => {
-        if (!cancelled && data) setItems(data as AppNotification[]);
-      });
+function emit(store: Store) {
+  store.listeners.forEach((l) => l());
+}
+
+function openStore(userId: string): Store {
+  const supabase = createClient();
+  const store: Store = { items: [], listeners: new Set(), stop: () => {} };
+  let cancelled = false;
+  supabase
+    .from("notifications")
+    .select("*")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(20)
+    .then(({ data }) => {
+      if (!cancelled && data) {
+        store.items = data as AppNotification[];
+        emit(store);
+      }
+    });
+  try {
     const channel = supabase
-      .channel(`notifications-${userId}`)
+      .channel(`notifications-${userId}-${crypto.randomUUID()}`)
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${userId}` },
-        (payload) => setItems((prev) => [payload.new as AppNotification, ...prev].slice(0, 20)),
+        (payload) => {
+          store.items = [payload.new as AppNotification, ...store.items].slice(0, 20);
+          emit(store);
+        },
       )
       .subscribe();
-    return () => {
+    store.stop = () => {
       cancelled = true;
-      supabase.removeChannel(channel);
+      void supabase.removeChannel(channel);
+    };
+  } catch {
+    store.stop = () => {
+      cancelled = true;
+    };
+  }
+  return store;
+}
+
+function useNotifications(userId: string) {
+  const [, rerender] = useState(0);
+  const [store, setStore] = useState<Store | null>(null);
+  useEffect(() => {
+    let s = stores.get(userId);
+    if (!s) {
+      s = openStore(userId);
+      stores.set(userId, s);
+    }
+    const listener = () => rerender((n) => n + 1);
+    s.listeners.add(listener);
+    setStore(s);
+    const mine = s;
+    return () => {
+      mine.listeners.delete(listener);
+      // Defer so a Strict Mode remount can reuse the store instead of resubscribing.
+      setTimeout(() => {
+        if (mine.listeners.size === 0 && stores.get(userId) === mine) {
+          stores.delete(userId);
+          mine.stop();
+        }
+      }, 0);
     };
   }, [userId]);
+  return {
+    items: store?.items ?? [],
+    setItems: (fn: (prev: AppNotification[]) => AppNotification[]) => {
+      if (!store) return;
+      store.items = fn(store.items);
+      emit(store);
+    },
+  };
+}
+
+/** Error boundary: a realtime/render failure shows a static bell instead of crashing the page. */
+export class RealtimeBoundary extends Component<{ children: ReactNode; fallback?: ReactNode }, { failed: boolean }> {
+  state = { failed: false };
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+  render() {
+    if (this.state.failed) return this.props.fallback ?? null;
+    return this.props.children;
+  }
+}
+
+/** In-app bell: latest 20 notifications, live via Realtime (RLS: own rows only). */
+export function NotificationBell(props: { userId: string; align?: "start" | "end" }) {
+  return (
+    <RealtimeBoundary
+      fallback={
+        <span className="relative grid size-10 place-items-center rounded-full text-text-muted" title="Notifications unavailable">
+          <Bell className="size-5" aria-hidden="true" />
+        </span>
+      }
+    >
+      <BellInner {...props} />
+    </RealtimeBoundary>
+  );
+}
+
+function BellInner({ userId, align = "end" }: { userId: string; align?: "start" | "end" }) {
+  const { items, setItems } = useNotifications(userId);
+  const unread = items.filter((n) => !n.read_at).length;
 
   async function markAllRead() {
     const ids = items.filter((n) => !n.read_at).map((n) => n.id);
