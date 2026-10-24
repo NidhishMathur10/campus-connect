@@ -1315,3 +1315,20 @@ begin
   return v_id;
 end $$;
 revoke all on function public.reserve_equipment(uuid, uuid, int, timestamptz, timestamptz, text, int) from public, anon, authenticated;
+
+
+-- Audit trail for the equipment desk: every scan / code lookup, issue, return and rejected return, with who did it.
+create table if not exists public.equipment_loan_log (
+  id         uuid primary key default gen_random_uuid(),
+  loan_id    uuid references public.equipment_loans(id) on delete cascade,
+  actor_id   uuid references public.profiles(id) on delete set null,
+  actor_name text not null,
+  action     text not null,       -- scan | issue | return | return_rejected | lookup_failed
+  detail     text,
+  created_at timestamptz not null default now()
+);
+create index if not exists equipment_loan_log_loan_idx on public.equipment_loan_log (loan_id, created_at desc);
+alter table public.equipment_loan_log enable row level security;
+drop policy if exists "equip_log_select" on public.equipment_loan_log;
+create policy "equip_log_select" on public.equipment_loan_log for select to authenticated
+  using (public.app_role()::text in ('sports_incharge','warden','dean'));

@@ -17,7 +17,8 @@ import { notify } from "@/lib/notifications";
 import { deliverPush } from "@/lib/push/send";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Profile } from "@/lib/types";
-import { campusDate, formatClock } from "./time";
+import { formatDateTime } from "@/lib/format";
+import { campusDate, formatClock, relativeTime } from "./time";
 import type { EquipmentItem, EquipmentLoan, ItemWithAvailability, LoanView } from "./types";
 
 /** Server-side building blocks for sports equipment: reads, the watcher, notifications and the damage ticket. */
@@ -121,6 +122,86 @@ export async function reservationBlockUntil(studentId: string, now = new Date())
   if (late.length < SPORTS_OVERDUE_LIMIT) return null;
   const until = new Date(late[0].overdue_notified_at).getTime() + SPORTS_BLOCK_DAYS * 86_400_000;
   return until > now.getTime() ? new Date(until).toISOString() : null;
+}
+
+// ---------------------------------------------------------------------------
+// Desk audit log + pickup-code lookup
+// ---------------------------------------------------------------------------
+export interface LoanLogEntry {
+  actor_name: string;
+  action: string;
+  detail: string | null;
+  created_at: string;
+}
+
+export async function logLoan(loanId: string | null, actor: Pick<Profile, "id" | "full_name">, action: string, detail?: string): Promise<void> {
+  const { error } = await createAdminClient()
+    .from("equipment_loan_log")
+    .insert({ loan_id: loanId, actor_id: actor.id, actor_name: actor.full_name, action, detail: detail ?? null });
+  if (error) console.error("[loan log]", error.message);
+}
+
+export interface DeskWarning {
+  level: "danger" | "warning";
+  text: string;
+}
+
+export interface PickupLookup {
+  loan: LoanView;
+  warnings: DeskWarning[];
+  /** "Issue now" is offered. */
+  canIssue: boolean;
+  /** "Confirm return" is offered. */
+  canReturn: boolean;
+  log: LoanLogEntry[];
+}
+
+/** Everything the verification card shows, worked out on the server from the code alone. */
+export async function lookupByCode(code: string, now = new Date()): Promise<PickupLookup | null> {
+  const admin = createAdminClient();
+  const { data } = await admin.from("equipment_loans").select(LOAN_SELECT).eq("pickup_code", code).maybeSingle();
+  if (!data) return null;
+  const loan = toView(data as unknown as LoanRow, true);
+  const { data: logRows } = await admin
+    .from("equipment_loan_log")
+    .select("actor_name, action, detail, created_at")
+    .eq("loan_id", loan.id)
+    .order("created_at", { ascending: false })
+    .limit(6);
+
+  const warnings: DeskWarning[] = [];
+  let canIssue = false;
+  let canReturn = false;
+  const start = new Date(loan.reserved_for).getTime();
+  switch (loan.status) {
+    case "reserved": {
+      canIssue = true;
+      if (now.getTime() > start + SPORTS_PICKUP_GRACE_MIN * 60_000) {
+        warnings.push({ level: "danger", text: `The slot started more than ${SPORTS_PICKUP_GRACE_MIN} minutes ago, so this reservation should have been released. Check with the student before issuing.` });
+      } else if (start - now.getTime() > 15 * 60_000) {
+        warnings.push({ level: "warning", text: `This is for a different time slot — it starts ${relativeTime(loan.reserved_for, now.getTime())}.` });
+      }
+      const blockedUntil = await reservationBlockUntil(loan.student_id, now);
+      if (blockedUntil) warnings.push({ level: "warning", text: `This student returned equipment late twice recently (new reservations are paused until ${formatDateTime(blockedUntil)}).` });
+      break;
+    }
+    case "issued":
+    case "overdue":
+      canReturn = true;
+      warnings.push({ level: "warning", text: loan.status === "overdue" ? "Already issued and overdue — this is a return, not a new pickup." : "Already issued — this is a return, not a new pickup." });
+      break;
+    case "return_pending":
+      canReturn = true;
+      warnings.push({ level: "warning", text: "The student says it is already back. Check the item, then confirm the return." });
+      break;
+    case "returned":
+      warnings.push({ level: "danger", text: "Already returned. Nothing to do for this code." });
+      break;
+    case "expired":
+      warnings.push({ level: "danger", text: loan.notes === "Cancelled by student" ? "This reservation was cancelled by the student." : "This code has expired — the reservation wasn't picked up in time." });
+      break;
+  }
+  return { loan, warnings, canIssue, canReturn, log: (logRows ?? []) as LoanLogEntry[] };
 }
 
 // ---------------------------------------------------------------------------

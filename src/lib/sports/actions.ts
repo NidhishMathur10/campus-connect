@@ -3,7 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import {
+  canIssueEquipment,
   isSportsManager,
+  normalizePickupCode,
   LOAN_ACTIVE_STATUSES,
   SPORTS_CATEGORIES,
   SPORTS_MAX_ITEMS_PER_STUDENT,
@@ -16,6 +18,9 @@ import type { Profile } from "@/lib/types";
 import {
   createDamageTicket,
   generatePickupCode,
+  logLoan,
+  lookupByCode,
+  type PickupLookup,
   MY_EQUIPMENT_PATH,
   reservationBlockUntil,
   runSportsWatcher,
@@ -43,6 +48,12 @@ async function requireStudent(): Promise<Profile | null> {
 async function requireManager(): Promise<Profile | null> {
   const { profile } = await getCurrentProfile();
   return profile && isSportsManager(profile.role) ? profile : null;
+}
+
+/** Scanning, issuing and taking back: the Sports In-charge (and the Dean as backup). Inventory stays manager-only. */
+async function requireIssuer(): Promise<Profile | null> {
+  const { profile } = await getCurrentProfile();
+  return profile && canIssueEquipment(profile.role) ? profile : null;
 }
 
 async function loadLoan(id: string): Promise<(EquipmentLoan & { item: { name: string } | null }) | null> {
@@ -132,8 +143,30 @@ export async function cancelReservation(loanId: string): Promise<ActionResult> {
 // ---------------------------------------------------------------------------
 // Sports In-charge: issue / return / damage ticket
 // ---------------------------------------------------------------------------
+/**
+ * Scan / typed code → verification card. The QR carries only the pickup code; everything else is read from the
+ * database here, so an edited or invented code just comes back "not found".
+ */
+export async function lookupPickupCode(raw: string): Promise<ActionResult<{ result: PickupLookup }>> {
+  const profile = await requireIssuer();
+  if (!profile) return { ok: false, error: "Only the Sports In-charge can look up pickup codes." };
+  const code = normalizePickupCode(typeof raw === "string" ? raw.slice(0, 64) : "");
+  if (!code) {
+    await logLoan(null, profile, "lookup_failed", "Not a valid pickup code format");
+    return { ok: false, error: "That doesn't look like a pickup code. It has 6 letters or numbers, like K7M2QX." };
+  }
+  await runSportsWatcher({ force: true });
+  const result = await lookupByCode(code);
+  if (!result) {
+    await logLoan(null, profile, "lookup_failed", `Unknown code ${code}`);
+    return { ok: false, error: "No reservation found for this code. Ask the student to show their code again." };
+  }
+  await logLoan(result.loan.id, profile, "scan", `Code ${code} · status ${result.loan.status}`);
+  return { ok: true, result };
+}
+
 export async function issueLoan(loanId: string): Promise<ActionResult> {
-  const profile = await requireManager();
+  const profile = await requireIssuer();
   if (!profile) return { ok: false, error: "Only the Sports In-charge can issue equipment." };
   const loan = await loadLoan(loanId);
   if (!loan) return { ok: false, error: "Reservation not found." };
@@ -150,9 +183,10 @@ export async function issueLoan(loanId: string): Promise<ActionResult> {
     .select("id");
   if (!data?.length) return { ok: false, error: "This reservation was just changed. Please refresh." };
 
+  await logLoan(loan.id, profile, "issue", `${loan.qty}× ${loan.item?.name ?? "equipment"}`);
   await tellStudent(
     loan.student_id,
-    "Equipment issued",
+    "Issued ✓",
     `${loan.qty}× ${loan.item?.name ?? "equipment"} — please return it by ${formatClock(dueAt)}.`,
     MY_EQUIPMENT_PATH,
     "sports_issued",
@@ -173,7 +207,7 @@ const ReturnSchema = z.object({
 export async function returnLoan(
   input: z.input<typeof ReturnSchema>,
 ): Promise<ActionResult<{ ticketNo?: string }>> {
-  const profile = await requireManager();
+  const profile = await requireIssuer();
   if (!profile) return { ok: false, error: "Only the Sports In-charge can take equipment back." };
   const parsed = ReturnSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Please choose how many and the condition." };
@@ -246,6 +280,7 @@ export async function returnLoan(
     }
   }
 
+  await logLoan(returnedId, profile, "return", `${qty}× ${itemName}, ${condition}${ticketNo ? `, ticket ${ticketNo}` : ""}`);
   await tellStudent(
     loan.student_id,
     wasPending ? "Return confirmed ✓" : "Equipment returned",
@@ -276,7 +311,7 @@ export async function requestReturn(loanId: string): Promise<ActionResult> {
 
 /** Sports In-charge: the item never arrived. Back to Issued (the watcher flags it overdue again if it is late). */
 export async function rejectReturnRequest(loanId: string): Promise<ActionResult> {
-  const profile = await requireManager();
+  const profile = await requireIssuer();
   if (!profile) return { ok: false, error: "Only the Sports In-charge can do this." };
   const loan = await loadLoan(loanId);
   if (!loan) return { ok: false, error: "Loan not found." };
@@ -287,6 +322,7 @@ export async function rejectReturnRequest(loanId: string): Promise<ActionResult>
     .eq("status", "return_pending")
     .select("id");
   if (!data?.length) return { ok: false, error: "This return was just changed. Please refresh." };
+  await logLoan(loan.id, profile, "return_rejected", "Item not received at the counter");
   await tellStudent(
     loan.student_id,
     "Return not received",

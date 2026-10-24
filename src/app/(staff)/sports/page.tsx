@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { PageHeader } from "@/components/common/page-header";
 import { SportsDesk } from "@/components/sports/desk";
-import { isSportsManager, SPORTS_VIEWER_ROLES } from "@/config/sports";
+import { canIssueEquipment, isSportsManager, SPORTS_VIEWER_ROLES } from "@/config/sports";
 import { requireProfile } from "@/lib/auth";
 import { loadDesk, runSportsWatcher } from "@/lib/sports/core";
 
@@ -17,9 +17,9 @@ export default async function SportsDeskPage() {
       <PageHeader
         eyebrow="Sports Complex"
         title="Sports equipment desk"
-        description={isSportsManager(profile.role) ? "Issue reservations, take equipment back and keep the inventory up to date." : "Read-only view of the equipment desk."}
+        description={canIssueEquipment(profile.role) ? "Issue reservations, take equipment back and keep the inventory up to date." : "Read-only view of the equipment desk."}
       />
-      <SportsDesk data={data} canManage={isSportsManager(profile.role)} />
+      <SportsDesk data={data} canManage={isSportsManager(profile.role)} canIssue={canIssueEquipment(profile.role)} />
     </div>
   );
 }
