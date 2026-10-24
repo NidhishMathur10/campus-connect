@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
 import s from "./landing.module.css";
 
 /** Animated gradient blobs + cursor spotlight behind the hero content. */
@@ -52,10 +52,12 @@ export function AnimatedWords({ text }: { text: string }) {
       <span className="sr-only">{text}</span>
       <span aria-hidden="true">
         {text.split(" ").map((w, i) => (
-          <span key={i} className={s.word} style={{ animationDelay: `${120 + i * 90}ms` }}>
+          <Fragment key={i}>
+            {i > 0 && " "}
+            <span className={s.word} style={{ animationDelay: `${120 + i * 90}ms` }}>
             {w}
-            {" "}
-          </span>
+            </span>
+          </Fragment>
         ))}
       </span>
     </>
