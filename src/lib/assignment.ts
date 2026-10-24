@@ -161,7 +161,21 @@ export async function autoAssignTicket(ticketId: string, trigger: AutoAssignTrig
     if (ticket.assigned_to && trigger !== "reopened") return { ok: false, why: "skipped" };
 
     const settings = await getAssignmentSettings(admin);
-    if (settings.disabledDepartments.includes(ticket.department)) return { ok: false, why: "skipped" };
+    if (settings.disabledDepartments.includes(ticket.department)) {
+      // Auto-assign is off: a reopened job still goes back to the person who had it, as a phone alert.
+      if (trigger === "reopened" && ticket.assigned_to) {
+        notifyStaffAlert({
+          ticketId: ticket.id,
+          recipientIds: [ticket.assigned_to],
+          template: "ticket_reopened",
+          title: `${ticket.ticket_no} was reopened`,
+          message: `${ticket.ticket_no} (${ticket.title}) was reopened by the student.`,
+          push: "job",
+          pushOnly: true,
+        });
+      }
+      return { ok: false, why: "skipped" };
+    }
 
     const pick = await pickAssignee(admin, ticket);
     if (!pick) {
@@ -204,7 +218,7 @@ export async function autoAssignTicket(ticketId: string, trigger: AutoAssignTrig
     const { error: evError } = await admin.from("ticket_events").insert(events);
     if (evError) console.error("[autoAssign] events", evError.message);
 
-    notifyStaffAssigned(ticket.id, pick.id);
+    notifyStaffAssigned(ticket.id, pick.id, { reopened: trigger === "reopened" });
     if (moveToAssigned) notifyTicketStatus(ticket.id, "Assigned");
     return { ok: true, assignee: { id: pick.id, name: pick.name }, reason: pick.reason };
   } catch (err) {

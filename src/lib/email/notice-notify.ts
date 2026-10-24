@@ -1,6 +1,8 @@
 import "server-only";
 import { audienceMatchesProfile, NOTICE_TYPE_LABELS } from "@/config/notices";
+import { ROUTING } from "@/config/routing";
 import { formatDateTime } from "@/lib/format";
+import { pushToPeople } from "@/lib/push/send";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Notice } from "@/lib/types";
 import { inBackground } from "./send";
@@ -27,16 +29,35 @@ async function audienceOf(n: Pick<Notice, "audience">): Promise<Person[]> {
   return ((data ?? []) as StudentRow[]).filter((s) => audienceMatchesProfile(n.audience, s));
 }
 
+/** The department that fixes this kind of known issue (from the routing guide), if the notice names a category. */
+function departmentOf(n: Pick<Notice, "module" | "category">): string | null {
+  if ((n.module !== "hostel" && n.module !== "academic") || !n.category) return null;
+  return ROUTING[n.module].find((r) => r.category === n.category)?.departments[0] ?? null;
+}
+
+/** Phone alert for the staff who will get the complaints: "Known issue: ..." for their department. */
+async function pushToDepartment(n: Notice, title: string, message: string) {
+  const department = departmentOf(n);
+  if (!department) return;
+  const { data } = await createAdminClient().from("profiles").select("id, full_name, role").eq("role", "staff").eq("department", department);
+  await pushToPeople(
+    (data ?? []) as { id: string; full_name: string; role: string }[],
+    () => ({ title: clip(title, 80), body: clip(message, 140), tag: `notice-${n.id}`, url: "/jobs" }),
+    { template: n.type === "urgent" ? "notice_urgent" : "notice_known_issue" },
+  );
+}
+
 const when = (iso: string | null) => (iso ? formatDateTime(iso) : null);
 
 /** A notice was published: bell for the audience, email only for urgent alerts and known issues. */
 export function notifyNoticePublished(n: Notice): void {
   inBackground(async () => {
     const recipients = await audienceOf(n);
-    if (recipients.length === 0) return;
     const label = NOTICE_TYPE_LABELS[n.type];
     const title = n.type === "urgent" ? `Urgent: ${n.title}` : n.type === "known_issue" ? `Known issue: ${n.title}` : `New ${label.toLowerCase()}: ${n.title}`;
     const message = n.summary || clip(n.body, 200);
+    if (n.type === "urgent" || n.type === "known_issue") await pushToDepartment(n, title, message);
+    if (recipients.length === 0) return;
 
     if (n.type !== "urgent" && n.type !== "known_issue") {
       await notifyInApp(recipients.map((p) => ({ user_id: p.id, kind: "notice" as const, title: clip(title, 120), body: clip(message, 160), link: noticePath(n) })));

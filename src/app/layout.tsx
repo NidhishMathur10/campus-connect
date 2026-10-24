@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Manrope } from "next/font/google";
+import { ServiceWorkerRegister } from "@/components/push/push-controls";
 import { ThemeProvider } from "@/components/theme/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -26,6 +27,8 @@ export const metadata: Metadata = {
   title: { default: `${APP_NAME} · ${TAGLINE}`, template: `%s · ${APP_NAME}` },
   description: DESCRIPTION,
   applicationName: APP_NAME,
+  appleWebApp: { capable: true, title: APP_NAME, statusBarStyle: "default" },
+  icons: { apple: "/icons/apple-touch-icon.png" },
   openGraph: {
     type: "website",
     siteName: `${APP_NAME} · ${COLLEGE_NAME}`,
@@ -49,6 +52,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ThemeProvider>
           <TooltipProvider>{children}</TooltipProvider>
           <Toaster position="top-center" richColors />
+          <ServiceWorkerRegister />
         </ThemeProvider>
       </body>
     </html>

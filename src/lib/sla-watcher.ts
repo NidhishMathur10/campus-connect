@@ -185,6 +185,7 @@ async function handleReminder(admin: Admin, t: Ticket, result: SlaWatcherResult)
     template: "sla_reminder",
     title: `Reminder: ${t.ticket_no} is almost due`,
     message: `${t.ticket_no} (${t.title}) has used 75% of its time window. Please update or resolve it before the deadline.`,
+    push: "reminder",
   });
   result.reminders++;
 }
@@ -321,6 +322,7 @@ async function handleBreach(admin: Admin, t: Ticket, settings: AssignmentSetting
           template: "sla_reassigned",
           title: `${t.ticket_no} reassigned to you`,
           message: `${t.ticket_no} (${t.title}) missed its deadline with ${oldName ?? "nobody"} and is now yours. A new deadline has started.`,
+          push: "job",
         });
         if (statusChanges) notifyTicketStatus(t.id, "Assigned");
         result.reassigned++;

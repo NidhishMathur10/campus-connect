@@ -10,6 +10,8 @@ import type { Escalation, Ticket } from "@/lib/types";
 import { isDemoEmail } from "@/config/demo-accounts";
 import { collegeEmailDomain } from "@/config/email";
 import { notify, type NewNotification } from "@/lib/notifications";
+import { confidentialPayload, jobPayload, reporterTicketPath, staffTicketPath } from "@/lib/push/messages";
+import { deliverPush, pushToPeople } from "@/lib/push/send";
 import { deliver, inBackground } from "./send";
 import { appUrl, renderEmail, type EmailContent } from "./templates";
 import { deliverWhatsApp } from "./whatsapp";
@@ -113,7 +115,7 @@ export const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 
 // ---------------------------------------------------------------------------
 // Confidential Safety & Security tickets: generic emails, no details, ever.
 // ---------------------------------------------------------------------------
-async function sendConfidential(ticket: Pick<Ticket, "id" | "ticket_no" | "reporter_id" | "department">) {
+async function sendConfidential(ticket: Pick<Ticket, "id" | "ticket_no" | "reporter_id" | "department"> & { assigned_to?: string | null }) {
   const admin = createAdminClient();
   const [reporters, arcRes, deanRes] = await Promise.all([
     peopleByIds([ticket.reporter_id]),
@@ -146,6 +148,20 @@ async function sendConfidential(ticket: Pick<Ticket, "id" | "ticket_no" | "repor
       ticket.id,
       `Update on ${mine ? "your " : ""}confidential report ${ticket.ticket_no} — open the app to view: ${link}`,
     );
+    await deliverPush(
+      person,
+      mine
+        ? { title: `Update on your confidential report ${ticket.ticket_no}`, body: "Open the app to view.", tag: ticket.ticket_no, url: reporterTicketPath(person.role, ticket.ticket_no) }
+        : confidentialPayload(person.role, ticket.ticket_no, false),
+      { template: "confidential_update", ticketId: ticket.id },
+    );
+  }
+  // The security officer the case was handed to hears about it too (push only, no details).
+  if (ticket.assigned_to && !seen.has(ticket.assigned_to)) {
+    const [officer] = await peopleByIds([ticket.assigned_to]);
+    if (officer) {
+      await deliverPush(officer, confidentialPayload(officer.role, ticket.ticket_no, true), { template: "confidential_update", ticketId: ticket.id });
+    }
   }
 }
 
@@ -179,6 +195,11 @@ export function notifyTicketCreated(ticketId: string): void {
       "ticket_created",
       t.id,
       `CampusConnect: ticket ${t.ticket_no} created. ${clip(t.title, 80)}. Status: Submitted, ${expectedTime(t)}. Track: ${trackLink(reporter, t.ticket_no)}`,
+    );
+    await deliverPush(
+      reporter,
+      { title: `Ticket ${t.ticket_no} created`, body: clip(t.title, 100), tag: t.ticket_no, url: reporterTicketPath(reporter.role, t.ticket_no) },
+      { template: "ticket_created", ticketId: t.id },
     );
   });
 }
@@ -239,6 +260,16 @@ export function notifyTicketStatus(ticketId: string, status: string, note?: stri
           resolved ? " Reply in the app to confirm it's fixed." : ""
         } Track: ${trackLink(person, t.ticket_no)}`,
       );
+      await deliverPush(
+        person,
+        {
+          title: `${t.ticket_no} is now ${status}`,
+          body: resolved ? `${clip(t.title, 70)} · Please confirm it's fixed` : clip(t.title, 100),
+          tag: t.ticket_no,
+          url: reporterTicketPath(person.role, t.ticket_no),
+        },
+        { template: cfg.template, ticketId: t.id },
+      );
     }
   });
 }
@@ -276,13 +307,17 @@ export function notifyTicketMerged(duplicateId: string, originalNo: string): voi
 // ---------------------------------------------------------------------------
 // 4. Assigned staff
 // ---------------------------------------------------------------------------
-export function notifyStaffAssigned(ticketId: string, assigneeId: string): void {
+export function notifyStaffAssigned(ticketId: string, assigneeId: string, opts: { reopened?: boolean } = {}): void {
   inBackground(async () => {
     const t = await loadTicket(ticketId);
-    // Confidential reports: only the reporter, arc and dean are ever emailed.
-    if (!t || t.is_confidential) return;
+    if (!t) return;
     const [staff] = await peopleByIds([assigneeId]);
     if (!staff) return;
+    // Confidential reports: only the reporter, arc and dean are ever emailed; the assigned officer gets a content-free push.
+    if (t.is_confidential) {
+      await deliverPush(staff, confidentialPayload(staff.role, t.ticket_no, true), { template: "confidential_update", ticketId: t.id });
+      return;
+    }
     await send(staff, "staff_assigned", t.id, `New ticket assigned to you: ${t.ticket_no}`, {
       preheader: `${t.priority} priority · ${t.category}`,
       heading: "New ticket assigned to you",
@@ -312,6 +347,10 @@ export function notifyStaffAssigned(ticketId: string, assigneeId: string): void 
         link: `/staff?t=${t.ticket_no}`,
       },
     ]);
+    await deliverPush(staff, jobPayload(t, staff.role, formatLocation(t), opts.reopened ? "reopened" : "new"), {
+      template: "staff_assigned",
+      ticketId: t.id,
+    });
   });
 }
 
@@ -329,6 +368,13 @@ export function notifyStaffAlert(opts: {
   template: string;
   title: string;
   message: string;
+  /**
+   * Phone push for this alert: "job" = "New job: ...", "reminder" = "Almost due: ...", "text" = the title + message.
+   * Omit for no push (the alert stays email / WhatsApp / bell only).
+   */
+  push?: "job" | "reminder" | "text";
+  /** Only push (no email, WhatsApp or bell), e.g. a warden's reply on a ticket. */
+  pushOnly?: boolean;
 }): void {
   inBackground(async () => {
     const t = await loadTicket(opts.ticketId);
@@ -341,6 +387,20 @@ export function notifyStaffAlert(opts: {
     const title = confidential ? `Update on confidential report ${t.ticket_no}` : opts.title;
     const message = confidential ? "For privacy, details are never sent by email. Please open the app to view." : opts.message;
     const link = staffLink(t.ticket_no);
+    if (opts.push) {
+      const push = opts.push;
+      await pushToPeople(
+        people,
+        (p) =>
+          confidential
+            ? confidentialPayload(p.role, t.ticket_no, false)
+            : push === "text"
+              ? { title: clip(title, 80), body: clip(opts.message, 140), tag: t.ticket_no, url: staffTicketPath(p.role, t.ticket_no) }
+              : jobPayload(t, p.role, formatLocation(t), push === "job" ? "new" : "reminder"),
+        { template: confidential ? "confidential_update" : opts.template, ticketId: t.id },
+      );
+    }
+    if (opts.pushOnly) return;
     for (const person of people) {
       await send(person, opts.template, t.id, title, {
         preheader: message,
@@ -402,6 +462,11 @@ export async function sendEscalationEmail(escalationId: string): Promise<void> {
           footer: "This is a confidential notification from CampusConnect.",
         });
         await wa(p, "confidential_update", ticket.id, `Update on confidential report ${ticket.ticket_no} — open the app to view: ${link}`);
+        await deliverPush(
+          p,
+          { title: `Update on confidential report ${ticket.ticket_no}`, body: "Open the app to view.", tag: ticket.ticket_no, url: `/escalations/${esc.id}` },
+          { template: "confidential_update", ticketId: ticket.id },
+        );
       }
       return;
     }
@@ -430,6 +495,16 @@ export async function sendEscalationEmail(escalationId: string): Promise<void> {
         `CampusConnect escalation: ${clip(esc.headline ?? ESCALATION_REASON_LABELS[esc.reason], 90)} (${clip(where, 60)}). ${
           ticket ? `Ticket ${ticket.ticket_no}. ` : ""
         }Review: ${link}`,
+      );
+      await deliverPush(
+        p,
+        {
+          title: `Escalation: ${clip(esc.headline ?? ESCALATION_REASON_LABELS[esc.reason], 60)}`,
+          body: `${clip(where, 90)} · ${esc.affected_count} affected`,
+          tag: ticket?.ticket_no ?? `esc-${esc.id}`,
+          url: `/escalations/${esc.id}`,
+        },
+        { template: "escalation", ticketId: ticket?.id ?? null },
       );
     }
   } catch (err) {

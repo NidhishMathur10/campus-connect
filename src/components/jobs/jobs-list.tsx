@@ -7,6 +7,7 @@ import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { NotificationBell } from "@/components/shell/notification-bell";
 import { UserMenu, type ShellUser } from "@/components/shell/user-menu";
 import { Logo } from "@/components/brand/logo";
+import { InstallApp, PushToggle } from "@/components/push/push-controls";
 import type { JobsData, JobTicket } from "@/lib/jobs/types";
 import { cn } from "@/lib/utils";
 import { JobCard } from "./job-card";
@@ -112,6 +113,11 @@ export function JobsList({ data, user, userId }: { data: JobsData; user: ShellUs
   return (
     <>
       <JobsHeader user={user} userId={userId} doneCount={done.length} />
+
+      <div className="mb-4 space-y-3">
+        <PushToggle audience="staff" lang={lang} />
+        <InstallApp lang={lang} />
+      </div>
 
       <div role="tablist" className="sticky top-2 z-20 mb-4 grid grid-cols-3 gap-1 rounded-full border border-border bg-surface/95 p-1 shadow-float backdrop-blur">
         {tabs.map((x) => (
