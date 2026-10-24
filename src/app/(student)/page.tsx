@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, Building2, GraduationCap, Lock, Megaphone, PackageSearch, Search, ShieldCheck, Ticket } from "lucide-react";
+import { ArrowRight, Building2, Dumbbell, GraduationCap, Lock, Megaphone, PackageSearch, Search, ShieldCheck, Ticket } from "lucide-react";
 import { UrgentNotices } from "@/components/notices/urgent-notices";
 import { unreadNoticeCount } from "@/lib/notices/queries";
 import { TrackBox } from "@/components/tickets/track-box";
@@ -74,6 +74,9 @@ export default async function StudentHome() {
                 </span>
               );
             })}
+            <span className="inline-flex items-center gap-1 rounded-full bg-text-inverse/10 px-2.5 py-1 text-xs font-semibold">
+              <Dumbbell className="size-3" /> Sports equipment
+            </span>
           </div>
           <span className="absolute right-6 bottom-6 grid size-11 place-items-center rounded-full bg-surface text-text transition-transform group-hover:translate-x-1">
             <ArrowRight className="size-5" />

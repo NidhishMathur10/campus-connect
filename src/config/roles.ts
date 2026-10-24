@@ -8,6 +8,7 @@ export const ROLES = [
   "academic_office",
   "security_officer",
   "arc",
+  "sports_incharge",
 ] as const;
 export type Role = (typeof ROLES)[number];
 
@@ -21,6 +22,7 @@ export const ROLE_LABELS: Record<Role, string> = {
   academic_office: "Academic Office",
   security_officer: "Security Officer",
   arc: "Anti-Ragging Committee",
+  sports_incharge: "Sports In-charge",
 };
 
 export function isRole(value: unknown): value is Role {
@@ -34,6 +36,7 @@ export const ROLE_HOME: Record<Role, string> = {
   academic_office: "/staff",
   security_officer: "/jobs",
   arc: "/staff",
+  sports_incharge: "/sports",
   warden: "/staff",
   dean: "/escalations",
   hod: "/escalations",
@@ -65,6 +68,7 @@ export const ROUTE_ACCESS: { prefix: string; roles: Role[] }[] = [
   { prefix: "/answers", roles: ["teacher"] },
   { prefix: "/report", roles: ["teacher", "academic_office", "hod"] },
   { prefix: "/reports", roles: ["teacher", "academic_office", "hod"] },
+  { prefix: "/sports", roles: ["sports_incharge", "warden", "dean"] },
   { prefix: "/hostel", roles: ["student"] },
   { prefix: "/education", roles: ["student"] },
   { prefix: "/safety", roles: ["student"] },

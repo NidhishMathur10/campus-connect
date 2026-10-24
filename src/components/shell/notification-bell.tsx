@@ -2,14 +2,14 @@
 
 import Link from "next/link";
 import { Component, useEffect, useState, type ReactNode } from "react";
-import { Bell, BellOff, BadgeCheck, MessageSquare, PackageSearch, Ticket, Megaphone } from "lucide-react";
+import { Bell, BellOff, BadgeCheck, MessageSquare, PackageSearch, Ticket, Megaphone, Dumbbell } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { createClient } from "@/lib/supabase/client";
 import { timeAgo } from "@/lib/format";
 import type { AppNotification } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-const ICONS = { answer: MessageSquare, comment: MessageSquare, best_answer: BadgeCheck, ticket: Ticket, lost_found: PackageSearch, doubt: MessageSquare, notice: Megaphone } as const;
+const ICONS = { answer: MessageSquare, comment: MessageSquare, best_answer: BadgeCheck, ticket: Ticket, lost_found: PackageSearch, doubt: MessageSquare, notice: Megaphone, sports: Dumbbell } as const;
 
 /**
  * One shared Realtime subscription per user, however many bells are mounted

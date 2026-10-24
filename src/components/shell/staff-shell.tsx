@@ -58,7 +58,7 @@ export function StaffShell({
   children: ReactNode;
 }) {
   const items = STAFF_NAV[role];
-  const showBell = isFaculty(role) || role === "security_officer";
+  const showBell = isFaculty(role) || role === "security_officer" || role === "sports_incharge";
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
 

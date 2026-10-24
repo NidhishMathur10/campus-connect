@@ -15,6 +15,7 @@ import { DOUBT_REMINDER_HOURS } from "@/config/subjects";
 import { notifyDoubtReminder } from "@/lib/email/doubt-notify";
 import { notifyStaffAlert, notifyTicketStatus } from "@/lib/email/notify";
 import { createSlaBreachEscalation } from "@/lib/escalations";
+import { runSportsWatcher } from "@/lib/sports/core";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { AssignmentHistoryEntry, Ticket } from "@/lib/types";
 
@@ -77,6 +78,8 @@ export async function runSlaWatcher(opts: { force?: boolean } = {}): Promise<Sla
 async function scan(): Promise<SlaWatcherResult> {
   const admin = createAdminClient();
   const result: SlaWatcherResult = { ...EMPTY, ran: true };
+  // Sports equipment: expire no-shows, due-soon reminders, overdue flags (has its own throttle + guarded updates).
+  await runSportsWatcher({ force: true });
   try {
     result.doubtReminders = await remindUnansweredDoubts(admin);
   } catch (err) {
