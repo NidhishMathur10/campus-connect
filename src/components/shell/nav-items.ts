@@ -22,6 +22,7 @@ import {
   UsersRound,
   ClipboardCheck,
   Dumbbell,
+  UtensilsCrossed,
   type LucideIcon,
 } from "lucide-react";
 import type { Role } from "@/config/roles";
@@ -65,6 +66,7 @@ const CONCERNS: NavItem = { href: "/concerns", label: "Teacher concerns", icon: 
 const AUDIT: NavItem = { href: "/audit", label: "Audit log", icon: ScrollText };
 const NOTICES: NavItem = { href: "/notices", label: "Notices", icon: Megaphone };
 const SPORTS_DESK: NavItem = { href: "/sports", label: "Sports equipment", icon: Dumbbell };
+const MESS_MENU: NavItem = { href: "/mess-menu", label: "Mess menu", icon: UtensilsCrossed };
 const QA: NavItem = { href: "/qa", label: "Q&A Board", icon: MessagesSquare };
 
 const FACULTY_HOME: NavItem = { href: "/faculty", label: "Home", icon: House };
@@ -79,17 +81,21 @@ export const STAFF_NAV: Record<Exclude<Role, "student">, NavItem[]> = {
   security_officer: [MY_JOBS, ADVANCED, LF_DESK, NOTICES, EMAIL_LOG],
   arc: [BOARD, HISTORY],
   sports_incharge: [SPORTS_DESK],
-  warden: [BOARD, HISTORY, NOTICES, INSIGHTS, ESCALATIONS, DIRECTORY, SPORTS_DESK, LOST_FOUND, EMAIL_LOG],
+  warden: [BOARD, HISTORY, NOTICES, INSIGHTS, ESCALATIONS, DIRECTORY, SPORTS_DESK, MESS_MENU, LOST_FOUND, EMAIL_LOG],
   dean: [
     ...inGroup("Hostel", ESCALATIONS, INSIGHTS, BOARD, HISTORY, DIRECTORY),
     ...inGroup("Academic", QA, SUBJECTS, TEACHER_FEEDBACK, CONCERNS),
     ...inGroup("Safety", LF_DESK, LOST_FOUND),
     ...inGroup("Sports", SPORTS_DESK),
+    ...inGroup("Mess", MESS_MENU),
     ...inGroup("Admin", NOTICES, EMAIL_LOG, AUDIT),
   ],
   hod: [BOARD, HISTORY, NOTICES, INSIGHTS, ESCALATIONS, SUBJECTS, TEACHER_FEEDBACK, EMAIL_LOG],
   teacher: [FACULTY_HOME, NOTICES, DOUBT_INBOX, QA, MY_FEEDBACK, REPORT, MY_REPORTS, MY_ANSWERS, LOST_FOUND],
 };
+
+/** Extra sidebar item for Mess Committee staff (they share the generic staff role). */
+export const MESS_COMMITTEE_NAV: NavItem[] = [MESS_MENU];
 
 export function isActive(pathname: string, href: string, items?: NavItem[]): boolean {
   const matches = (h: string) => (h === "/" ? pathname === "/" : pathname === h || pathname.startsWith(`${h}/`));

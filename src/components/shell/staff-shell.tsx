@@ -11,7 +11,7 @@ import { COLLEGE_NAME } from "@/config/college";
 import { isFaculty } from "@/config/faculty";
 import { cn } from "@/lib/utils";
 import type { Role } from "@/config/roles";
-import { isActive, STAFF_NAV, type NavItem } from "./nav-items";
+import { isActive, MESS_COMMITTEE_NAV, STAFF_NAV, type NavItem } from "./nav-items";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { NotificationBell } from "./notification-bell";
 import { UserAvatar, UserMenu, type ShellUser } from "./user-menu";
@@ -57,7 +57,7 @@ export function StaffShell({
   role: Exclude<Role, "student">;
   children: ReactNode;
 }) {
-  const items = STAFF_NAV[role];
+  const items = role === "staff" && user.subtitle === "Mess Committee" ? [...STAFF_NAV[role], ...MESS_COMMITTEE_NAV] : STAFF_NAV[role];
   const showBell = isFaculty(role) || role === "security_officer" || role === "sports_incharge";
   const pathname = usePathname();
   const [open, setOpen] = useState(false);

@@ -157,7 +157,10 @@ export function ReportFlow({
   textPlaceholder,
   ownRoom,
   audience = "student",
+  prefill,
 }: {
+  /** Starting values for the form (e.g. "Report a problem with this meal"). */
+  prefill?: Partial<Pick<ReportDraft, "text" | "building" | "spot">>;
   module: TicketModule;
   /** Faculty get the faculty-only categories and the "class soon → High" rule; results go to My Reports. */
   audience?: ReporterAudience;
@@ -171,7 +174,10 @@ export function ReportFlow({
 }) {
   const isSecurity = module === "security";
   const [phase, setPhase] = useState<Phase>("form");
-  const freshDraft = () => (module === "hostel" && ownRoom ? hostelDraft(EMPTY_DRAFT, ownRoom) : EMPTY_DRAFT);
+  const freshDraft = (): ReportDraft => {
+    const base = module === "hostel" && ownRoom ? hostelDraft(EMPTY_DRAFT, ownRoom) : EMPTY_DRAFT;
+    return prefill ? { ...base, ...prefill } : base;
+  };
   const [draft, setDraft] = useState<ReportDraft>(freshDraft);
   const [uploaded, setUploaded] = useState<{ blob: Blob; path: string } | null>(null);
   const [thinking, setThinking] = useState<0 | 1 | 2>(0);
