@@ -603,7 +603,7 @@ export function StaffBoard({
         <>
           {/* Desktop board */}
           {view === "board" && (
-            <div className="hidden lg:block">
+            <div className="hidden lg:block" data-no-fx data-kanban>
               <DndContext
                 sensors={sensors}
                 onDragStart={(e) => setActiveId(String(e.active.id))}

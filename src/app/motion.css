@@ -9,7 +9,8 @@
   from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: none; }
 }
-.fx-page { animation: fx-page-in 0.18s ease-out both; }
+/* backwards fill: no transform is left on the page wrapper afterwards (it would break dnd-kit/fixed children) */
+.fx-page { animation: fx-page-in 0.18s ease-out backwards; }
 
 /* ---------- Short list stagger (first 8 children, capped at ~280ms) ---------- */
 @media (prefers-reduced-motion: no-preference) {
@@ -134,3 +135,11 @@
   .fx-page, .fx-line, .fx-step, .fx-dot-pulse, .fx-burst, .fx-bump, .fx-plus-one, .fx-orb, .fx-blob, .fx-shimmer::after { animation: none !important; }
   .fx-dot-pulse, .fx-burst, .fx-plus-one, .fx-blob { display: none; }
 }
+
+/* Kanban: plain static cards so @dnd-kit owns every transform (no stagger delay either). */
+[data-kanban] [data-fx],
+[data-kanban] [data-fx]:active { transform: none !important; }
+[data-kanban] [data-fx]::before,
+[data-kanban] [data-fx]::after { display: none; }
+[data-kanban] .animate-fade-in,
+[data-kanban] .animate-slide-up { animation-delay: 0ms !important; }
