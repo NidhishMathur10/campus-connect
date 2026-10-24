@@ -27,6 +27,7 @@ const STATUS_STYLE: Record<LoanStatus, string> = {
   returned: "bg-neutral-bg text-neutral-fg",
   expired: "bg-neutral-bg text-neutral-fg",
   overdue: "bg-danger-bg text-danger-fg",
+  return_pending: "bg-warning-bg text-warning-fg",
 };
 
 export function LoanStatusBadge({ status }: { status: LoanStatus }) {

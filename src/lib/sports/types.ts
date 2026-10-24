@@ -24,6 +24,7 @@ export interface EquipmentLoan {
   due_at: string;
   issued_at: string | null;
   returned_at: string | null;
+  return_requested_at: string | null;
   return_condition: "good" | "damaged" | null;
   notes: string | null;
   ticket_id: string | null;

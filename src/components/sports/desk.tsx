@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition, type ReactNode } from "react";
-import { AlertTriangle, ClipboardList, Eye, EyeOff, HandHelping, Loader2, PackageCheck, Pencil, Plus, Search, Ticket, Undo2, Wrench } from "lucide-react";
+import { AlertTriangle, ClipboardList, Eye, EyeOff, HandHelping, Loader2, PackageCheck, Pencil, Plus, Search, Ticket, Undo2, Wrench, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
 import { EmptyState } from "@/components/common/empty-state";
@@ -14,7 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { SPORTS_CATEGORIES } from "@/config/sports";
 import { formatDateTime } from "@/lib/format";
-import { issueLoan, raiseDamageTicket, returnLoan, saveEquipmentItem, setItemActive, setItemRepair } from "@/lib/sports/actions";
+import { issueLoan, raiseDamageTicket, rejectReturnRequest, returnLoan, saveEquipmentItem, setItemActive, setItemRepair } from "@/lib/sports/actions";
 import type { DeskData } from "@/lib/sports/core";
 import { campusDate, formatClock, formatSlot, relativeTime } from "@/lib/sports/time";
 import type { ItemWithAvailability, LoanView } from "@/lib/sports/types";
@@ -76,6 +76,7 @@ export function SportsDesk({ data, canManage }: { data: DeskData; canManage: boo
   const reservedToday = data.active.filter((l) => l.status === "reserved" && campusDate(new Date(l.reserved_for)) === today);
   const issued = data.active.filter((l) => l.status === "issued");
   const overdue = data.active.filter((l) => l.status === "overdue");
+  const pendingReturns = data.active.filter((l) => l.status === "return_pending");
   const repairCount = data.items.filter((i) => i.under_repair).length;
 
   const q = query.trim().toLowerCase();
@@ -95,7 +96,7 @@ export function SportsDesk({ data, canManage }: { data: DeskData; canManage: boo
     <div className="space-y-8">
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Stat label="Reservations today" value={reservedToday.length} />
-        <Stat label="Out right now" value={issued.length + overdue.length} />
+        <Stat label="Out right now" value={issued.length + overdue.length + pendingReturns.length} />
         <Stat label="Overdue" value={overdue.length} tone="danger" />
         <Stat label="Under repair" value={repairCount} tone="warning" />
       </div>
@@ -129,6 +130,35 @@ export function SportsDesk({ data, canManage }: { data: DeskData; canManage: boo
 
       {!q && (
         <>
+          {pendingReturns.length > 0 && (
+            <Section title="Returns to confirm" count={pendingReturns.length} hint="Students say these are back at the counter. Check, then confirm.">
+              <div className="space-y-3">
+                {pendingReturns.map((l) => (
+                  <div key={l.id} className="flex flex-wrap items-center gap-4 rounded-3xl border border-border bg-warning-bg p-4 text-warning-fg shadow-sm">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-extrabold">{l.qty}× {l.item_name}</p>
+                      <p className="text-sm">{l.student_name} · Roll {l.student_roll ?? "—"}</p>
+                      {l.return_requested_at && <p className="text-xs">Marked returned {relativeTime(l.return_requested_at)}</p>}
+                    </div>
+                    {canManage && (
+                      <div className="flex flex-wrap gap-2">
+                        <Button size="sm" disabled={busy(`good-${l.id}`)} onClick={() => run(`good-${l.id}`, () => returnLoan({ loanId: l.id, qty: l.qty, condition: "good" }), "Return confirmed")}>
+                          {busy(`good-${l.id}`) ? <Loader2 className="animate-spin" /> : <PackageCheck />} Confirm · Good
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => setReturning(l)}>
+                          <AlertTriangle /> Damaged
+                        </Button>
+                        <Button size="sm" variant="outline" disabled={busy(`rej-${l.id}`)} onClick={() => run(`rej-${l.id}`, () => rejectReturnRequest(l.id), "Sent back to Issued")}>
+                          {busy(`rej-${l.id}`) ? <Loader2 className="animate-spin" /> : <XCircle />} Not received
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </Section>
+          )}
+
           <Section title="Today's reservations" count={reservedToday.length} hint="Not picked up within 30 minutes of the slot start, they are released automatically.">
             {reservedToday.length === 0 ? <EmptyState icon={ClipboardList} title="No reservations for today" className="py-8" /> : <div className="space-y-3">{reservedToday.map(card)}</div>}
           </Section>
@@ -242,7 +272,7 @@ export function SportsDesk({ data, canManage }: { data: DeskData; canManage: boo
 }
 
 function LoanRow({ loan, canManage, busy, onIssue, onReturn }: { loan: LoanView; canManage: boolean; busy: boolean; onIssue: () => void; onReturn: () => void }) {
-  const out = loan.status === "issued" || loan.status === "overdue";
+  const out = loan.status === "issued" || loan.status === "overdue" || loan.status === "return_pending";
   return (
     <div className={cn("flex flex-wrap items-center gap-4 rounded-3xl border bg-surface p-4 shadow-sm", loan.status === "overdue" ? "border-danger-solid" : "border-border")}>
       <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-surface-accent text-accent-text">
