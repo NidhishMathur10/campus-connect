@@ -1027,3 +1027,186 @@ create policy "teacher_concerns_select" on public.teacher_concerns for select to
   using (public.app_role()::text in ('hod','dean'));
 create policy "identity_reveal_log_select" on public.identity_reveal_log for select to authenticated
   using (public.app_role()::text = 'dean');
+
+-- =====================================================================
+-- Notice board (CLAUDE.md §23): notices, urgent alerts, known issues, events.
+-- Safe to re-run.
+-- =====================================================================
+
+-- "204" / "G-108" / "B-305" -> floor label (first digit of the 3-digit number, 0 = Ground).
+create or replace function public.floor_from_room(p_room text)
+returns text language sql immutable as $$
+  select case substring(coalesce(p_room, '') from '(\d)\d{2}(?!\d)')
+    when '0' then 'Ground' when '1' then '1st' when '2' then '2nd'
+    when '3' then '3rd'    when '4' then '4th' when '5' then '5th'
+    else null end
+$$;
+
+-- Does a student (hostel / wing / room) belong to a notice audience?
+-- audience = {all, buildings[] (hostels), floors[], wings[], subjects[], blocks[]}.
+-- Only buildings / floors / wings narrow the audience; subjects and blocks are tags (students have no
+-- enrolment data). An empty list means "no restriction".
+create or replace function public.notice_audience_matches(
+  p_audience jsonb, p_hostel text, p_wing text, p_room text)
+returns boolean language sql immutable as $$
+  select coalesce((p_audience->>'all')::boolean, false)
+    or (
+      (coalesce(jsonb_array_length(p_audience->'buildings'), 0) = 0 or (p_audience->'buildings') ? coalesce(p_hostel, ''))
+      and (coalesce(jsonb_array_length(p_audience->'wings'), 0) = 0 or (p_audience->'wings') ? coalesce(p_wing, ''))
+      and (coalesce(jsonb_array_length(p_audience->'floors'), 0) = 0
+           or (p_audience->'floors') ? coalesce(public.floor_from_room(p_room), ''))
+    )
+$$;
+
+create table if not exists public.notices (
+  id              uuid primary key default gen_random_uuid(),
+  author_id       uuid not null references public.profiles(id) on delete cascade,
+  author_name     text not null,
+  author_role     text not null,
+  module          text not null check (module in ('hostel','academic','all','safety')),
+  type            text not null check (type in ('notice','urgent','known_issue','event')),
+  title           text not null,
+  title_hi        text,
+  body            text not null,
+  body_hi         text,
+  summary         text,
+  category        text,                       -- known_issue only: a routing-guide category
+  audience        jsonb not null default '{"all": true}'::jsonb,
+  attachment_url  text,
+  event_at        timestamptz,
+  expected_fix_at timestamptz,
+  pinned          boolean not null default false,
+  expires_at      timestamptz,
+  status          text not null default 'active' check (status in ('active','resolved','expired')),
+  resolved_at     timestamptz,
+  resolution_note text,
+  created_at      timestamptz not null default now(),
+  updated_at      timestamptz not null default now()
+);
+create index if not exists notices_list_idx   on public.notices (status, module, created_at desc);
+create index if not exists notices_author_idx on public.notices (author_id, created_at desc);
+
+create table if not exists public.notice_reads (
+  notice_id    uuid not null references public.notices(id) on delete cascade,
+  user_id      uuid not null references public.profiles(id) on delete cascade,
+  seen_at      timestamptz not null default now(),
+  acknowledged boolean not null default false,
+  primary key (notice_id, user_id)
+);
+create index if not exists notice_reads_user_idx on public.notice_reads (user_id);
+
+-- Known issues: students who tapped "Me too (follow updates)" while reporting.
+create table if not exists public.notice_followers (
+  notice_id  uuid not null references public.notices(id) on delete cascade,
+  user_id    uuid not null references public.profiles(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key (notice_id, user_id)
+);
+
+-- Audit trail: posted / edited / resolved / deleted / followed.
+create table if not exists public.notice_log (
+  id         uuid primary key default gen_random_uuid(),
+  notice_id  uuid references public.notices(id) on delete cascade,
+  actor_id   uuid references public.profiles(id) on delete set null,
+  actor_name text not null,
+  action     text not null,
+  detail     text,
+  created_at timestamptz not null default now()
+);
+create index if not exists notice_log_notice_idx on public.notice_log (notice_id, created_at desc);
+
+drop trigger if exists notices_touch_updated_at on public.notices;
+create trigger notices_touch_updated_at
+  before update on public.notices
+  for each row execute function public.touch_updated_at();
+
+-- Can the current user read this notice? Students: active / recently resolved, unexpired, audience match.
+-- Authors read their own, the Dean everything, the warden hostel + campus-wide, the HOD academic + campus-wide.
+create or replace function public.notice_visible(
+  p_author uuid, p_module text, p_status text, p_expires timestamptz, p_audience jsonb)
+returns boolean language sql stable security definer set search_path = public as $$
+  select case
+    when p_author = auth.uid() then true
+    when p.role::text = 'dean' then true
+    when p.role::text = 'warden' then p_module in ('hostel','all','safety')
+    when p.role::text = 'hod' then p_module in ('academic','all','safety')
+    when p.role::text = 'student' then
+      p_status in ('active','resolved')
+      and (p_expires is null or p_expires > now())
+      and public.notice_audience_matches(p_audience, p.hostel, p.wing, p.room)
+    else false
+  end
+  from public.profiles p where p.id = auth.uid()
+$$;
+
+-- Number of students in an audience (for "Seen by N of M"). Server only.
+create or replace function public.notice_audience_size(p_audience jsonb)
+returns int language sql stable security definer set search_path = public as $$
+  select count(*)::int from public.profiles p
+  where p.role::text = 'student' and public.notice_audience_matches(p_audience, p.hostel, p.wing, p.room)
+$$;
+revoke all on function public.notice_audience_size(jsonb) from public, anon, authenticated;
+grant execute on function public.notice_audience_size(jsonb) to service_role;
+
+alter table public.notices          enable row level security;
+alter table public.notice_reads     enable row level security;
+alter table public.notice_followers enable row level security;
+alter table public.notice_log       enable row level security;
+
+drop policy if exists "notices_select" on public.notices;
+drop policy if exists "notices_insert" on public.notices;
+drop policy if exists "notices_update" on public.notices;
+drop policy if exists "notices_delete" on public.notices;
+create policy "notices_select" on public.notices for select to authenticated
+  using (public.notice_visible(author_id, module, status, expires_at, audience));
+create policy "notices_insert" on public.notices for insert to authenticated
+  with check (author_id = auth.uid()
+    and public.app_role()::text in ('warden','dean','hod','academic_office','teacher','security_officer'));
+create policy "notices_update" on public.notices for update to authenticated
+  using (author_id = auth.uid() or public.app_role()::text = 'dean');
+create policy "notices_delete" on public.notices for delete to authenticated
+  using (author_id = auth.uid() or public.app_role()::text = 'dean');
+
+drop policy if exists "notice_reads_select" on public.notice_reads;
+drop policy if exists "notice_reads_insert" on public.notice_reads;
+drop policy if exists "notice_reads_update" on public.notice_reads;
+create policy "notice_reads_select" on public.notice_reads for select to authenticated
+  using (user_id = auth.uid() or public.app_role()::text = 'dean'
+         or exists (select 1 from public.notices n where n.id = notice_id and n.author_id = auth.uid()));
+create policy "notice_reads_insert" on public.notice_reads for insert to authenticated
+  with check (user_id = auth.uid());
+create policy "notice_reads_update" on public.notice_reads for update to authenticated
+  using (user_id = auth.uid()) with check (user_id = auth.uid());
+
+drop policy if exists "notice_followers_select" on public.notice_followers;
+drop policy if exists "notice_followers_insert" on public.notice_followers;
+create policy "notice_followers_select" on public.notice_followers for select to authenticated
+  using (user_id = auth.uid() or public.app_role()::text = 'dean'
+         or exists (select 1 from public.notices n where n.id = notice_id and n.author_id = auth.uid()));
+create policy "notice_followers_insert" on public.notice_followers for insert to authenticated
+  with check (user_id = auth.uid());
+
+drop policy if exists "notice_log_select" on public.notice_log;
+create policy "notice_log_select" on public.notice_log for select to authenticated
+  using (public.app_role()::text = 'dean'
+         or exists (select 1 from public.notices n where n.id = notice_id and n.author_id = auth.uid()));
+
+-- Storage: notice attachments (PDF / image). Public read (random file names); posters upload into their own folder.
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('notice-attachments', 'notice-attachments', true, 10485760,
+        array['application/pdf','image/jpeg','image/png','image/webp'])
+on conflict (id) do update
+  set public = excluded.public,
+      file_size_limit = excluded.file_size_limit,
+      allowed_mime_types = excluded.allowed_mime_types;
+
+drop policy if exists "notice_attachments_read"   on storage.objects;
+drop policy if exists "notice_attachments_upload" on storage.objects;
+drop policy if exists "notice_attachments_delete" on storage.objects;
+create policy "notice_attachments_read" on storage.objects for select to authenticated
+  using (bucket_id = 'notice-attachments');
+create policy "notice_attachments_upload" on storage.objects for insert to authenticated
+  with check (bucket_id = 'notice-attachments' and (storage.foldername(name))[1] = auth.uid()::text
+    and public.app_role()::text in ('warden','dean','hod','academic_office','teacher','security_officer'));
+create policy "notice_attachments_delete" on storage.objects for delete to authenticated
+  using (bucket_id = 'notice-attachments' and (storage.foldername(name))[1] = auth.uid()::text);

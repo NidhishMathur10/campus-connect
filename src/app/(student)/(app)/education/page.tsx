@@ -1,10 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ClipboardList, MessageCircleQuestion, MessagesSquare, Plus, ShieldAlert, Star, Ticket } from "lucide-react";
+import { MessageCircleQuestion, Plus, ShieldAlert, Star, Ticket } from "lucide-react";
 import { EmptyState } from "@/components/common/empty-state";
 import { RateTeachers } from "@/components/feedback/rate-teachers";
 import { DoubtList } from "@/components/doubts/doubt-bits";
+import { ModuleTabs } from "@/components/common/module-tabs";
 import { PageHeader } from "@/components/common/page-header";
+import { educationTabs } from "@/components/notices/module-tab-defs";
+import { UrgentNotices } from "@/components/notices/urgent-notices";
 import { QaList, type QaSearch } from "@/components/qa/qa-list";
 import { ReportFlow } from "@/components/report/report-flow";
 import { Button } from "@/components/ui/button";
@@ -12,22 +15,17 @@ import { ACADEMIC_BUILDINGS } from "@/config/locations";
 import { currentTerm } from "@/config/feedback";
 import { requireProfile } from "@/lib/auth";
 import { listMyDoubts } from "@/lib/doubts/queries";
+import { unreadNoticeCount } from "@/lib/notices/queries";
 import { listRateableTeachers } from "@/lib/feedback/queries";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Education" };
 
-const TABS = [
-  { value: "issues", label: "Academic Issues", icon: ClipboardList },
-  { value: "qa", label: "Open Q&A", icon: MessagesSquare },
-  { value: "ask", label: "Ask my teacher", icon: MessageCircleQuestion },
-  { value: "feedback", label: "Rate my teachers", icon: Star },
-] as const;
-
 export default async function EducationPage({ searchParams }: { searchParams: Promise<QaSearch & { tab?: string }> }) {
   const profile = await requireProfile(["student"]);
   const sp = await searchParams;
   const tab = sp.tab === "qa" ? "qa" : sp.tab === "ask" ? "ask" : sp.tab === "feedback" ? "feedback" : "issues";
+  const unread = await unreadNoticeCount(profile, "academic");
   const doubts = tab === "ask" ? await listMyDoubts(profile.id) : [];
   const rateable = tab === "feedback" ? await listRateableTeachers(profile.id) : [];
 
@@ -66,20 +64,8 @@ export default async function EducationPage({ searchParams }: { searchParams: Pr
         }
       />
 
-      <nav className="mb-6 flex w-full gap-1 overflow-x-auto rounded-full border border-border bg-surface p-1 shadow-sm sm:w-fit">
-        {TABS.map(({ value, label, icon: Icon }) => (
-          <Link
-            key={value}
-            href={value === "issues" ? "/education" : `/education?tab=${value}`}
-            className={cn(
-              "flex flex-1 items-center justify-center gap-2 rounded-full px-5 py-2 text-sm font-bold whitespace-nowrap transition-colors sm:flex-none",
-              tab === value ? "bg-primary text-primary-fg" : "text-text-muted hover:bg-surface-2",
-            )}
-          >
-            <Icon className="size-4" /> {label}
-          </Link>
-        ))}
-      </nav>
+      <ModuleTabs tabs={educationTabs(unread)} active={tab} />
+      <UrgentNotices profile={profile} page="academic" />
 
       {tab === "issues" ? (
         <ReportFlow

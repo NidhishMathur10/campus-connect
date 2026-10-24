@@ -19,7 +19,7 @@ const deskPath = "/lost-found/desk";
 export interface Alert {
   recipients: Person[];
   /** In-app bell kind (default: lost_found). */
-  kind?: "lost_found" | "doubt" | "ticket";
+  kind?: "lost_found" | "doubt" | "ticket" | "notice";
   template: string;
   /** Email subject / heading and bell title. */
   title: string;

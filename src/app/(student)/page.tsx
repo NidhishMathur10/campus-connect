@@ -1,5 +1,7 @@
 import Link from "next/link";
-import { ArrowRight, Building2, GraduationCap, Lock, PackageSearch, Search, ShieldCheck, Ticket } from "lucide-react";
+import { ArrowRight, Building2, GraduationCap, Lock, Megaphone, PackageSearch, Search, ShieldCheck, Ticket } from "lucide-react";
+import { UrgentNotices } from "@/components/notices/urgent-notices";
+import { unreadNoticeCount } from "@/lib/notices/queries";
 import { TrackBox } from "@/components/tickets/track-box";
 import { LandingPage } from "@/components/landing/landing-page";
 import { getCurrentProfile, requireProfile } from "@/lib/auth";
@@ -31,10 +33,12 @@ export default async function StudentHome() {
   if (!userId) return <LandingPage />;
   const profile = await requireProfile(["student"]);
   const firstName = profile.full_name.split(" ")[0];
-  const foundCount = await foundThisWeek();
+  const [foundCount, unreadNotices] = await Promise.all([foundThisWeek(), unreadNoticeCount(profile)]);
 
   return (
     <div className="space-y-8">
+      {/* Red banner: urgent alerts stay until acknowledged or expired */}
+      <UrgentNotices profile={profile} />
       <div className="animate-slide-up space-y-2">
         <p className="eyebrow">{COLLEGE_NAME}</p>
         <h1 className="text-3xl font-extrabold tracking-tight text-text sm:text-5xl">
@@ -160,6 +164,18 @@ export default async function StudentHome() {
           </span>
         </Link>
       </div>
+
+      <Link href="/hostel/notices" className="flex items-center gap-4 rounded-3xl border border-border bg-surface p-5 transition-colors hover:border-accent-blue">
+        <span className="grid size-11 place-items-center rounded-2xl bg-surface-accent text-accent-text"><Megaphone className="size-5" /></span>
+        <span className="min-w-0 flex-1">
+          <span className="block font-bold text-text">Notices</span>
+          <span className="block text-sm text-text-muted">Announcements, alerts, known issues and events from the college</span>
+        </span>
+        {unreadNotices > 0 && (
+          <span className="grid min-w-6 place-items-center rounded-full bg-danger-solid px-2 py-0.5 text-xs font-bold text-danger-solid-fg">{unreadNotices > 9 ? "9+" : unreadNotices} new</span>
+        )}
+        <ArrowRight className="size-5 text-text-muted" />
+      </Link>
 
       <div className="grid gap-3 sm:grid-cols-2">
         <Link href="/tickets" className="flex items-center gap-4 rounded-3xl border border-border bg-surface p-5 transition-colors hover:border-accent-blue">

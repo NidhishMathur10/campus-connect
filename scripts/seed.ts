@@ -10,6 +10,7 @@ import { DEMO_ACCOUNTS, DEMO_PASSWORD, demoAccountEmail } from "../src/config/de
 import { collegeEmailDomain } from "../src/config/email";
 import { currentTerm } from "../src/config/feedback";
 import { defaultSubjectsFor } from "../src/config/subjects";
+import { seedNotices } from "./seed-notices";
 import {
   computeSlaDueAt,
   getRoutingRule,
@@ -142,6 +143,8 @@ async function wipe() {
   must(await db.from("feedback_summaries").delete().not("subject", "is", null), "wipe feedback summaries");
   must(await db.from("identity_reveal_log").delete().not("id", "is", null), "wipe identity log");
   must(await db.from("questions").delete().not("id", "is", null), "wipe questions");
+  // Cascades to notice reads, followers and the log.
+  must(await db.from("notices").delete().not("id", "is", null), "wipe notices");
   must(await db.from("notifications").delete().not("id", "is", null), "wipe notifications");
   must(await db.from("email_log").delete().not("id", "is", null), "wipe email log");
   must(await db.from("moderation_log").delete().not("id", "is", null), "wipe moderation log");
@@ -1310,6 +1313,7 @@ async function main() {
   await seedLostFound();
   await seedDoubts();
   await seedFeedback();
+  await seedNotices(db, u);
   console.log("Done ✔  Log in with any demo account (password demo1234).");
 }
 
