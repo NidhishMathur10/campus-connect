@@ -119,7 +119,13 @@ export async function assignTicket(ticketId: string, assigneeId: string | null):
 // ---------------------------------------------------------------------------
 export async function changeTicketStatus(
   ticketId: string,
-  input: { to: TicketStatus; note?: string; assigneeId?: string | null },
+  input: {
+    to: TicketStatus;
+    note?: string;
+    assigneeId?: string | null;
+    /** Skip the student notification (a job started and finished in one go is announced once). */
+    silent?: boolean;
+  },
 ): Promise<ActionResult> {
   const to = z.enum(TICKET_STATUSES).safeParse(input.to);
   const noteParsed = noteSchema.safeParse(input.note ?? "");
@@ -181,7 +187,7 @@ export async function changeTicketStatus(
     note: note || (resolving ? "Marked resolved." : null),
   });
   await addEvents(admin, events);
-  notifyTicketStatus(ticket.id, to.data, note);
+  if (!input.silent) notifyTicketStatus(ticket.id, to.data, note);
   return done(ticket.id, ticket.ticket_no);
 }
 
