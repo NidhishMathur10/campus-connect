@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from "next";
 import { Manrope } from "next/font/google";
 import { ServiceWorkerRegister } from "@/components/push/push-controls";
 import { ThemeProvider } from "@/components/theme/theme-provider";
+import { Suspense } from "react";
+import { DeniedToast } from "@/components/common/denied-toast";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { APP_NAME, COLLEGE_NAME } from "@/config/college";
@@ -53,6 +55,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <TooltipProvider>{children}</TooltipProvider>
           <Toaster position="top-center" richColors />
           <ServiceWorkerRegister />
+          <Suspense fallback={null}><DeniedToast /></Suspense>
         </ThemeProvider>
       </body>
     </html>

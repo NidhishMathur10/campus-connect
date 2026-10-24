@@ -6,9 +6,9 @@ import { listTeachers } from "@/lib/doubts/queries";
 
 export const metadata: Metadata = { title: "Subject teachers" };
 
-/** Warden / HOD: which subjects each teacher answers private doubts for ("Ask my teacher"). */
+/** HOD / Academic Office (Dean: read-only): which subjects each teacher answers private doubts for ("Ask my teacher"). */
 export default async function SubjectsPage() {
-  await requireProfile(["warden", "hod"]);
+  const profile = await requireProfile(["hod", "academic_office", "dean"]);
   const teachers = await listTeachers();
   return (
     <div className="mx-auto max-w-3xl">
@@ -17,7 +17,7 @@ export default async function SubjectsPage() {
         title="Subject teachers"
         description="Choose the subjects each teacher answers. Students see these teachers when they ask a private doubt. A subject can have more than one teacher."
       />
-      <SubjectMapping teachers={teachers} />
+      <SubjectMapping teachers={teachers} readOnly={profile.role === "dean"} />
     </div>
   );
 }

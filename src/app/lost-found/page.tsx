@@ -4,7 +4,7 @@ import { PackageCheck, PackageSearch, ScanSearch } from "lucide-react";
 import { PageHeader } from "@/components/common/page-header";
 import { LostFoundBoard } from "@/components/lost-found/board";
 import { Button } from "@/components/ui/button";
-import { LF_ALL_ROLES, LF_REPORTER_ROLES, LF_STAFF_ROLES } from "@/config/lost-found";
+import { LF_ALL_ROLES, LF_REPORTER_ROLES, canOpenLfDesk } from "@/config/lost-found";
 import { requireProfile } from "@/lib/auth";
 import { loadBoard } from "@/lib/lost-found/queries";
 
@@ -31,7 +31,7 @@ export default async function LostFoundPage({ searchParams }: { searchParams: Pr
                 <Button asChild variant="outline"><Link href="/lost-found/report?type=found"><PackageCheck /> I found something</Link></Button>
               </>
             )}
-            {LF_STAFF_ROLES.includes(profile.role) && (
+            {canOpenLfDesk(profile.role) && (
               <Button asChild variant="outline"><Link href="/lost-found/desk"><ScanSearch /> Open the desk</Link></Button>
             )}
           </>

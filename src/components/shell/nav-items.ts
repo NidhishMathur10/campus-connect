@@ -31,7 +31,11 @@ export interface NavItem {
   /** Shorter label for the mobile bottom bar. */
   shortLabel?: string;
   icon: LucideIcon;
+  /** Optional sidebar heading; shown when it differs from the previous item (dean only). */
+  group?: string;
 }
+
+const inGroup = (group: string, ...items: NavItem[]): NavItem[] => items.map((i) => ({ ...i, group }));
 
 export const STUDENT_NAV: NavItem[] = [
   { href: "/", label: "Home", icon: House },
@@ -69,12 +73,17 @@ const MY_ANSWERS: NavItem = { href: "/answers", label: "My Answers", icon: Messa
 /** Sidebar items for every non-student role (must agree with ROUTE_ACCESS in config/roles). */
 export const STAFF_NAV: Record<Exclude<Role, "student">, NavItem[]> = {
   staff: [MY_JOBS, ADVANCED, HISTORY],
-  academic_office: [BOARD, HISTORY, NOTICES, QA, REPORT, MY_REPORTS, LOST_FOUND],
-  security_officer: [MY_JOBS, ADVANCED, HISTORY, NOTICES, LOST_FOUND, LF_DESK],
+  academic_office: [BOARD, HISTORY, NOTICES, QA, SUBJECTS, REPORT, MY_REPORTS, LOST_FOUND],
+  security_officer: [MY_JOBS, ADVANCED, LF_DESK, NOTICES, EMAIL_LOG],
   arc: [BOARD, HISTORY],
-  warden: [BOARD, HISTORY, NOTICES, INSIGHTS, ESCALATIONS, DIRECTORY, SUBJECTS, LOST_FOUND, LF_DESK, EMAIL_LOG],
-  dean: [ESCALATIONS, INSIGHTS, BOARD, HISTORY, NOTICES, DIRECTORY, QA, TEACHER_FEEDBACK, CONCERNS, AUDIT, EMAIL_LOG],
-  hod: [ESCALATIONS, INSIGHTS, BOARD, HISTORY, NOTICES, QA, DOUBT_INBOX, TEACHER_FEEDBACK, CONCERNS, SUBJECTS, REPORT, MY_REPORTS, LOST_FOUND],
+  warden: [BOARD, HISTORY, NOTICES, INSIGHTS, ESCALATIONS, DIRECTORY, LOST_FOUND, EMAIL_LOG],
+  dean: [
+    ...inGroup("Hostel", ESCALATIONS, INSIGHTS, BOARD, HISTORY, DIRECTORY),
+    ...inGroup("Academic", QA, SUBJECTS, TEACHER_FEEDBACK, CONCERNS),
+    ...inGroup("Safety", LF_DESK, LOST_FOUND),
+    ...inGroup("Admin", NOTICES, EMAIL_LOG, AUDIT),
+  ],
+  hod: [BOARD, HISTORY, NOTICES, INSIGHTS, ESCALATIONS, SUBJECTS, TEACHER_FEEDBACK, EMAIL_LOG],
   teacher: [FACULTY_HOME, NOTICES, DOUBT_INBOX, QA, MY_FEEDBACK, REPORT, MY_REPORTS, MY_ANSWERS, LOST_FOUND],
 };
 

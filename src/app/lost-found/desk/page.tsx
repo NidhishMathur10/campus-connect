@@ -3,7 +3,7 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { PageHeader } from "@/components/common/page-header";
 import { LostFoundDesk } from "@/components/lost-found/desk";
-import { isLfManager, LF_STAFF_ROLES } from "@/config/lost-found";
+import { isLfManager, LF_DESK_ROLES } from "@/config/lost-found";
 import { requireProfile } from "@/lib/auth";
 import { loadDesk } from "@/lib/lost-found/queries";
 
@@ -11,7 +11,7 @@ export const metadata: Metadata = { title: "Lost & Found desk" };
 
 /** Security Officer's desk: claims, suggested matches, items held at the office, 30-day expiry list. */
 export default async function LostFoundDeskPage() {
-  const profile = await requireProfile(LF_STAFF_ROLES);
+  const profile = await requireProfile(LF_DESK_ROLES);
   const data = await loadDesk({ id: profile.id, role: profile.role });
   return (
     <div>
