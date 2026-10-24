@@ -174,6 +174,16 @@ export function TicketDetail({
             )}
           </Card>
 
+          {typeof ticket.ai_meta?.after_photo_url === "string" && (
+            <Card className="space-y-2">
+              <p className="eyebrow">After the fix</p>
+              <a href={ticket.ai_meta.after_photo_url} target="_blank" rel="noreferrer">
+                {/* eslint-disable-next-line @next/next/no-img-element -- Supabase storage URL */}
+                <img src={ticket.ai_meta.after_photo_url} alt="Photo after the fix" className="h-52 w-full rounded-2xl border border-border object-cover sm:w-auto" />
+              </a>
+            </Card>
+          )}
+
           {(ticket.photo_url || ticket.photo_analysis) && (
             <Card className="grid gap-4 sm:grid-cols-[220px_1fr]">
               {ticket.photo_url && (

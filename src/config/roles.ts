@@ -30,9 +30,9 @@ export function isRole(value: unknown): value is Role {
 /** Where each role lands after login. */
 export const ROLE_HOME: Record<Role, string> = {
   student: "/",
-  staff: "/staff",
+  staff: "/jobs",
   academic_office: "/staff",
-  security_officer: "/staff",
+  security_officer: "/jobs",
   arc: "/staff",
   warden: "/staff",
   dean: "/escalations",
@@ -45,6 +45,7 @@ export const ROLE_HOME: Record<Role, string> = {
  * Routes not listed here are open to every signed-in user.
  */
 export const ROUTE_ACCESS: { prefix: string; roles: Role[] }[] = [
+  { prefix: "/jobs", roles: ["staff", "security_officer"] },
   { prefix: "/staff", roles: ["staff", "academic_office", "security_officer", "arc", "warden", "dean", "hod"] },
   { prefix: "/lost-found/desk", roles: ["security_officer", "warden"] },
   { prefix: "/lost-found", roles: ["student", "teacher", "hod", "academic_office", "security_officer", "warden"] },

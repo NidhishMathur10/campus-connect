@@ -20,6 +20,7 @@ import {
   ScrollText,
   Star,
   UsersRound,
+  ClipboardCheck,
   type LucideIcon,
 } from "lucide-react";
 import type { Role } from "@/config/roles";
@@ -42,6 +43,8 @@ export const STUDENT_NAV: NavItem[] = [
 ];
 
 const BOARD: NavItem = { href: "/staff", label: "Ticket Board", icon: LayoutDashboard };
+const MY_JOBS: NavItem = { href: "/jobs", label: "My Jobs", icon: ClipboardCheck };
+const ADVANCED: NavItem = { href: "/staff", label: "Advanced view", icon: LayoutDashboard };
 const HISTORY: NavItem = { href: "/staff/history", label: "All Tickets", icon: History };
 const INSIGHTS: NavItem = { href: "/insights", label: "Insights", icon: BarChart3 };
 const ESCALATIONS: NavItem = { href: "/escalations", label: "Escalations", icon: Siren };
@@ -65,9 +68,9 @@ const MY_ANSWERS: NavItem = { href: "/answers", label: "My Answers", icon: Messa
 
 /** Sidebar items for every non-student role (must agree with ROUTE_ACCESS in config/roles). */
 export const STAFF_NAV: Record<Exclude<Role, "student">, NavItem[]> = {
-  staff: [BOARD, HISTORY],
+  staff: [MY_JOBS, ADVANCED, HISTORY],
   academic_office: [BOARD, HISTORY, NOTICES, QA, REPORT, MY_REPORTS, LOST_FOUND],
-  security_officer: [BOARD, HISTORY, NOTICES, LOST_FOUND, LF_DESK],
+  security_officer: [MY_JOBS, ADVANCED, HISTORY, NOTICES, LOST_FOUND, LF_DESK],
   arc: [BOARD, HISTORY],
   warden: [BOARD, HISTORY, NOTICES, INSIGHTS, ESCALATIONS, DIRECTORY, SUBJECTS, LOST_FOUND, LF_DESK, EMAIL_LOG],
   dean: [ESCALATIONS, INSIGHTS, BOARD, HISTORY, NOTICES, DIRECTORY, QA, TEACHER_FEEDBACK, CONCERNS, AUDIT, EMAIL_LOG],
