@@ -31,7 +31,7 @@ export const SPORTS_BLOCK_DAYS = 3;
 export const SPORTS_CATEGORIES = ["Football", "Basketball", "Volleyball", "Badminton", "Cricket", "Table Tennis", "Indoor games", "Other"] as const;
 export type SportsCategory = (typeof SPORTS_CATEGORIES)[number];
 
-export const LOAN_STATUSES = ["reserved", "issued", "returned", "expired", "overdue"] as const;
+export const LOAN_STATUSES = ["reserved", "issued", "returned", "expired", "overdue", "return_pending"] as const;
 export type LoanStatus = (typeof LOAN_STATUSES)[number];
 export const LOAN_STATUS_LABELS: Record<LoanStatus, string> = {
   reserved: "Reserved",
@@ -39,9 +39,10 @@ export const LOAN_STATUS_LABELS: Record<LoanStatus, string> = {
   returned: "Returned",
   expired: "Expired",
   overdue: "Overdue",
+  return_pending: "Return pending",
 };
 /** Statuses where the student still holds (or has claimed) the item: they count against availability and the per-student limit. */
-export const LOAN_ACTIVE_STATUSES: LoanStatus[] = ["reserved", "issued", "overdue"];
+export const LOAN_ACTIVE_STATUSES: LoanStatus[] = ["reserved", "issued", "overdue", "return_pending"];
 
 /** Who runs the desk (writes) and who may look (read-only). */
 export const SPORTS_MANAGER_ROLES: Role[] = ["sports_incharge"];

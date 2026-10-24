@@ -2,13 +2,14 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { AlarmClock, ChevronDown, Loader2, QrCode, X } from "lucide-react";
+import { AlarmClock, ChevronDown, Hourglass, Loader2, PackageCheck, QrCode, X } from "lucide-react";
 import { toast } from "sonner";
 import { EmptyState } from "@/components/common/empty-state";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { SPORTS_PICKUP_GRACE_MIN } from "@/config/sports";
 import { formatDateTime } from "@/lib/format";
-import { cancelReservation } from "@/lib/sports/actions";
+import { cancelReservation, requestReturn } from "@/lib/sports/actions";
 import { formatClock, formatSlot, relativeTime } from "@/lib/sports/time";
 import type { LoanView } from "@/lib/sports/types";
 import { cn } from "@/lib/utils";
@@ -17,7 +18,7 @@ import { CategoryIcon, LoanStatusBadge, PickupCode, PickupQr } from "./sports-bi
 /** The student's own loans: what they hold now (with due times and pickup codes) and a short history. */
 export function MyEquipment({ loans }: { loans: LoanView[] }) {
   const [showHistory, setShowHistory] = useState(false);
-  const current = loans.filter((l) => l.status === "reserved" || l.status === "issued" || l.status === "overdue");
+  const current = loans.filter((l) => l.status === "reserved" || l.status === "issued" || l.status === "overdue" || l.status === "return_pending");
   const history = loans.filter((l) => !current.includes(l));
 
   return (
@@ -69,6 +70,18 @@ function LoanCard({ loan }: { loan: LoanView }) {
   const [pending, start] = useTransition();
   const [showCode, setShowCode] = useState(loan.status === "reserved");
   const overdue = loan.status === "overdue";
+  const [confirming, setConfirming] = useState(false);
+
+  function markReturned() {
+    start(async () => {
+      const res = await requestReturn(loan.id);
+      if (res.ok) {
+        toast.success("Sent to the Sports in-charge for confirmation");
+        setConfirming(false);
+        router.refresh();
+      } else toast.error(res.error);
+    });
+  }
 
   function cancel() {
     start(async () => {
@@ -107,6 +120,36 @@ function LoanCard({ loan }: { loan: LoanView }) {
           <AlarmClock className="size-4" />
           {overdue ? `Overdue — was due ${formatClock(loan.due_at)} (${relativeTime(loan.due_at)})` : `Return by ${formatClock(loan.due_at)} (${relativeTime(loan.due_at)})`}
         </p>
+      )}
+
+      {loan.status === "return_pending" && (
+        <p className="mt-3 flex items-start gap-1.5 rounded-2xl bg-warning-bg p-3 text-sm font-semibold text-warning-fg">
+          <Hourglass className="mt-0.5 size-4 shrink-0" />
+          Return pending — waiting for the Sports in-charge to confirm
+        </p>
+      )}
+      {(loan.status === "issued" || overdue) && (
+        <>
+          <Button variant="outline" className="mt-4 w-full" onClick={() => setConfirming(true)}>
+            <PackageCheck /> I&apos;ve returned it
+          </Button>
+          <Dialog open={confirming} onOpenChange={setConfirming}>
+            <DialogContent className="sm:max-w-sm">
+              <DialogHeader>
+                <DialogTitle className="text-xl font-extrabold">Returned at the Sports Complex counter?</DialogTitle>
+                <DialogDescription>
+                  Only say yes if you have handed {loan.qty}× {loan.item_name} back. The Sports in-charge will confirm it.
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <Button variant="ghost" onClick={() => setConfirming(false)} disabled={pending}>Not yet</Button>
+                <Button onClick={markReturned} disabled={pending}>
+                  {pending && <Loader2 className="animate-spin" />} Yes, I returned it
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </>
       )}
 
       {loan.status === "reserved" && loan.pickup_code && (

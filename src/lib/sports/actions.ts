@@ -181,7 +181,8 @@ export async function returnLoan(
 
   const loan = await loadLoan(loanId);
   if (!loan) return { ok: false, error: "Loan not found." };
-  if (loan.status !== "issued" && loan.status !== "overdue") return { ok: false, error: "This item isn't currently issued." };
+  if (loan.status !== "issued" && loan.status !== "overdue" && loan.status !== "return_pending") return { ok: false, error: "This item isn't currently issued." };
+  const wasPending = loan.status === "return_pending";
   if (qty > loan.qty) return { ok: false, error: `Only ${loan.qty} issued on this loan.` };
 
   const admin = createAdminClient();
@@ -198,7 +199,7 @@ export async function returnLoan(
       .from("equipment_loans")
       .update({ status: "returned", returned_at: nowIso, return_condition: condition, notes: noteText ?? loan.notes, overdue_notified_at: lateFlag })
       .eq("id", loan.id)
-      .in("status", ["issued", "overdue"])
+      .in("status", ["issued", "overdue", "return_pending"])
       .select("id");
     if (!data?.length) return { ok: false, error: "This loan was just changed. Please refresh." };
   } else {
@@ -208,7 +209,7 @@ export async function returnLoan(
       .update({ qty: loan.qty - qty, overdue_notified_at: lateFlag })
       .eq("id", loan.id)
       .eq("qty", loan.qty)
-      .in("status", ["issued", "overdue"])
+      .in("status", ["issued", "overdue", "return_pending"])
       .select("id");
     if (!left?.length) return { ok: false, error: "This loan was just changed. Please refresh." };
     const { data: part, error } = await admin
@@ -247,13 +248,54 @@ export async function returnLoan(
 
   await tellStudent(
     loan.student_id,
-    "Equipment returned",
+    wasPending ? "Return confirmed ✓" : "Equipment returned",
     `Thanks — ${qty}× ${itemName} was ${condition === "damaged" ? "returned (marked damaged)" : "returned in good condition"}.`,
     MY_EQUIPMENT_PATH,
     "sports_returned",
   );
   refresh();
   return { ok: true, ticketNo };
+}
+
+/** Student says they handed the item back: waits for the Sports In-charge to confirm. Stops overdue reminders. */
+export async function requestReturn(loanId: string): Promise<ActionResult> {
+  const profile = await requireStudent();
+  if (!profile) return { ok: false, error: "Please log in again." };
+  if (!z.uuid().safeParse(loanId).success) return { ok: false, error: "Loan not found." };
+  const { data } = await createAdminClient()
+    .from("equipment_loans")
+    .update({ status: "return_pending", return_requested_at: new Date().toISOString() })
+    .eq("id", loanId)
+    .eq("student_id", profile.id)
+    .in("status", ["issued", "overdue"])
+    .select("id");
+  if (!data?.length) return { ok: false, error: "This item can't be marked as returned any more. Please refresh." };
+  refresh();
+  return { ok: true };
+}
+
+/** Sports In-charge: the item never arrived. Back to Issued (the watcher flags it overdue again if it is late). */
+export async function rejectReturnRequest(loanId: string): Promise<ActionResult> {
+  const profile = await requireManager();
+  if (!profile) return { ok: false, error: "Only the Sports In-charge can do this." };
+  const loan = await loadLoan(loanId);
+  if (!loan) return { ok: false, error: "Loan not found." };
+  const { data } = await createAdminClient()
+    .from("equipment_loans")
+    .update({ status: "issued", return_requested_at: null })
+    .eq("id", loanId)
+    .eq("status", "return_pending")
+    .select("id");
+  if (!data?.length) return { ok: false, error: "This return was just changed. Please refresh." };
+  await tellStudent(
+    loan.student_id,
+    "Return not received",
+    `The Sports in-charge didn't receive ${loan.qty}× ${loan.item?.name ?? "equipment"}. Please bring it to the Sports Complex counter.`,
+    MY_EQUIPMENT_PATH,
+    "sports_return_rejected",
+  );
+  refresh();
+  return { ok: true };
 }
 
 /** One tap on an already-returned damaged loan: files the Sports ticket. */

@@ -1267,6 +1267,11 @@ create table if not exists public.equipment_loans (
   overdue_notified_at timestamptz,
   created_at       timestamptz not null default now()
 );
+-- Student-side return request: 'return_pending' = student says it is back, waiting for the Sports in-charge to confirm.
+alter table public.equipment_loans add column if not exists return_requested_at timestamptz;
+alter table public.equipment_loans drop constraint if exists equipment_loans_status_check;
+alter table public.equipment_loans add constraint equipment_loans_status_check
+  check (status in ('reserved','issued','returned','expired','overdue','return_pending'));
 create unique index if not exists equipment_loans_code_idx on public.equipment_loans (pickup_code) where pickup_code is not null;
 create index if not exists equipment_loans_student_idx on public.equipment_loans (student_id, status);
 create index if not exists equipment_loans_item_idx on public.equipment_loans (item_id, status);
@@ -1300,10 +1305,10 @@ begin
   if not found or not v_item.active then raise exception 'unavailable'; end if;
   if v_item.under_repair then raise exception 'under_repair'; end if;
   select coalesce(sum(qty), 0) into v_out from public.equipment_loans
-    where item_id = p_item and status in ('reserved','issued','overdue');
+    where item_id = p_item and status in ('reserved','issued','overdue','return_pending');
   if v_item.total_qty - v_out < p_qty then raise exception 'not_enough'; end if;
   select coalesce(sum(qty), 0) into v_mine from public.equipment_loans
-    where student_id = p_student and status in ('reserved','issued','overdue');
+    where student_id = p_student and status in ('reserved','issued','overdue','return_pending');
   if v_mine + p_qty > p_max then raise exception 'limit'; end if;
   insert into public.equipment_loans (item_id, student_id, qty, pickup_code, reserved_for, due_at)
   values (p_item, p_student, p_qty, p_code, p_start, p_end) returning id into v_id;
