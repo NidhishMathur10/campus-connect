@@ -1,3 +1,4 @@
+import { FloatBlobs } from "@/components/motion/float-blobs";
 import Link from "next/link";
 import { ArrowRight, Building2, Dumbbell, GraduationCap, Lock, Megaphone, PackageSearch, Search, ShieldCheck, Ticket } from "lucide-react";
 import { UrgentNotices } from "@/components/notices/urgent-notices";
@@ -36,7 +37,8 @@ export default async function StudentHome() {
   const [foundCount, unreadNotices] = await Promise.all([foundThisWeek(), unreadNoticeCount(profile)]);
 
   return (
-    <div className="space-y-8">
+    <div className="relative space-y-8">
+      <FloatBlobs />
       {/* Red banner: urgent alerts stay until acknowledged or expired */}
       <UrgentNotices profile={profile} />
       <div className="animate-slide-up space-y-2">

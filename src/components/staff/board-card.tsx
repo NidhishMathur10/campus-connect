@@ -1,5 +1,6 @@
 "use client";
 
+import { Bump } from "@/components/common/celebrate";
 import { ArrowRight, Copy, Hourglass, MapPin, MoreHorizontal, RotateCcw, Users } from "lucide-react";
 import { AutoAssignedBadge, CategoryBadge, ConfidentialBadge, EscalatedBadge, FacultyBadge, NotModeratedBadge, PriorityBadge, ReassignedBadge, ScopeBadge, WaitingBadge } from "@/components/common/badges";
 import { initials } from "@/components/shell/user-menu";
@@ -181,7 +182,7 @@ export function BoardCard({
         <div className="flex shrink-0 items-center gap-1.5">
           {ticket.follower_count > 0 && (
             <span className="inline-flex items-center gap-0.5 font-semibold text-info-fg" title={`${ticket.follower_count + 1} students affected`}>
-              <Users className="size-3.5" /> {ticket.follower_count + 1}
+              <Users className="size-3.5" /> <Bump value={ticket.follower_count + 1} />
             </span>
           )}
           <AssigneeAvatar name={assigneeName} />

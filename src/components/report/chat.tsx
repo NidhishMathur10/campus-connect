@@ -68,7 +68,8 @@ export function AiThinking({ round, hasPhoto }: { round: 1 | 2; hasPhoto: boolea
   return (
     <div className="flex animate-fade-in items-end gap-2" role="status" aria-live="polite">
       <span className="relative grid size-8 shrink-0 place-items-center">
-        <span className="absolute inset-0 animate-ping rounded-full bg-accent-blue/30 motion-reduce:hidden" />
+        <span className="fx-orb absolute inset-0 rounded-full bg-accent-blue/40" />
+        <span className="fx-orb absolute inset-0 rounded-full bg-accent-violet/30 [animation-delay:0.9s]" />
         <AiAvatar />
       </span>
       <div className="min-w-0 max-w-[85%] space-y-2 rounded-3xl rounded-bl-lg border border-border bg-surface-accent px-4 py-3 text-sm sm:max-w-[70%]">
@@ -89,8 +90,8 @@ export function AiThinking({ round, hasPhoto }: { round: 1 | 2; hasPhoto: boolea
         </ul>
         <div className="h-1 overflow-hidden rounded-full bg-surface-accent-2" aria-hidden="true">
           <div
-            className="h-full rounded-full bg-accent-blue transition-all duration-700"
-            style={{ width: `${Math.round(((i + 1) / (steps.length + 0.5)) * 100)}%` }}
+            className="fx-shimmer relative h-full origin-left overflow-hidden rounded-full bg-accent-blue transition-transform duration-700"
+            style={{ width: "100%", transform: `scaleX(${(i + 1) / (steps.length + 0.5)})` }}
           />
         </div>
       </div>

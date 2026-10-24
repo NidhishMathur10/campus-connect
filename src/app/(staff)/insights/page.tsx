@@ -1,3 +1,4 @@
+import { CountText } from "@/components/motion/count-text";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -130,7 +131,7 @@ export default async function InsightsPage({ searchParams }: { searchParams: Pro
               <p className="eyebrow">{label}</p>
               <Icon className={cn("size-4", tone)} />
             </div>
-            <p className={cn("mt-2 text-3xl font-extrabold", tone)}>{value}</p>
+            <p className={cn("mt-2 text-3xl font-extrabold", tone)}><CountText text={value} /></p>
             {hint && <p className="text-xs text-text-muted">{hint}</p>}
           </div>
         ))}

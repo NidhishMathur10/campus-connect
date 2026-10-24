@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 
 const COLORS = ["bg-accent-blue", "bg-accent-violet", "bg-success-solid", "bg-warning-solid", "bg-danger-solid"];
@@ -57,7 +57,28 @@ export function AnimatedCheck({ className }: { className?: string }) {
           className="animate-draw"
         />
       </svg>
+      <span className="fx-burst absolute inset-0 rounded-full bg-success-solid" aria-hidden="true" />
       <Confetti />
+    </span>
+  );
+}
+
+/** Shows a number that bumps (and floats a "+1") whenever the value goes up. */
+export function Bump({ value, children }: { value: number; children?: React.ReactNode }) {
+  const [prev, setPrev] = useState(value);
+  const [tick, setTick] = useState(0);
+  if (value !== prev) {
+    setPrev(value);
+    if (value > prev) setTick((t) => t + 1);
+  }
+  return (
+    <span className="relative inline-flex">
+      <span key={tick} className={tick ? "fx-bump" : undefined}>{children ?? value}</span>
+      {tick > 0 && (
+        <span key={`p${tick}`} aria-hidden="true" className="fx-plus-one pointer-events-none absolute -top-3 -right-3 text-xs font-extrabold text-accent-text">
+          +1
+        </span>
+      )}
     </span>
   );
 }

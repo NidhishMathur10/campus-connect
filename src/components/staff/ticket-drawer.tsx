@@ -1,5 +1,6 @@
 "use client";
 
+import { Bump } from "@/components/common/celebrate";
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import {
@@ -805,7 +806,7 @@ function DrawerBody({
             hidden={reporterHidden || ticket.is_confidential || ticket.module === "security"}
           />
           <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-accent px-3 py-1 text-xs font-bold text-info-fg">
-            <Users className="size-3.5" /> {affected} {detail.faculty_reporter ? "reporter" : "student"}{affected === 1 ? "" : "s"} affected
+            <Users className="size-3.5" /> <Bump value={affected} /> {detail.faculty_reporter ? "reporter" : "student"}{affected === 1 ? "" : "s"} affected
           </span>
         </div>
       </Section>

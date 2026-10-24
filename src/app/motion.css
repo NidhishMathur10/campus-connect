@@ -1,0 +1,136 @@
+/*
+ * App-wide depth + motion. Visual only. Animates transform/opacity (the sheen/shadow layers use opacity).
+ * Card tilt is driven by src/components/motion/motion-provider.tsx, which tags eligible cards with [data-fx]
+ * and sets --rx/--ry/--mx/--my. Everything is off for touch devices and prefers-reduced-motion.
+ */
+
+/* ---------- Page transition (<= 200ms) ---------- */
+@keyframes fx-page-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+.fx-page { animation: fx-page-in 0.18s ease-out both; }
+
+/* ---------- Short list stagger (first 8 children, capped at ~280ms) ---------- */
+@media (prefers-reduced-motion: no-preference) {
+  .animate-slide-up:not([class*="animation-delay"]):nth-child(2),
+  .animate-fade-in:not([class*="animation-delay"]):nth-child(2) { animation-delay: 40ms; }
+  .animate-slide-up:not([class*="animation-delay"]):nth-child(3),
+  .animate-fade-in:not([class*="animation-delay"]):nth-child(3) { animation-delay: 80ms; }
+  .animate-slide-up:not([class*="animation-delay"]):nth-child(4),
+  .animate-fade-in:not([class*="animation-delay"]):nth-child(4) { animation-delay: 120ms; }
+  .animate-slide-up:not([class*="animation-delay"]):nth-child(5),
+  .animate-fade-in:not([class*="animation-delay"]):nth-child(5) { animation-delay: 160ms; }
+  .animate-slide-up:not([class*="animation-delay"]):nth-child(6),
+  .animate-fade-in:not([class*="animation-delay"]):nth-child(6) { animation-delay: 200ms; }
+  .animate-slide-up:not([class*="animation-delay"]):nth-child(7),
+  .animate-fade-in:not([class*="animation-delay"]):nth-child(7) { animation-delay: 240ms; }
+  .animate-slide-up:not([class*="animation-delay"]):nth-child(n + 8),
+  .animate-fade-in:not([class*="animation-delay"]):nth-child(n + 8) { animation-delay: 280ms; }
+}
+
+/* ---------- Modals + drawers spring in ---------- */
+/* Dialogs are centred with the `translate` property, so animate transform (scale) only. */
+@keyframes fx-spring-in {
+  0% { opacity: 0; transform: scale(0.92); }
+  60% { opacity: 1; transform: scale(1.02); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes fx-sheet-right { from { transform: translateX(32px); opacity: 0.6; } 60% { transform: translateX(-4px); opacity: 1; } to { transform: none; } }
+@keyframes fx-sheet-left { from { transform: translateX(-32px); opacity: 0.6; } 60% { transform: translateX(4px); opacity: 1; } to { transform: none; } }
+@keyframes fx-sheet-bottom { from { transform: translateY(32px); opacity: 0.6; } 60% { transform: translateY(-4px); opacity: 1; } to { transform: none; } }
+
+@media (prefers-reduced-motion: no-preference) {
+  [data-slot="dialog-content"][data-open] { animation: fx-spring-in 0.3s cubic-bezier(0.34, 1.3, 0.64, 1) both; }
+  [data-slot="sheet-content"][data-open][data-side="right"] { animation: fx-sheet-right 0.32s cubic-bezier(0.34, 1.2, 0.64, 1) both; }
+  [data-slot="sheet-content"][data-open][data-side="left"] { animation: fx-sheet-left 0.32s cubic-bezier(0.34, 1.2, 0.64, 1) both; }
+  [data-slot="sheet-content"][data-open][data-side="bottom"] { animation: fx-sheet-bottom 0.32s cubic-bezier(0.34, 1.2, 0.64, 1) both; }
+}
+
+/* ---------- Primary button sheen ---------- */
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  [data-slot="button"][data-variant="default"] { position: relative; overflow: hidden; isolation: isolate; }
+  [data-slot="button"][data-variant="default"]::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background: linear-gradient(105deg, transparent 30%, color-mix(in oklab, var(--primary-fg) 28%, transparent) 50%, transparent 70%);
+    transform: translateX(-120%);
+    transition: transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  [data-slot="button"][data-variant="default"]:hover:not(:disabled)::after { transform: translateX(120%); }
+}
+
+/* ---------- Card depth: tilt + sheen + lift (desktop mouse only) ---------- */
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  [data-fx] { transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1); }
+  [data-fx]:not(.absolute):not(.fixed):not(.sticky) { position: relative; }
+  [data-fx]::before,
+  [data-fx]::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.25s ease-out;
+  }
+  /* deeper shadow lives on a layer so only opacity animates */
+  [data-fx]::before { z-index: -1; box-shadow: 0 22px 44px -14px var(--glow, rgb(15 23 42 / 0.28)); }
+  /* moving light sheen */
+  [data-fx]::after {
+    background: radial-gradient(circle at var(--mx, 50%) var(--my, 50%), color-mix(in oklab, var(--accent) 16%, transparent), transparent 55%);
+  }
+  [data-fx][data-fx-on] {
+    transform: perspective(900px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) translateY(-3px);
+    transition-duration: 0.08s;
+    will-change: transform;
+  }
+  [data-fx][data-fx-on]::before,
+  [data-fx][data-fx-on]::after { opacity: 1; }
+  /* press-down */
+  [data-fx]:active { transform: perspective(900px) translateY(0) scale(0.985); transition-duration: 0.06s; }
+}
+
+/* ---------- Timeline: line + steps draw in, current dot pulses ---------- */
+@keyframes fx-line-draw { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+@keyframes fx-step-in { from { opacity: 0; transform: translateX(-8px); } to { opacity: 1; transform: none; } }
+@keyframes fx-dot-pulse { 0% { transform: scale(1); opacity: 0.55; } 100% { transform: scale(1.9); opacity: 0; } }
+.fx-line { transform-origin: top; animation: fx-line-draw 0.6s ease-out both; }
+.fx-step { animation: fx-step-in 0.35s cubic-bezier(0.22, 1, 0.36, 1) both; animation-delay: calc(var(--i, 0) * 90ms); }
+.fx-dot-pulse { animation: fx-dot-pulse 2s ease-out infinite; }
+
+/* ---------- Success: light burst, +1 bump ---------- */
+@keyframes fx-burst { 0% { transform: scale(0.4); opacity: 0.7; } 100% { transform: scale(2.4); opacity: 0; } }
+.fx-burst { animation: fx-burst 0.9s 0.2s ease-out both; }
+@keyframes fx-bump { 0% { transform: scale(1); } 40% { transform: scale(1.35); } 100% { transform: scale(1); } }
+.fx-bump { display: inline-block; animation: fx-bump 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }
+@keyframes fx-plus-one { 0% { opacity: 0; transform: translateY(6px) scale(0.8); } 30% { opacity: 1; } 100% { opacity: 0; transform: translateY(-18px) scale(1.1); } }
+.fx-plus-one { animation: fx-plus-one 1.1s ease-out both; }
+
+/* ---------- AI thinking: orb + shimmering progress ---------- */
+@keyframes fx-orb { 0%, 100% { transform: scale(1); opacity: 0.55; } 50% { transform: scale(1.45); opacity: 0.1; } }
+.fx-orb { animation: fx-orb 1.8s ease-in-out infinite; }
+@keyframes fx-shimmer { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
+.fx-shimmer::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, color-mix(in oklab, var(--surface) 55%, transparent), transparent);
+  animation: fx-shimmer 1.4s linear infinite;
+}
+
+/* ---------- Floating blobs behind the home greeting ---------- */
+@keyframes fx-float-a { to { transform: translate3d(5rem, 2rem, 0) scale(1.1); } }
+@keyframes fx-float-b { to { transform: translate3d(-4rem, 3rem, 0) scale(0.92); } }
+.fx-blob { position: absolute; border-radius: 9999px; filter: blur(60px); opacity: 0.16; pointer-events: none; will-change: transform; }
+.fx-blob-a { background: var(--accent); animation: fx-float-a 20s ease-in-out infinite alternate; }
+.fx-blob-b { background: var(--accent-2); animation: fx-float-b 24s ease-in-out infinite alternate; }
+
+/* ---------- Reduced motion: switch it all off ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .fx-page, .fx-line, .fx-step, .fx-dot-pulse, .fx-burst, .fx-bump, .fx-plus-one, .fx-orb, .fx-blob, .fx-shimmer::after { animation: none !important; }
+  .fx-dot-pulse, .fx-burst, .fx-plus-one, .fx-blob { display: none; }
+}
